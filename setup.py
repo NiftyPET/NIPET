@@ -226,7 +226,7 @@ setup(
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/pjmark/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=['nibabel'],
+    install_requires=['nimpa', 'nibabel'],
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],
@@ -237,7 +237,6 @@ setup(
         'niftypet.nipet' : [fex],
     },
     zip_safe=False,
-    # namespace_packages=['niftypet'],
     # classifiers=[
     #     'Development Status :: 5 - Production/Stable',
     #     'Intended Audience :: Science/Research',
@@ -248,5 +247,6 @@ setup(
     #     'Programming Language :: C',
     #     'Topic :: Scientific/Engineering :: Medical Science Apps.'
     # ],
+    # namespace_packages=['niftypet'],
 )
 #===============================================================
