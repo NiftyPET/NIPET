@@ -50,7 +50,8 @@ def update_resources(Cnt):
         # modify resources.py with the new paths
         strNew = '### start NiftyPET tools ###\n'
         for i in range(len(key_list)):
-            strNew += key_list[i]+' = '+pth_list[i] + '\n'
+            if pth_list[i] != '\'\'':
+                strNew += key_list[i]+' = '+pth_list[i] + '\n'
         rsrcNew = rsrc[:i0] + strNew + rsrc[i1:]
         f = open(resources_file, 'w')
         f.write(rsrcNew)
@@ -70,6 +71,8 @@ print '---------------------------------------------'
 print 'i> setting up CUDA ...'
 gpuarch = cs.resources_setup()
 #----------------------------------------------------
+
+
 
 #===============================================================
 # Hardware mu-maps
@@ -219,7 +222,7 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license = 'Apache 2.0',
-    version='1.0.1',
+    version='1.0.4',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author='Pawel J. Markiewicz',

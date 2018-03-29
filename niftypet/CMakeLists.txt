@@ -2,19 +2,22 @@ cmake_minimum_required(VERSION 3.2)
 
 project(nipet)
 
-set(PYTHON_PREFIX_PATH)
-set(PYTHON_INCLUDE_DIRS)
 set(PREINSTALL_NAME "_preinstall")
 
 # find cuda, maybe set a minimum version
 find_package(CUDA REQUIRED)
 
-set(PYTHON_LIBRARIES)
-find_library(PYTHON_LIBRARY
-              NAMES python27 libpython2.7.so
-              PATHS ${PYTHON_PREFIX_PATH}/libs/
-              ${PYTHON_PREFIX_PATH}/lib/
-            )
+find_package(PythonInterp)
+find_package(PythonLibs)
+
+# find_library(PYTHON_LIBRARY
+#               NAMES python27 libpython2.7.so
+#               PATHS ${PYTHON_PREFIX_PATH}/libs/
+#               ${PYTHON_PREFIX_PATH}/lib/
+#             )
+# set(PYTHON_LIBRARIES)
+# set(PYTHON_INCLUDE_DIRS)
+set(PYTHON_PREFIX_PATH)
 
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/dinf)

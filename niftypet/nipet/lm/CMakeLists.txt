@@ -12,7 +12,7 @@ file(GLOB_RECURSE SRC "src/*.cu")
 file(GLOB_RECURSE HDR "src/*.h")
 
 list(APPEND SRC ${HDR})
-	
+
 include_directories(include	${CMAKE_BINARY_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)

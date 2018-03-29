@@ -1,6 +1,6 @@
 """Resources file for NiftyPET NIPET and NIMPA etc."""
 #---------------------------------------------------------------
-__author__      = "Pawel J. Markiewicz"
+__author__      = "Pawel Markiewicz"
 __copyright__   = "Copyright 2018"
 #---------------------------------------------------------------
 
@@ -244,17 +244,16 @@ def get_setup(Cnt = {}):
     # Microsoft Visual Studio Compiler version
     Cnt['MSVC_VRSN'] = MSVC_VRSN
 
-    
     # GPU related setup
     Cnt = get_gpu_constants(Cnt)
     
-    if 'PATHTOOLS'  in globals():   Cnt['PATHTOOLS'] = PATHTOOLS
+    if 'PATHTOOLS'  in globals() and PATHTOOLS!='':     Cnt['PATHTOOLS'] = PATHTOOLS
     # image processing setup
-    if 'RESPATH'    in globals():   Cnt['RESPATH']  = RESPATH
-    if 'REGPATH'    in globals():   Cnt['REGPATH']  = REGPATH
-    if 'DCM2NIIX'   in globals():   Cnt['DCM2NIIX'] = DCM2NIIX
+    if 'RESPATH'    in globals() and RESPATH!='':       Cnt['RESPATH']  = RESPATH
+    if 'REGPATH'    in globals() and REGPATH!='':       Cnt['REGPATH']  = REGPATH
+    if 'DCM2NIIX'   in globals() and DCM2NIIX!='':      Cnt['DCM2NIIX'] = DCM2NIIX
     # hardware mu-maps
-    if 'HMUDIR'     in globals():   Cnt['HMUDIR']   = HMUDIR
+    if 'HMUDIR'     in globals() and HMUDIR!='':        Cnt['HMUDIR']   = HMUDIR
 
     return Cnt
 

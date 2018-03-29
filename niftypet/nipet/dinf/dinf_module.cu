@@ -1,11 +1,3 @@
-/*------------------------------------------------------------------------
-Python extension for CUDA
-Provides detection of CUDA devices.
-
-author: Pawel Markiewicz
-Copyrights: 2018
-------------------------------------------------------------------------*/
-
 #include <Python.h>
 #include <stdlib.h>
 #include "devprop.h"

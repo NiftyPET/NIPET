@@ -14,22 +14,26 @@ from niftypet.nipet.prj import mmrrec
 from niftypet.nipet import mmraux
 
 #-------------------------------------------------------------------------------
-def mmrchain(datain,         # all input data in a dictionary
+def mmrchain(datain,        # all input data in a dictionary
             scanner_params, # all scanner parameters in one dictionary containing constants, transaxial and axial LUTs
+            outpath='',     # output path for results
             frames=['fluid', [0,0]], # definition of time frames
             mu_h = [],      # hardware mu-map
             mu_o = [],      # object mu-map
             tAffine = [],   # affine transformations for the mu-map for each time frame separately
-            outpath='',     # output path for results
+            
             itr=4,          # number of OSEM iterations
             fwhm=0.,        # Gaussian Smoothing FWHM
             recmod = -1,    # reconstruction mode: -1: undefined, chosen automatically. 3: attenuation and scatter correction, 1: attenuation correction only, 0: no correction (randoms only)
+            hst=[],         # input histogram (from list-mode data).  if not given, it will be performed.
+
             trim=False,
             trim_scale=2,
             trim_interp=1,  # interpolation for upsampling used in PVC
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC is performed. 
             psfkernel=[],
             pvcitr=5, 
+            
             fcomment='',    # text comment used in the file name of generated image files
             ret_sct=False,  # return scatter+randoms sinogram for each reconstruction
             store_img = True,

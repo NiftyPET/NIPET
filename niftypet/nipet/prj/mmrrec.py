@@ -225,11 +225,15 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
 
     # decay correction
     lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
-    dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
+    if 't0' in hst and 'dur' in hst:
+        dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
+        # apply quantitative correction to the image
+        qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
+    else:
+        dcycrr = 1
+    
     if Cnt['VERBOSE']: print 'i> applying decay correction', dcycrr
-
-    # apply quantitative correction to the image
-    qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
+    
     if Cnt['VERBOSE']: print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
     img *= dcycrr * qf * 0.205 #additional factor for making it quantitative in absolute terms (derived from measurements)
 

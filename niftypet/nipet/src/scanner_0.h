@@ -1,4 +1,4 @@
-#include <stdio.h>
+s#include <stdio.h>
 #include "def.h"
 
 #ifndef AUX_H
@@ -12,7 +12,7 @@ struct Cnst {
 	int NCRS;  //number of crystals
 	int NCRSR; //reduced number of crystals by gaps
 	int NRNG;  //number of axial rings
-	int D;  //number of linear indeces along Michelogram diagonals
+	int D;  //number of linear indexes along Michelogram diagonals
 	int Bt; //number of buckets transaxially
 
 	int B;  //number of buckets (total)

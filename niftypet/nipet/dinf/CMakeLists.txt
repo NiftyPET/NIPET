@@ -1,18 +1,22 @@
 cmake_minimum_required(VERSION 3.2)
  
 project(dinf)
- 
-set(PYTHON_PREFIX_PATH)
-set(PYTHON_INCLUDE_DIRS)
- 
+
 find_package(CUDA REQUIRED)
 
-set(PYTHON_LIBRARIES)
-find_library(PYTHON_LIBRARIES
-            NAMES python27 libpython2.7.so
-            PATHS ${PYTHON_PREFIX_PATH}/libs/
-            ${PYTHON_PREFIX_PATH}/lib/
-            )
+find_package(PythonInterp)
+find_package(PythonLibs)
+
+# find_library(PYTHON_LIBRARIES
+#             NAMES python27 libpython2.7.so
+#             PATHS ${PYTHON_PREFIX_PATH}/libs/
+#             ${PYTHON_PREFIX_PATH}/lib/
+#             )
+# set(PYTHON_INCLUDE_DIRS)
+# set(PYTHON_LIBRARIES)
+set(PYTHON_PREFIX_PATH)
+
+
  
 file(GLOB_RECURSE SRC "*.cu")
 file(GLOB_RECURSE HDR "*.h")

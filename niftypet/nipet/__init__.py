@@ -48,6 +48,6 @@ from lm.mmrhist import mmrhist
 
 from img.pipe import mmrchain
 
-# import xnat
+from xnat import xnat
 # import sigaux
 # import lms

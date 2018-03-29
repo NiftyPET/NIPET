@@ -1,24 +1,26 @@
-/*------------------------------------------------------------------------
-Python extension for CUDA
-Provides detection of CUDA devices.
-
-author: Pawel Markiewicz
-Copyrights: 2018
-------------------------------------------------------------------------*/
 #include <stdio.h>
 #include "devprop.h"
 
-PropGPU *devprop(char showprop)
-{
+PropGPU *devprop(char showprop){
+
   int devCnt;
-  cudaGetDeviceCount(&devCnt);
-
-
   PropGPU *propgpu;
-  propgpu = (PropGPU *)malloc( devCnt * sizeof(PropGPU) );
 
-  if (showprop>0) printf("i> there are %d GPU devices.\n", devCnt);
+  // get the number of CUDA devices
+  cudaError_t cudaResultCode = cudaGetDeviceCount(&devCnt);
+  if (cudaResultCode != cudaSuccess){
+    devCnt = 0;
+    if (showprop>0) printf("i> no GPU device was found.\n");
+    propgpu = (PropGPU *)malloc( 1 * sizeof(PropGPU) );
+    propgpu[0].n_gpu = 0;
+  }
+  else{
+    propgpu = (PropGPU *)malloc( devCnt * sizeof(PropGPU) );
+    if (showprop>0) printf("i> there are %d GPU devices.\n", devCnt);
+  }
 
+  
+  // go thorough the devices to get the properties of each
   for(int devId = 0; devId < devCnt; ++devId){
     cudaDeviceProp prop;
     cudaGetDeviceProperties(&prop, devId);

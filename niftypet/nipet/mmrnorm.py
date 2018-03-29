@@ -12,7 +12,7 @@ import re
 from pkg_resources import resource_filename
 
 
-#auxilary functions through Python extensions in CUDA
+#auxiliary functions through Python extensions in CUDA
 import mmr_auxe
 
 
