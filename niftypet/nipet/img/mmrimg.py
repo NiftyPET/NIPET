@@ -13,7 +13,7 @@ import random
 import scipy.ndimage as ndi
 
 import nibabel as nib
-import dicom as dcm
+import pydicom as dcm
 import re
 import glob
 

@@ -7,7 +7,7 @@ __copyright__   = "Copyright 2018"
 import numpy as np
 import sys
 import os
-import dicom as dcm
+import pydicom as dcm
 import re
 from pkg_resources import resource_filename
 
