@@ -546,7 +546,11 @@ def hdr_mu(datain, Cnt):
     '''Get the headers from DICOM data file'''
     #get one of the DICOM files of the mu-map
     if 'mumapDCM' in datain:
-        dcmf = os.path.join(datain['mumapDCM'], os.listdir(datain['mumapDCM'])[0]) 
+        files = glob.glob(os.path.join(datain['mumapDCM'],'*.dcm'))
+        files.extend(glob.glob(os.path.join(datain['mumapDCM'],'*.DCM')))
+        files.extend(glob.glob(os.path.join(datain['mumapDCM'],'*.ima')))
+        files.extend(glob.glob(os.path.join(datain['mumapDCM'],'*.IMA')))
+        dcmf = files[0]
     else:
         print 'e> path to the DICOM mu-map is not given but it is required.'
         raise NameError('No DICOM mu-map')

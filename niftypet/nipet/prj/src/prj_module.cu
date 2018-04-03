@@ -57,6 +57,17 @@ PyMODINIT_FUNC initpetprj(void)  //it HAS to be init______ and then the name of 
 //=======================
 
 
+#define CUDA_CHECK(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
+
 
 //==============================================================================
 // F O R W A R D   P R O J E C T O R 
@@ -563,12 +574,12 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	int Nsub = PyArray_DIM(p_subs, 0);
 	// number of elements used to store max. number of subsets projection - 1
 	int Nprj = PyArray_DIM(p_subs, 1);
-	if (Cnt.VERBOSE == 1) printf("i> number of subsets = %d, and max. number of projections/subset = %d\n", Nsub, Nprj - 1);
+	if (Cnt.VERBOSE == 1) printf("ic> number of subsets = %d, and max. number of projections/subset = %d\n", Nsub, Nprj - 1);
 
 	int *subs = (int*)PyArray_DATA(p_subs);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	CUDA_CHECK( cudaSetDevice(Cnt.DEVID) );
 
 	//<><><<><><><><<><><><><><><><><><><>
 	osem(imgout, rcnmsk, psng, rsng, ssng, nsng, asng, subs, imgsens,
