@@ -465,6 +465,8 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
 	Cnt.SPN = (char)PyInt_AS_LONG(pd_span);
+	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
+	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
 
 	/* Interpret the input objects as numpy arrays. */
 	//axial LUTs:
