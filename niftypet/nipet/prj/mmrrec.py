@@ -99,7 +99,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             recmod=3, itr=4, fwhm=0., mask_radious=29.,
             scatter=np.array([]),
             outpath='',
-            store_img=False, fcomment='',
+            store_img=False, frmno='', fcomment='',
             ret_sct=False, emmskS=False, randsino = None, normcomp = None):
 
     import time
@@ -270,7 +270,8 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             fout = outpath
         mmraux.create_dir(fout)
         fout =  os.path.join(fout, os.path.basename(datain['lm_bf'])[:8] \
-                +'_itr-'+str(itr)+'_t-'+str(hst['t0'])+'-'+str(hst['t1'])+'sec'+fcomment+'.nii.gz')
+                + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
+                +'_itr'+str(itr)+fcomment+'.nii.gz')
         if Cnt['VERBOSE']: print 'i> saving image to: ', fout
         nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
 

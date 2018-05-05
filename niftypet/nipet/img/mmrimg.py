@@ -379,7 +379,8 @@ def obj_mumap(datain, params, outpath='', store=False, comment=''):
 #---------------------------------------------------------------------------------
 def pct_mumap(
         datain, scanner_params,
-        hst=[], t0=0, t1=0,
+        hst=[], t0=0, t1=0, itr=2,
+        smor=0.0, smof=0.0, rthrsh=0.05, fthrsh=0.05,
         faff='', fpet='', fcomment='', outpath='',
         store=False, petopt='ac'):
     '''
@@ -435,16 +436,10 @@ def pct_mumap(
             recout = mmrrec.osemone(   
                 datain, [muh, muo], 
                 hst, txLUT, axLUT, Cnt,
-                recmod=3, itr=4, fwhm=0.,
+                recmod=3, itr=itr, fwhm=0.,
                 fcomment=fcomment+'_qntUTE',
                 outpath=os.path.join(outpath,'PET'),
                 store_img=True)
-            fpet = recout.fpet
-            # do the affine
-            faff = nimpa.mr2pet_rigid(  fpet, datain, Cnt,
-                                        outpath=outpath,
-                                        fcomment=fcomment)
-            mu_dct['fpet'] = fpet
         elif petopt=='nac':
             # ---------------------------------------------
             # OPTION 2 (recon without any corrections for scatter and attenuation)
@@ -452,17 +447,10 @@ def pct_mumap(
             muo = np.zeros(muh.shape, dtype=muh.dtype)
             recout = mmrrec.osemone(
                 datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
-                recmod=1, itr=2, fwhm=0., 
+                recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_NAC',
                 outpath=os.path.join(outpath,'PET'),
                 store_img=True)
-            fpet = recout.fpet
-            # do the affine
-            faff = nimpa.mr2pet_rigid(  fpet, datain, Cnt, 
-                                        outpath=outpath,
-                                        fcomment=fcomment)
-            mu_dct['fpet'] = fpet
-
         elif petopt=='ac':
             # ---------------------------------------------
             # OPTION 3 (recon with attenuation correction only but no scatter)
@@ -471,16 +459,24 @@ def pct_mumap(
             muo = mudic['im']
             recout = mmrrec.osemone(
                 datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
-                recmod=1, itr=2, fwhm=0., 
+                recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_AC',
                 outpath=os.path.join(outpath,'PET'),
-                store_img=True)
-            fpet = recout.fpet
-            # do the affine
-            faff = nimpa.mr2pet_rigid(  fpet, datain, Cnt,  
-                                        outpath=outpath,
-                                        fcomment=fcomment)
-            mu_dct['fpet'] = fpet
+                store_img=True)       
+
+        fpet = recout.fpet
+        mu_dct['fpet'] = fpet
+        #------------------------------
+        # get the affine transformation
+        faff = nimpa.mr2pet_rigid(  
+                fpet, datain, Cnt,
+                smor=smor, smof=smof,
+                rthrsh=rthrsh, fthrsh=fthrsh,
+                outpath=outpath,
+                fcomment=fcomment
+        )
+        #------------------------------
+
     # pCT file name
     if outpath=='':
         pctdir = os.path.dirname(datain['pCT'])
@@ -515,7 +511,7 @@ def pct_mumap(
     # get rid of negatives
     mu[mu<0] = 0
     
-    # return image dictionary with the image itself and some other stats
+    # return image dictionary with the image itself and other parameters
     mu_dct['im'] = mu
     mu_dct['affine'] = A
     mu_dct['faff'] = faff
@@ -531,7 +527,7 @@ def pct_mumap(
         fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
         np.save(fnp, (mu, A, fnp))
         # NIfTI
-        fmu = os.path.join(pctumapdir, fcomment+'mumap-pCT.nii.gz')
+        fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
         mu_dct['fim'] = fmu
         datain['mumapCT'] = fnp
@@ -837,10 +833,11 @@ def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
         hmu, A, fmu = np.load(datain['hmumap'])
         if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+        fnp = datain['hmumap']
     elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
-        hmupath = os.path.join(fmudir, 'hmumap.npy')
-        hmu, A, fmu = np.load(hmupath)
-        datain['hmumap'] = hmupath
+        fnp = os.path.join(fmudir, 'hmumap.npy')
+        hmu, A, fmu = np.load(fnp)
+        datain['hmumap'] = fnp
     # otherwise generate it from the parts through resampling the high resolution CT images
     else:
         hmupos = get_hmupos(datain, hparts, Cnt, outpath=outpath)
@@ -871,13 +868,12 @@ def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
         fnp = os.path.join(fmudir, 'hmumap.npy')
         np.save(fnp, (hmu, A, fmu))
         #update the datain dictionary (assuming it is mutable)
-        datain = mmraux.explore_input(datain['corepath'], Cnt)
-        # hard-coded if not recognised in output folder
         datain['hmumap'] = fnp
 
     #return image dictionary with the image itself and some other stats
     hmu_dct = { 'im':hmu,
                 'fim':fmu,
+                'fnp':fnp,
                 'affine':A}
 
     return hmu_dct

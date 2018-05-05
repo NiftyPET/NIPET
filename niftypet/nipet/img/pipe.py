@@ -189,12 +189,12 @@ def mmrchain(datain,        # all input data in a dictionary
             # ref file name
             fmuref = os.path.join(fmudir, 'muref.nii.gz')
             # ref affine
-            B = nipet.img.mmrimg.image_affine(datain, Cnt, gantry_offset=True)
+            B = nipet.img.mmrimg.image_affine(datain, Cnt, gantry_offset=False)
             # ref image (blank)
             im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
             # store ref image
             nimpa.array2nii(im, B, fmuref)
-            if Cnt['VERBOSE']: print 'i> generated a reference mu-map in', fout
+            if Cnt['VERBOSE']: print 'i> generated a reference mu-map in', fmuref
         # -------------------------------------------------------------------------------------
 
         output['fmuref'] = fmuref
@@ -223,13 +223,18 @@ def mmrchain(datain,        # all input data in a dictionary
         # check if there is enough prompt data to do a reconstruction
         # --------------
         print 'i> dynamic frame times t0, t1:', t0, t1
-        hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, t0=t0, t1=t1)
+        if not hst:
+            hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, t0=t0, t1=t1)
+        else:
+            print ''
+            print 'i> using provided histogram'
+            print ''
         # update the time for the next frame
         t0 = t1
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
-            print '========================================================================================'
-            print 'w> the amount of random events is greater than prompt events => omitting reconstruction'
-            print '========================================================================================'
+            print '==============================================================================================='
+            print 'w> the amount of random events is the greatest part of prompt events => omitting reconstruction'
+            print '==============================================================================================='
             ifrmP = ifrm+1
             continue
         # --------------------
@@ -264,16 +269,17 @@ def mmrchain(datain,        # all input data in a dictionary
 
         # output image file name
         if nfrm>1:
-            fnii_comment = '_frm-'+str(ifrm)+fcomment
+            frmno = '_frm'+str(ifrm)
         else:
-            fnii_comment = fcomment
+            frmno = ''
 
         # run OSEM reconstruction of a single time frame
         recimg = mmrrec.osemone(datain, [muhd['im'], muo], 
                                 hst, txLUT, axLUT, Cnt,
                                 recmod=recmod, itr=itr, fwhm=fwhm,
                                 outpath=petimg,
-                                fcomment=fnii_comment+'_i',
+                                frmno=frmno,
+                                fcomment=fcomment+'_i',
                                 store_img=store_img_intrmd,
                                 ret_sct=ret_sct)
         # form dynamic numpy array
