@@ -473,7 +473,7 @@ def pct_mumap(
                 smor=smor, smof=smof,
                 rthrsh=rthrsh, fthrsh=fthrsh,
                 outpath=outpath,
-                fcomment=fcomment
+                #fcomment=fcomment
         )
         #------------------------------
 

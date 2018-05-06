@@ -25,7 +25,7 @@ def mmrchain(datain,        # all input data in a dictionary
             itr=4,          # number of OSEM iterations
             fwhm=0.,        # Gaussian Smoothing FWHM
             recmod = -1,    # reconstruction mode: -1: undefined, chosen automatically. 3: attenuation and scatter correction, 1: attenuation correction only, 0: no correction (randoms only)
-            hst=[],         # input histogram (from list-mode data).  if not given, it will be performed.
+            histo=[],         # input histogram (from list-mode data).  if not given, it will be performed.
 
             trim=False,
             trim_scale=2,
@@ -223,9 +223,10 @@ def mmrchain(datain,        # all input data in a dictionary
         # check if there is enough prompt data to do a reconstruction
         # --------------
         print 'i> dynamic frame times t0, t1:', t0, t1
-        if not hst:
+        if not histo:
             hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, t0=t0, t1=t1)
         else:
+            hst = histo
             print ''
             print 'i> using provided histogram'
             print ''
@@ -243,7 +244,7 @@ def mmrchain(datain,        # all input data in a dictionary
             # create the folder for aligned (registered for motion compensation) mu-maps
             mmraux.create_dir(fmureg)
             # the converted nii image resample to the reference size
-            fmu = os.path.join(fmureg, fcomment+'mumap_dyn_ifrm-'+str(ifrm)+'.nii.gz')
+            fmu = os.path.join(fmureg, 'mumap_dyn_frm'+str(ifrm)+fcomment+'.nii.gz')
             # command for resampling
             if os.path.isfile( Cnt['RESPATH'] ):
                 cmd = [Cnt['RESPATH'],
@@ -344,7 +345,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 faffpvc = faff_frms[i]
             # chose file name of individual PVC images
             if nfrm>1:
-                fcomment_pvc = '_frm-'+str(i)+fcomment
+                fcomment_pvc = '_frm'+str(i)+fcomment
             else:
                 fcomment_pvc = fcomment
             #============================
