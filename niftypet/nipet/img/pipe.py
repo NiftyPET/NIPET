@@ -251,7 +251,7 @@ def mmrchain(datain,        # all input data in a dictionary
             if os.path.isfile( Cnt['RESPATH'] ):
                 cmd = [Cnt['RESPATH'],
                 '-ref', fmuref,
-                '-flo', datain['pCT'] #muod['fim'],
+                '-flo', datain['pCT'], #muod['fim'],
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
