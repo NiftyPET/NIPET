@@ -61,7 +61,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     if Cnt['VERBOSE']: print 'i> histograming with span', Cnt['SPN'], 'and', nfrm, 'dynamic frames.'
 
 
-    if use_stored==True and 'sinos' in datain and os.path.basename(datain['sinos'])=='sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm('+str(t0)+'-'+str(t1)+').npy' :
+    if use_stored==True and 'sinos' in datain and os.path.basename(datain['sinos'])=='sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy' :
 
         # nele, ttags, tpos = mmr_lmproc.lminfo(datain['lm_bf'])
         # nitag = (ttags[1]-ttags[0]+999)/1000
@@ -398,3 +398,85 @@ def split_frames(hst, Tref=60):
         i = frms[-1][0]
     print 'counts t(%d,%d) = %d. diff=%d' % ( i,j,clvl[-1] , np.sum(diff[i:j])-cref )
     return {'timings':frms, 'fdur':fdur, 'fcnts':clvl, 'offset':ioff}
+
+
+#-------------------------------------------------------------------------------------------------
+
+def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
+    ''' hst: histogram data
+        tposition: time position (middle point) of the frame to be defined
+        Cref: reference count level to be in the frame (prompts - delays)
+        tr0, tr1: time definitions of reference frame whose count level
+        will be used as the reference Cref.  If Cref is not defined (i.e. = 0)
+        then the tr0 and tr1 will be used.
+    '''
+    
+    # claculate the difference between the prompts and delays (more realistic count level)
+    diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
+    # cumulative sum for calculating count levels in arbitrary time windows
+    cumdiff = np.cumsum(diff)
+
+    if Cref==0:
+        Cref = cumdiff[tr1]-cumdiff[tr0-1]
+
+    if Cref<0:
+        raise ValueError('The reference count level has to be non-negative')
+
+    if verbose: print 'i> reference count level:', Cref
+
+
+    stp0 = 0
+    stp1 = 0
+    Cw = 0
+    while Cw<Cref:
+        # check if it is possible to widen the sampling window both ways
+        if (tposition-stp0-1)>0: stp0 += 1
+        if (tposition+stp1+1)<=len(cumdiff)-1: stp1 += 1
+        Cw = cumdiff[tposition+stp1] - cumdiff[tposition-stp0-1]
+
+    tw0 = tposition-stp0
+    tw1 = tposition+stp1
+    Tw = tw1 - tw0
+    if verbose:
+        print 'i> time window t[{}, {}] of duration T={} and count level Cw={}'.format(tw0, tw1, Tw, Cw)
+
+    return (tw0, tw1)
+
+
+def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
+    ''' Get auxilary time frames with equal count levels for constant precision in
+        the estimation of subject motion based on PET data. 
+    '''
+    
+    # claculate the difference between the prompts and delays (more realistic count level)
+    diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
+
+    # previous frame (time tuple)
+    prev_frm = (0,0)
+    # previous frame index
+    prev_i = -1
+    # look up table to the auxilary frames from the regular ones
+    timings = []
+    fi2afi = []
+    for i in range(len(t_frms)):
+        # time point as an average between the frame end points
+        tp = int(np.mean([t_frms[i][0],t_frms[i][1]]))
+        # alternative (more accurate) average through centre of mass
+        t0 = t_frms[i][0]
+        t1 = t_frms[i][1]
+        if t1>=hst['dur']: t1 = hst['dur']-1
+        t = np.arange(t0,t1)
+        tcm = np.sum(diff[t]*t)/np.sum(diff[t])
+        # get the tuple of the equivalent count level frame
+        frm = frame_position(hst, tcm, tr0=tr0, tr1=tr1, verbose=False)
+        # form the LUT
+        if frm!=prev_frm:
+            prev_frm = frm
+            prev_i += 1
+            timings.append(list(frm))
+        fi2afi.append(prev_i)
+        if verbose:
+            print 't[{}, {}]; tp={}, tcm={} => frm id:{}, timings:{}'.format(t_frms[i][0], t_frms[i][1], tp, tcm, fi2afi[-1], timings[-1])
+    # form the list of auxilary dynamic frames of equivalent count level (as in Cref) for reconstruction
+    mfrm = ['fluid'] + timings 
+    return {'timings':mfrm, 'frame_idx':fi2afi}

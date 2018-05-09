@@ -293,7 +293,7 @@ def mudcm2nii(datain, Cnt):
     return fmu
 
 # =====================================================================================
-def obj_mumap(datain, params, outpath='', store=False, comment=''):
+def obj_mumap(datain, params, outpath='', store=False, comment='', gantry_offset=True):
     '''Get the object mu-map from DICOM images'''
 
     # two ways of passing Cnt are here decoded
@@ -311,7 +311,7 @@ def obj_mumap(datain, params, outpath='', store=False, comment=''):
     # ref file name
     fmuref = os.path.join(fmudir, 'muref.nii.gz')
     # ref affine
-    B = image_affine(datain, Cnt, gantry_offset=True)
+    B = image_affine(datain, Cnt, gantry_offset=gantry_offset)
     # ref image (blank)
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
     # store ref image

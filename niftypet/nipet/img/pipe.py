@@ -186,6 +186,8 @@ def mmrchain(datain,        # all input data in a dictionary
             fmuref = muod['fmuref']
             if Cnt['VERBOSE']: print 'i> reusing the reference mu-map from the object mu-map dictionary.'
         else:
+            # create folder if doesn't exists
+            mmraux.create_dir(fmudir)
             # ref file name
             fmuref = os.path.join(fmudir, 'muref.nii.gz')
             # ref affine
@@ -249,7 +251,7 @@ def mmrchain(datain,        # all input data in a dictionary
             if os.path.isfile( Cnt['RESPATH'] ):
                 cmd = [Cnt['RESPATH'],
                 '-ref', fmuref,
-                '-flo', muod['fim'],
+                '-flo', datain['pCT'] #muod['fim'],
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
