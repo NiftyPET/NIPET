@@ -121,8 +121,11 @@ def mmrchain(datain,        # all input data in a dictionary
     # -------------------------------------------------------------------------
     # MU-MAPS
     # get the mu-maps, if given.  otherwise will use blank mu-maps
-    muod = nipet.img.mmrimg.obtain_image(mu_o, Cnt, type='object mu-map')
-    muhd = nipet.img.mmrimg.obtain_image(mu_h, Cnt, type='hardware mu-map')
+    if tAffine:
+        muod = nipet.img.mmrimg.obtain_image(mu_o, imtype='object mu-map', verbose=Cnt['VERBOSE'])
+    else:
+        muod = nipet.img.mmrimg.obtain_image(mu_o, Cnt, imtype='object mu-map')
+    muhd = nipet.img.mmrimg.obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
     if muod['exists'] and muhd['exists'] and recmod==-1:
@@ -213,6 +216,9 @@ def mmrchain(datain,        # all input data in a dictionary
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
+
+    # import pdb; pdb.set_trace()
+
     # starting frame index with reasonable prompt data 
     ifrmP = 0
     # iterate over frame index
@@ -232,8 +238,6 @@ def mmrchain(datain,        # all input data in a dictionary
             print ''
             print 'i> using provided histogram'
             print ''
-        # update the time for the next frame
-        t0 = t1
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
             print '==============================================================================================='
             print 'w> the amount of random events is the greatest part of prompt events => omitting reconstruction'
@@ -251,7 +255,7 @@ def mmrchain(datain,        # all input data in a dictionary
             if os.path.isfile( Cnt['RESPATH'] ):
                 cmd = [Cnt['RESPATH'],
                 '-ref', fmuref,
-                '-flo', datain['pCT'], #muod['fim'],
+                '-flo', muod['fim'],
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']

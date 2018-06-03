@@ -89,7 +89,7 @@ sct_irng = np.int16([0, 10, 19, 28, 35, 44, 53, 63])
 NSRNG = len(sct_irng)
 #------------------------------------------------------
 
-# number of sinos in segment 0
+# number of direct sinograms (i.e., for segment 0)
 SEG0 = 127
 
 # Reference image size (usually the default from Siemens) and GPU dimensions for optimal execution

@@ -25,12 +25,15 @@ __global__ void sddn_tx(const float * crs,
 	unsigned char * tv,
 	int n1crs)
 {
+	// indexing along the transaxial part of projection space
+	// (angle fast changing) 
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (idx<AW) {
 
 		const int C = nCRS;  // no of crystal per ring                             
 
+		// get crystal indexes from projection index
 		short c1 = s2c[idx].x;
 		short c2 = s2c[idx].y;
 
@@ -42,7 +45,8 @@ __global__ void sddn_tx(const float * crs,
 		cc1[1] = .5*(crs[c1 + C] + crs[c1 + C * 3]);
 		cc2[1] = .5*(crs[c2 + C] + crs[c2 + C * 3]);
 
-		float e[2];     // crystal Edge vector
+		// crystal edge vector
+		float e[2];
 		e[0] = crs[c1 + 2 * C] - crs[c1];
 		e[1] = crs[c1 + 3 * C] - crs[c1 + C];
 

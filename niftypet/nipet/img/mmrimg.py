@@ -57,7 +57,10 @@ def convert2dev(im, Cnt):
     if margin==0: 
         margin = None
         margin_= None
-    im_sqzd[vz0:vz1_, :, :] = im[:, margin:margin_, margin:margin_]
+    if Cnt['RNG_STRT']!=0 or Cnt['RNG_END']!=Cnt['NRNG']:
+        im_sqzd[vz0:vz1_, :, :] = im[:, margin:margin_, margin:margin_]
+    else:
+        im_sqzd = im[:, margin:margin_, margin:margin_]
     im_sqzd = np.transpose(im_sqzd, (1, 2, 0))
     return im_sqzd
 
@@ -226,7 +229,7 @@ def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False):
         v = np.int32(.5*Cnt['SO_IMX'] - np.ceil(yf/Cnt['SO_VXY']))
         u = np.int32(.5*Cnt['SO_IMY'] + np.floor(x/Cnt['SO_VXY']))
         imdsk[0,v,u] = unival
-    imdsk = np.repeat(imdsk, Cnt['NSEG0'], axis=0)
+    imdsk = np.repeat(imdsk, Cnt['SO_IMZ'], axis=0)
     if gpu_dim: imdsk = convert2dev(imdsk, Cnt)
     return imdsk
 
@@ -245,12 +248,14 @@ def hu2mu(im):
     uim = np.zeros(im.shape, dtype=np.float32)
     uim[im<=0] = muwater * ( 1+im[im<=0]*1e-3 )
     uim[im> 0] = muwater * ( 1+im[im> 0]*1e-3 * rhowater/muwater*(mubone-muwater)/(rhobone-rhowater) )
+    # remove negative values
+    uim[uim<0] = 0
     return uim
 
 
 # =====================================================================================
 # object/patient mu-map resampling to nifti
-# better use dcm3nii
+# better use dcm2niix
 def mudcm2nii(datain, Cnt):
     '''DICOM mu-map to NIfTI'''
 
@@ -967,52 +972,58 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         return [muh, muo]
 
 #------------------------------------------------------------------------
-def obtain_image(img, Cnt, type=''):
+def obtain_image(img, Cnt=[], imtype='', verbose=False):
+    ''' 
+    Obtain the image (hardware or object mu-map) from file,
+    numpy array, dictionary or empty list (assuming blank then).
+    The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
-    obtain the image (hardware or object mu-map) from file, numpy array, dictionary or empty list (assuming blank then)
-    '''
+
+    if Cnt: verbose = Cnt['VERBOSE']
     # establishing what and if the image object has been provided
-    # all findings go to output dictionary
+    # all findings go to the output dictionary
     output = {}
     if isinstance(img, dict):
-        if img['im'].shape==(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if Cnt and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+            print 'e> provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.'
+            raise ValueError('Wrong dimensions of the mu-map')
+        else:
             output['im'] = img['im']
             output['exists'] = True
             output['fim'] = img['fim']
             if 'faff' in img: output['faff'] = img['faff']
             if 'fmuref' in img: output['fmuref'] = img['fmuref']
             if 'affine' in img: output['affine'] = img['affine']
-            if Cnt['VERBOSE']: print 'i> using '+type+' from dictionary.'
-        else:
-            print 'e> provided '+type+' via the dictionary has inconsistent dimensions.'
-            return None
+            if verbose: print 'i> using '+imtype+' from dictionary.'
+
     elif isinstance(img, (np.ndarray, np.generic) ):
-        if img.shape==(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if Cnt and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+            print 'e> provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.'
+            raise ValueError('Wrong dimensions of the mu-map')
+        else:
             output['im'] = img
             output['exists'] = True
             output['fim'] = ''
-            if Cnt['VERBOSE']: print 'i> using hardware mu-map from numpy array.'
-        else:
-            print 'e> provided '+type+' via the numpy array has inconsistent dimensions.'
-            return None
+            if verbose: print 'i> using hardware mu-map from numpy array.'
+
     elif isinstance(img, basestring):
         if os.path.isfile(img):
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']
-            if output['im'].shape==(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+            if Cnt and output['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+                print 'e> provided '+imtype+' via file has inconsistent dimensions compared to Cnt.'
+                raise ValueError('Wrong dimensions of the mu-map')
+            else:
                 output['exists'] = True
                 output['fim'] = img
-                if Cnt['VERBOSE']: print 'i> using '+type+' from NIfTI file.'
-            else:
-                'e> provided '+type+' via file has inconsistent dimensions.'
-                return None
+                if verbose: print 'i> using '+imtype+' from NIfTI file.'
         else:
-            print 'e> provided '+type+' path is invalid.'
+            print 'e> provided '+imtype+' path is invalid.'
             return None
     elif isinstance(img, list):
         output['im'] = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-        if Cnt['VERBOSE']: print 'w> '+type+' has not been provided -> using blank.'
+        if verbose: print 'w> '+imtype+' has not been provided -> using blank.'
         output['fim'] = ''
         output['exists'] = False
     #------------------------------------------------------------------------

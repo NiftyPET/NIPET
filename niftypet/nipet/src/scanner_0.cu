@@ -204,7 +204,7 @@ txLUTs get_txlut(Cnst Cnt)
 
 				txluts.aw2ali[awi] = iw + Cnt.W*ia;
 
-				//crystals in coincidence
+				// square matrix of crystals in coincidence
 				txluts.cij[txluts.crsr[c0] + Cnt.NCRSR*txluts.crsr[c1]] = 1;
 				txluts.cij[txluts.crsr[c1] + Cnt.NCRSR*txluts.crsr[c0]] = 1;
 

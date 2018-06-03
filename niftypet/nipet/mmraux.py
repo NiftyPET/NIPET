@@ -342,8 +342,9 @@ def timings_from_list(flist, offset=0):
     
 #=================================================================================================
 def axial_lut(Cnt):
-    "Creates lookup tables (LUT) for linear indeces along the diagonals of Michelogramslogram"
-    "for span-11 calculations done on GPU."
+    ''' Creates lookup tables (LUT) for linear indexes along the diagonals of Michelogram
+    for span-11 calculations done on GPU.
+    '''
 
     NRNG = Cnt['NRNG']
 
@@ -477,8 +478,8 @@ def axial_lut(Cnt):
     sn11_ssrb = sn11_ssrb[sn11_ssrb>=0] 
 
     #---------------------------------------------------------------------
-    #linear index (along diagonals of michelogram) to rings
-    # the number of michelogram elements considered in projection calculations
+    #linear index (along diagonals of Michelogram) to rings
+    # the number of Michelogram elements considered in projection calculations
     NLI2R_c = int(NRNG_c**2/2. + NRNG_c/2.)
     # if the whole scanner is used then account for the MRD and subtract 6 ring permutations
     if NRNG_c==NRNG: 
@@ -494,13 +495,13 @@ def axial_lut(Cnt):
 
     dli = 0
     for ro in range(0, NRNG_c):
-        # selects the sub-michelogram of the whole michelogram
+        # selects the sub-Michelogram of the whole Michelogram
         strt = NRNG*(ro+Cnt['RNG_STRT']) + Cnt['RNG_STRT']
         stop = (Cnt['RNG_STRT']+NRNG_c)*NRNG
         step = NRNG+1
 
         for li in range(strt, stop, step): #goes along a diagonal started in the first row at r2o
-            #from the linear indecies of michelogram get the subscript indecies
+            #from the linear indexes of Michelogram get the subscript indexes
             r1 = li/NRNG
             r0 = li - r1*NRNG
             #avoid case when RD>MRD
@@ -518,8 +519,8 @@ def axial_lut(Cnt):
             li2r[dli,0] = r0
             li2r[dli,1] = r1
             #--            
-            li2rng[dli,0] = rng[r0,0];
-            li2rng[dli,1] = rng[r1,0];
+            li2rng[dli,0] = rng[r0,0]
+            li2rng[dli,1] = rng[r1,0]
             #-- 
             li2sn[dli, 0] = Msn[r0,r1]
             li2sn[dli, 1] = Msn[r1,r0]
@@ -620,15 +621,20 @@ def transaxial_lut(Cnt):
             xcp = xc
             ycp = yc
 
-
-    Naw, s2cAll, crsr, cij, aw2sn, aw2ali, msino = mmr_auxe.txlut( Cnt )
+    # cij    - a square matrix of crystals in coincidence (transaxially)
+    # crsri  - indexes of crystals with the gap crystals taken out (therefore reduced)
+    # aw2sn  - LUT array [AW x 2] translating linear index into a 2D sinogram with dead LOR (gaps)
+    # aw2ali - LUT from linear index of 2D full sinogram with gaps and bin-driven to
+    #          linear index without gaps and angle driven
+    # msino  - 2D sinogram with gaps marked (0). like a mask.
+    Naw, s2cAll, crsri, cij, aw2sn, aw2ali, msino = mmr_auxe.txlut( Cnt )
     s2cF = s2cAll[0]
     s2c  = s2cAll[1]
     s2cr = s2cAll[2]
     c2sF = s2cAll[3]
     cr2s = s2cAll[4]
 
-    txLUT = {'cij':cij, 'crs':crs, 'crsri':crsr, 'msino':msino, 'aw2sn':aw2sn,
+    txLUT = {'cij':cij, 'crs':crs, 'crsri':crsri, 'msino':msino, 'aw2sn':aw2sn,
              'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
              'c2sF':c2sF, 'cr2s':cr2s}
     return txLUT

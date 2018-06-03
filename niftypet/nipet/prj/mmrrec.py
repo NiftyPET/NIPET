@@ -150,12 +150,12 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     #=========================================================================
     # Randoms
     #-------------------------------------------------------------------------
-    if randsino == None:
-        rsino, snglmap = nipet.lm.mmrhist.rand(hst['fansums'], txLUT, axLUT, Cnt)
-        rsng = mmraux.remgaps(rsino, txLUT, Cnt)
-    else:
+    if isinstance(randsino, np.ndarray):
         rsino = randsino
         rsng = mmraux.remgaps(randsino, txLUT, Cnt)
+    else:
+        rsino, snglmap = nipet.lm.mmrhist.rand(hst['fansums'], txLUT, axLUT, Cnt)
+        rsng = mmraux.remgaps(rsino, txLUT, Cnt)
     #=========================================================================
 
     #=========================================================================
@@ -211,10 +211,10 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             print '---------------------------------------------------------------------'
             print 'w> it seems there is not enough true data to render reasonable image.'
             print '---------------------------------------------------------------------'
-            img[:]=0
+            #img[:]=0
             itr = k
             break
-        if recmod>=3 and ( ((k<itr-1)and(itr>1))):# or (itr==1)
+        if recmod>=3 and ( ((k<itr-1)and(itr>1))): # or (itr==1)
             sct_time = time.time()
             ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, mmrimg.convert2e7(img, Cnt), datain, hst, rsino, txLUT, axLUT, Cnt, prcntScl=0.1, emmsk=emmskS)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
