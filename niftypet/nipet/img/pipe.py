@@ -124,7 +124,7 @@ def mmrchain(datain,        # all input data in a dictionary
     if tAffine:
         muod = nipet.img.mmrimg.obtain_image(mu_o, imtype='object mu-map', verbose=Cnt['VERBOSE'])
     else:
-        muod = nipet.img.mmrimg.obtain_image(mu_o, Cnt, imtype='object mu-map')
+        muod = nipet.img.mmrimg.obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
     muhd = nipet.img.mmrimg.obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
