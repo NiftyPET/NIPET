@@ -38,7 +38,8 @@ def mmrchain(datain,        # all input data in a dictionary
             fcomment='',    # text comment used in the file name of generated image files
             ret_sct=False,  # return scatter+randoms sinogram for each reconstruction
             store_img = True,
-            store_img_intrmd=False):
+            store_img_intrmd=False,
+            del_img_intrmd=False):
 
 
     from niftypet import nipet
@@ -304,6 +305,8 @@ def mmrchain(datain,        # all input data in a dictionary
 
     # ----------------------------------------------------------------------
     # trim the PET image
+    # images have to be stored for PVC
+    if pvcroi: store_img_intrmd = True
     if trim:
         # trim PET and upsample
         petu = nimpa.trimim(
@@ -319,7 +322,10 @@ def mmrchain(datain,        # all input data in a dictionary
             verbose=Cnt['VERBOSE']
         )
 
-        output.update({'imups':petu['im'], 'fups':petu['fimi']})
+        output.update({'trimmed': { 'im':petu['im'],
+                                    'fpet':petu['fimi'],
+                                    'affine':petu['affine']}}
+        )
     # ----------------------------------------------------------------------
 
 
@@ -428,12 +434,12 @@ def mmrchain(datain,        # all input data in a dictionary
                 descrip_pvc = descrip_trim + ';pvc=iY'
                 # file name for saving the PVC NIfTI image
                 fpvc = fpetu + '_PVC' + fcomment + '.nii.gz'
-                output['fpvc'] = fpvc
+                output['trimmed']['fpvc'] = fpvc
 
             # update the trimmed image file name
             fpetu += fcomment+'.nii.gz'
             # store the file name in the output dictionary
-            output['fpetu'] = fpetu
+            output['trimmed']['fpet'] = fpetu
 
         output['fpet'] = fpeto
 
@@ -448,5 +454,17 @@ def mmrchain(datain,        # all input data in a dictionary
                 nimpa.prc.array2nii( petu['im'][:,::-1,::-1,:], petu['affine'], fpetu, descrip=descrip_trim)
             if pvcroi:
                 nimpa.prc.array2nii( dynpvc[:,::-1,::-1,:], petu['affine'], fpvc, descrip=descrip_pvc)
+
+
+    if del_img_intrmd:
+        if pvcroi:
+            for fi in fpvc:
+                os.remove(fi)
+        if trim:
+            for fi in petu['fimi']:
+                os.remove(fi)
+
+
+
 
     return output 
