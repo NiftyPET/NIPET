@@ -49,5 +49,6 @@ from lm.mmrhist import mmrhist
 from img.pipe import mmrchain
 
 from xnat import xnat
+from xnat import pviews
 # import sigaux
 # import lms

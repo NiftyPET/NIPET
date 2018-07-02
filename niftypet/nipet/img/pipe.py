@@ -299,7 +299,7 @@ def mmrchain(datain,        # all input data in a dictionary
         if store_img_intrmd: output['fpeti'].append(recimg.fpet)
         if nfrm==1: output['tuple'] = recimg
 
-    output['img'] = np.squeeze(dynim)
+    output['im'] = np.squeeze(dynim)
     if ret_sct and itr>1 and recmod>2:
         output['sinos'] = {'psino':dynpsn, 'ssino':dynssn}
 
