@@ -29,6 +29,7 @@ except ImportError as ie:
     print '----------------------------'
     print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.  It should be in ''~/.niftypet/resources.py'' (Linux) or ''//Users//USERNAME//AppData//Local//niftypet//resources.py'' (Windows) but likely it does not exists.'
     print '----------------------------'
+    raise ImportError
 #===========================
 
 import mmraux
@@ -46,9 +47,13 @@ from img.mmrimg import obj_mumap
 from img.mmrimg import pct_mumap
 from lm.mmrhist import mmrhist
 
+if resources.ENBLAGG:
+	from lm import pviews
+
 from img.pipe import mmrchain
 
-from xnat import xnat
-from xnat import pviews
+if resources.ENBLAGG and resources.ENBLXNAT:
+	from xnat import xnat
+
 # import sigaux
 # import lms

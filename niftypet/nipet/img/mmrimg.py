@@ -19,6 +19,7 @@ import glob
 
 from subprocess import call
 import time
+import multiprocessing
 
 from niftypet.nipet import mmraux
 from niftypet import nimpa
@@ -473,8 +474,9 @@ def pct_mumap(
         mu_dct['fpet'] = fpet
         #------------------------------
         # get the affine transformation
-        faff = nimpa.mr2pet_rigid(  
+        faff, _ = nimpa.reg_mr2pet(  
                 fpet, datain, Cnt,
+                rigOnly = True,
                 smor=smor, smof=smof,
                 rthrsh=rthrsh, fthrsh=fthrsh,
                 outpath=outpath,

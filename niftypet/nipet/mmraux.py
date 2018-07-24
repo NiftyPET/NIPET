@@ -873,8 +873,8 @@ def explore_input(fldr, params, print_paths=False):
         if os.path.isfile( pjoin(fldr,f) ):
             if f.lower().endswith(".dcm") or f.lower().endswith(".ima"):
                 get_dicoms( pjoin(fldr,f), datain, Cnt)
-            elif f.lower().endswith(".bf"):
-                get_bf( pjoin(fldr,f), datain, Cnt)
+            # elif f.lower().endswith(".bf"):
+            #     get_bf( pjoin(fldr,f), datain, Cnt)
             elif f.endswith(".npy") or f.endswith(".dic"):
                 get_npfiles( pjoin(fldr,f), datain, Cnt['VERBOSE'])
             elif f.endswith(".nii.gz") or f.endswith(".nii"):

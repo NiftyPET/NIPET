@@ -43,6 +43,11 @@ MSVC_VRSN = 'Visual Studio 12 2013 Win64'
 ### end NiftyPET tools ###
 # -----------------------------------------------------
 
+# enable xnat module
+ENBLXNAT = False
+# enable Agg
+ENBLAGG = False
+
 #============ SIEMENS mMR SCANNER C O N S T A N T S ===============
 # number of rings (axially) and crystals (transaxially)
 NRNG = 64
@@ -254,6 +259,9 @@ def get_setup(Cnt = {}):
     if 'DCM2NIIX'   in globals() and DCM2NIIX!='':      Cnt['DCM2NIIX'] = DCM2NIIX
     # hardware mu-maps
     if 'HMUDIR'     in globals() and HMUDIR!='':        Cnt['HMUDIR']   = HMUDIR
+
+    Cnt['ENBLXNAT'] = ENBLXNAT
+    Cnt['ENBLAGG'] = ENBLAGG
 
     return Cnt
 

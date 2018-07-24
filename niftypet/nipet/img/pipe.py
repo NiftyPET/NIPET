@@ -308,6 +308,11 @@ def mmrchain(datain,        # all input data in a dictionary
     # images have to be stored for PVC
     if pvcroi: store_img_intrmd = True
     if trim:
+        # create file name
+        if 'lm_dcm' in datain:
+            fnm = os.path.basename(datain['lm_dcm'])[:20]
+        elif 'lm_ima' in datain:
+            fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
         petu = nimpa.trimim(
             dynim,
@@ -315,7 +320,7 @@ def mmrchain(datain,        # all input data in a dictionary
             scale=trim_scale,
             int_order=trim_interp,
             outpath=petimg,
-            fname = os.path.basename(datain['lm_dcm'])[:20],
+            fname = fnm,
             fcomment=fcomment,
             store_img_intrmd=store_img_intrmd,
             memlim=trim_memlim,
