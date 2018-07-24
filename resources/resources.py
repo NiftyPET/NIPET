@@ -30,6 +30,7 @@ riLUT = {   'Ge68':{'BF':0.891,'thalf':270.9516*24*60*60},
 # The name and path to the NiftyPET tools (software)
 DIRTOOLS  = 'NiftyPET_tools'
 MSVC_VRSN = 'Visual Studio 12 2013 Win64'
+CMAKE_TLS_PAR = '' #-DUSE_SSE=OFF'
 # PATHTOOLS = os.path.join('/chosen/path/', DIRTOOLS)
 # -----------------------------------------------------
 
@@ -242,6 +243,9 @@ def get_setup(Cnt = {}):
     
     # the name of the folder for NiftyPET tools
     Cnt['DIRTOOLS'] = DIRTOOLS
+
+    # additional paramteres for compiling tools with cmake
+    Cnt['CMAKE_TLS_PAR'] = CMAKE_TLS_PAR
 
     # hardware mu-maps
     Cnt['HMULIST'] = hrdwr_mu
