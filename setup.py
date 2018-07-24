@@ -222,14 +222,14 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license = 'Apache 2.0',
-    version='1.0.13',
+    version='1.0.14',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author='Pawel J. Markiewicz',
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/pjmark/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=['nimpa>=1.0.10', 'pydicom>=1.0.2,<1.1.0', 'nibabel>=2.2.1, <2.3.0'],
+    install_requires=['nimpa>=1.0.12', 'pydicom>=1.0.2,<1.1.0', 'nibabel>=2.2.1, <2.3.0'],
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],

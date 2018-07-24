@@ -386,9 +386,11 @@ def obj_mumap(datain, params, outpath='', store=False, comment='', gantry_offset
 def pct_mumap(
         datain, scanner_params,
         hst=[], t0=0, t1=0, itr=2,
-        smor=0.0, smof=0.0, rthrsh=0.05, fthrsh=0.05,
         faff='', fpet='', fcomment='', outpath='',
-        store=False, petopt='ac'):
+        store=False, petopt='ac',
+        #smor=0.0, smof=0.0, rthrsh=0.05, fthrsh=0.05
+        ):
+        
     '''
     GET THE MU-MAP from pCT IMAGE (which is in T1w space)
     * the mu-map will be registered to PET which will be reconstructed for time frame t0-t1
@@ -477,8 +479,6 @@ def pct_mumap(
         faff, _ = nimpa.reg_mr2pet(  
                 fpet, datain, Cnt,
                 rigOnly = True,
-                smor=smor, smof=smof,
-                rthrsh=rthrsh, fthrsh=fthrsh,
                 outpath=outpath,
                 #fcomment=fcomment
         )
