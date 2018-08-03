@@ -97,10 +97,10 @@ def get_subsets14(n, txLUT, Cnt):
 #=== OSEM image reconstruction with several modes (with/without scatter and/or attenuation correction) ===#
 def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             recmod=3, itr=4, fwhm=0., mask_radious=29.,
-            scatter=np.array([]),
+            scatsino=np.array([]),
             outpath='',
             store_img=False, frmno='', fcomment='',
-            ret_sct=False, emmskS=False, randsino = None, normcomp = None):
+            ret_sinos=False, emmskS=False, randsino = None, normcomp = None):
 
     import time
     from niftypet import nipet
@@ -162,9 +162,9 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     # SCAT
     #-------------------------------------------------------------------------
     if recmod==2:
-        if scatter.size>0:
-            ssng = mmraux.remgaps(scatter, txLUT, Cnt)
-        elif scatter.size==0 and os.path.isfile(datain['em_crr']):
+        if sctsino.size>0:
+            ssng = mmraux.remgaps(scatsino, txLUT, Cnt)
+        elif scatsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
             ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, emd['im'], datain, hst, rsino, 0.1, txLUT, axLUT, Cnt)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
@@ -283,7 +283,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     # (3) [optional] single slice rebinned scatter
     # (4) [optional] mask for scatter scaling based on attenuation data
     # (5) [optional] random sino
-    # if ret_sct and recmod>=3:
+    # if ret_sinos and recmod>=3:
     #     recout = namedtuple('recout', 'im, fpet, ssn, sssr, amsk, rsn')
     #     recout.im   = im
     #     recout.fpet = fout
@@ -295,7 +295,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     #     recout = namedtuple('recout', 'im, fpet')
     #     recout.im   = im
     #     recout.fpet = fout
-    if ret_sct and recmod>=3 and itr>1:
+    if ret_sinos and recmod>=3 and itr>1:
         RecOut = namedtuple('RecOut', 'im, fpet, affine, ssn, sssr, amsk, rsn')
         recout = RecOut(im, fout, B, ssn, sssr, amsk, rsino)
     else:
@@ -316,7 +316,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
 #===============================================================================
 # EMML
 # def emml(   datain, mumaps, hst, txLUT, axLUT, Cnt, 
-#             recmod=3, itr=10, fwhm=0., mask_radious=29., store_img=True, ret_sct=False, sctsino = None, randsino = None, normcomp = None):
+#             recmod=3, itr=10, fwhm=0., mask_radious=29., store_img=True, ret_sinos=False, sctsino = None, randsino = None, normcomp = None):
 
 #     #subsets (when not used)
 #     sbs = np.array([-1], dtype=np.int32)
@@ -373,7 +373,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
 #     if recmod==2:
 #         if sctsino != None:
 #             # remove the gaps from the provided scatter sinogram
-#             ssng = mmraux.remgaps(scatter, txLUT, Cnt)
+#             ssng = mmraux.remgaps(scatsino, txLUT, Cnt)
 #         elif sctsino == None and os.path.isfile(datain['em_crr']):
 #             # estimate scatter from already reconstructed and corrected emission image
 #             emd = nimpa.prc.getnii(datain['em_crr'], Cnt)
@@ -457,7 +457,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
 #         fout =  os.path.join(datain['corepath'], os.path.basename(datain['lm_dcm'])[:8]+'_emml_'+str(itr)+'.nii.gz')
 #         nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
             
-#     if ret_sct and recmod>=3 and itr>1:
+#     if ret_sinos and recmod>=3 and itr>1:
 #         RecOut = namedtuple('RecOut', 'im, fpet, affine, ssn, sssr, amsk, rsn')
 #         recout = RecOut(im, fout, B, ssn, sssr, amsk, rsn)
 #     else:

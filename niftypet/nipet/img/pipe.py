@@ -36,7 +36,7 @@ def mmrchain(datain,        # all input data in a dictionary
             pvcitr=5, 
             
             fcomment='',    # text comment used in the file name of generated image files
-            ret_sct=False,  # return scatter+randoms sinogram for each reconstruction
+            ret_sinos=False,  # return prompt, scatter and randoms sinograms for each reconstruction
             store_img = True,
             store_img_intrmd=False,
             del_img_intrmd=False):
@@ -213,7 +213,8 @@ def mmrchain(datain,        # all input data in a dictionary
     # dynamic images in one numpy array
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
     #if asked, output only scatter+randoms sinogram for each frame
-    if ret_sct and itr>1 and recmod>2:
+    if ret_sinos and itr>1 and recmod>2:
+        dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
@@ -289,19 +290,20 @@ def mmrchain(datain,        # all input data in a dictionary
                                 frmno=frmno,
                                 fcomment=fcomment+'_i',
                                 store_img=store_img_intrmd,
-                                ret_sct=ret_sct)
+                                ret_sinos=ret_sinos)
         # form dynamic numpy array
         dynim[ifrm,:,:,:] = recimg.im
-        if ret_sct and itr>1 and recmod>2:
+        if ret_sinos and itr>1 and recmod>2:
             dynpsn[ifrm,:,:,:] = hst['psino']
-            dynssn[ifrm,:,:,:] = recimg.ssn + recimg.rsn
+            dynssn[ifrm,:,:,:] = recimg.ssn 
+            dynrsn[ifrm,:,:,:] = recimg.rsn
 
         if store_img_intrmd: output['fpeti'].append(recimg.fpet)
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
-    if ret_sct and itr>1 and recmod>2:
-        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn}
+    if ret_sinos and itr>1 and recmod>2:
+        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn, 'rsino':dynrsn}
 
     # ----------------------------------------------------------------------
     # trim the PET image

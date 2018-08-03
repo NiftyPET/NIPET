@@ -682,6 +682,10 @@ def get_niifiles(dfile, datain, v):
     if len(fpct)>0:
         datain['pCT'] = fpct[0]
         if v: print 'i> pseudoCT of the object.'
+    fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*') )
+    if len(fpct)>0:
+        datain['pCT'] = fpct[0]
+        if v: print 'i> pseudoCT of the object.'
 
     #MR T1 
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )

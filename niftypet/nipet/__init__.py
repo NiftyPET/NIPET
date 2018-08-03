@@ -46,11 +46,10 @@ from img.mmrimg import hdw_mumap
 from img.mmrimg import obj_mumap
 from img.mmrimg import pct_mumap
 from lm.mmrhist import mmrhist
+from img.pipe import mmrchain
 
 if resources.ENBLAGG:
-	from lm import pviews
-
-from img.pipe import mmrchain
+	from lm.pviews import video_frm, video_dyn
 
 if resources.ENBLAGG and resources.ENBLXNAT:
 	from xnat import xnat

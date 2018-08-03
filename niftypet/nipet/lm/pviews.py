@@ -83,7 +83,7 @@ def video_frm(hst, outpth):
 #===================================================================================
 # Dynamic Frames to Projection Views
 #-----------------------------------------------------------------------------------
-def video_dyn11(hst, frms, outpth, axLUT, Cnt):
+def video_dyn(hst, frms, outpth, axLUT, Cnt):
 
     plt.close('all')
 
