@@ -39,6 +39,7 @@ def mmrchain(datain,        # all input data in a dictionary
             ret_sinos=False,  # return prompt, scatter and randoms sinograms for each reconstruction
             store_img = True,
             store_img_intrmd=False,
+            store_itr=[],   # store any reconstruction iteration in the list.  ignored if the list is empty.
             del_img_intrmd=False):
 
 
@@ -290,6 +291,7 @@ def mmrchain(datain,        # all input data in a dictionary
                                 frmno=frmno,
                                 fcomment=fcomment+'_i',
                                 store_img=store_img_intrmd,
+                                store_itr=store_itr,
                                 ret_sinos=ret_sinos)
         # form dynamic numpy array
         dynim[ifrm,:,:,:] = recimg.im

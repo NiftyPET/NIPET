@@ -45,6 +45,7 @@ from dinf import dev_info
 from img.mmrimg import hdw_mumap
 from img.mmrimg import obj_mumap
 from img.mmrimg import pct_mumap
+from img.mmrimg import align_mumap
 from lm.mmrhist import mmrhist
 from img.pipe import mmrchain
 

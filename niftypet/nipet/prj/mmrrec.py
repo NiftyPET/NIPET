@@ -100,7 +100,20 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             scatsino=np.array([]),
             outpath='',
             store_img=False, frmno='', fcomment='',
+            store_itr=[],
             ret_sinos=False, emmskS=False, randsino = None, normcomp = None):
+
+
+    #---------- sort out OUTPUT ------------
+    #-output file name for the reconstructed image, initially assume n/a
+    fout = 'n/a'
+    if store_img or store_itr:
+        if outpath=='':
+            opth = os.path.join( datain['corepath'], 'reconstructed' )
+        else:
+            opth = outpath
+        mmraux.create_dir(opth)
+    #----------
 
     import time
     from niftypet import nipet
@@ -169,7 +182,7 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, emd['im'], datain, hst, rsino, 0.1, txLUT, axLUT, Cnt)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
         else:
-            print 'e> no emission image availble for scatter estimation!  check if it''s present or the path is correct.'
+            print 'e> no emission image available for scatter estimation!  check if it''s present or the path is correct.'
             sys.exit()
     else:
         ssng = np.zeros(rsng.shape, dtype=rsng.dtype)
@@ -180,12 +193,12 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
         print '>------ OSEM (', itr,  ') -------'
     #------------------------------------
     Sn = 14 # number of subsets
-    # get one subset to get number of projection bins in a subset
+    #-get one subset to get number of projection bins in a subset
     Sprj, s = get_subsets14(0,txLUT,Cnt)
     Nprj = len(Sprj)
-    # init subset array and sensitivity image for a given subset
+    #-init subset array and sensitivity image for a given subset
     sinoTIdx = np.zeros((Sn, Nprj+1), dtype=np.int32)
-    # init sensitivity images for each subset
+    #-init sensitivity images for each subset
     imgsens = np.zeros((Sn, Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
     for n in range(Sn):
         sinoTIdx[n,0] = Nprj #first number of projection for the given subset
@@ -194,18 +207,33 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
         petprj.bprj(imgsens[n,:,:,:], ansng[sinoTIdx[n,1:],:], txLUT, axLUT,  sinoTIdx[n,1:], Cnt )
     #-------------------------------------
 
-    #mask for reconstructed image.  anything outside it is set to zero
+    #-mask for reconstructed image.  anything outside it is set to zero
     msk = mmrimg.get_cylinder(Cnt, rad=mask_radious, xo=0, yo=0, unival=1, gpu_dim=True)>0.9
 
-    #init image
+    #-init image
     img = np.ones((Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
 
-    #time it
+    #-decay correction
+    lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
+    if 't0' in hst and 'dur' in hst:
+        dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
+        # apply quantitative correction to the image
+        qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
+    else:
+        dcycrr = 1
+
+    #-affine matrix for the reconstructed images
+    B = mmrimg.image_affine(datain, Cnt)
+
+    #-time it
     stime = time.time()
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
     for k in range(itr):
+        if Cnt['VERBOSE']:
+            print ''
+            print '--------------- itr-{}/{} ---------------'.format(k,itr)
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
             print '---------------------------------------------------------------------'
@@ -214,23 +242,23 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
             #img[:]=0
             itr = k
             break
-        if recmod>=3 and ( ((k<itr-1)and(itr>1))): # or (itr==1)
+        if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
             sct_time = time.time()
             ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, mmrimg.convert2e7(img, Cnt), datain, hst, rsino, txLUT, axLUT, Cnt, prcntScl=0.1, emmsk=emmskS)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
             if Cnt['VERBOSE']: print 'i> scatter time:', (time.time() - sct_time)
+        # save images during reconstruction if requested
+        if store_itr and k in store_itr:
+            im = mmrimg.convert2e7(img * (dcycrr*qf*0.205), Cnt)
+            fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
+                + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
+                +'_itr'+str(k)+fcomment+'_inrecon.nii.gz')
+            nimpa.array2nii( im[::-1,::-1,:], B, fout)
+
 
     if Cnt['VERBOSE']: print 'i> recon time:', (time.time() - stime)
     #=========================================================================
 
-    # decay correction
-    lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
-    if 't0' in hst and 'dur' in hst:
-        dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
-        # apply quantitative correction to the image
-        qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
-    else:
-        dcycrr = 1
     
     if Cnt['VERBOSE']: print 'i> applying decay correction', dcycrr
     
@@ -238,13 +266,11 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     img *= dcycrr * qf * 0.205 #additional factor for making it quantitative in absolute terms (derived from measurements)
 
     #---- save images -----
-    #first convert to standard mMR image size
+    #-first convert to standard mMR image size
     im = mmrimg.convert2e7(img, Cnt)
-    #affine matrix
-    B = mmrimg.image_affine(datain, Cnt)
 
-    # description text to NIfTI
-    # attenuation number: if only bed present then it is 0.5
+    #-description text to NIfTI
+    #-attenuation number: if only bed present then it is 0.5
     attnum =  ( 1*(np.sum(muh)>0.5)+1*(np.sum(muo)>0.5) ) / 2.
     descrip =   'alg=osem'+ \
                 ';sub=14'+ \
@@ -258,18 +284,10 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
                 ';dur='+str(hst['dur']) +\
                 ';qf='+str(qf)
 
-    #output file name for the reconstructed image
-    fout = '0'
-    if Cnt['VERBOSE']: print 'i> storing image?', store_img
     if fwhm>0:
         im = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, Cnt), mode='mirror')
     if store_img:
-        if outpath=='':
-            fout = os.path.join( datain['corepath'], 'reconstructed' )
-        else:
-            fout = outpath
-        mmraux.create_dir(fout)
-        fout =  os.path.join(fout, os.path.basename(datain['lm_bf'])[:8] \
+        fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
                 + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
                 +'_itr'+str(itr)+fcomment+'.nii.gz')
         if Cnt['VERBOSE']: print 'i> saving image to: ', fout
