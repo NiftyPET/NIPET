@@ -9,6 +9,7 @@ import sys
 import scipy.ndimage as ndi
 import csv
 import zipfile
+import pydicom as dcm
 
 import re
 import nibabel as nib
@@ -22,6 +23,9 @@ from StringIO import StringIO
 from urllib import urlencode
 from datetime import datetime
 #--------------
+
+# DICOM extensions
+dcm_ext = ('dcm', 'DCM', 'ima', 'IMA')
 
 
 # version of matplotlib to int
@@ -265,12 +269,14 @@ def download(xc, sbjid, sbjno,
     tpoint=0,
     expmts=[],
     expid=[],
-    download=True,
-    prcl=True,
-    t1w=True,
-    umap=True,
-    pct=True,
-    nrm=True,
+    download=False,
+    prcl=False,
+    t1w=False,
+    t2w=False,
+    umap=False,
+    ute=False,
+    pct=False,
+    nrm=False,
     lm=True,
     cookie=''):
 
@@ -333,44 +339,204 @@ def download(xc, sbjid, sbjno,
     npth = os.path.join(spth, 'norm')
     # LM path
     lmpth = os.path.join(spth, 'LM')
-    # T1 folder
+    # T1/2 folder
     t1pth = os.path.join(spth, 'T1w')
+    t2pth = os.path.join(spth, 'T2w')
     # pseudo-CT folder
     pctpth = os.path.join(spth, 'pCT')
     # DCM mu-map
     umpth = os.path.join(spth, 'umap')
+    # UTE two sequences
+    utepth = os.path.join(spth, 'UTE')
     # regional parcellations
     parpth = os.path.join(spth, 'prcl')
 
     # output dictionary
     out = {}
+
+    # get all scans
+    scans = get_xnatList(
+        xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans', cookie=cookie
+    )
+    scntypes = [(s['type'],s['quality'],s['ID']) for s in scans]
     
     # import pdb; pdb.set_trace()
 
     # get the list of T1w files
     if t1w:
-        T1_TYPE = '1946_3DT1_ND'
-        t1files = get_xnatList(
-            xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+T1_TYPE+'/resources/NIFTI/files',
-            cookie=cookie)
-        if download:
-            create_dir(t1pth)
-            for i in range(len(t1files)):
-                # add 't1_' for the file to be recognised as T1w
-                t1name = 't1_'+sbjno+'_'+sbjid+'.'+t1files[i]['Name'].split('.',1)[-1]
-                status = get_xnatFile(
-                    xc['url']+t1files[i]['URI'],
-                    os.path.join(t1pth, t1name),
-                    cookie=cookie)
-                if status<0:
-                    print 'e> no T1w image data:', sbjid, sbjno
-                else:
-                    out['T1nii'] = os.path.join(t1pth, t1name)
-            if len(t1files)<1: 
-                print 'e> no T1w image data:', sbjid, sbjno
+        out['T1nii'] = []
+        if isinstance(t1w, basestring):
+            pick_types = [s for s in scntypes if t1w == s[0]]
+        if isinstance(t1w, list):
+            pick_types = []
+            for tt in t1w:
+                pick_types += [s for s in scntypes if tt == s[0]]
         else:
-            out['T1nii'] = str(len(t1files))
+            pick_types = [s for s in scntypes if 't1' in s[0].lower()]
 
+        #-go through all scan types
+        for sel_type in pick_types:
+            TYPE = sel_type[0]
+            QLTY = sel_type[1]
+            ID = sel_type[2]
+            t1files = get_xnatList(
+                xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+ID+'/resources/NIFTI/files',
+                cookie=cookie
+            )
+            if download:
+                opth = t1pth
+                create_dir(opth)
+                for i in range(len(t1files)):
+                    # add 't1_' for the file to be recognised as T1w
+                    fname = 't1_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+sbjno+'_'+sbjid+'.'+t1files[i]['Name'].split('.',1)[-1]
+                    status = get_xnatFile(
+                        xc['url']+t1files[i]['URI'],
+                        os.path.join(opth, fname),
+                        cookie=cookie)
+                    if status<0:
+                        print 'e> no T1w image data:', sbjid, sbjno
+                    else:
+                        out['T1nii'].append(os.path.join(opth, fname))
+                if len(t1files)<1: 
+                    print 'e> no T1w image data:', sbjid, sbjno
+            else:
+                out['T1nii'] += len(t1files)
+    # --------------------------------------------------------------------------------
+    if t2w:
+        out['T2nii'] = []
+        if isinstance(t2w, basestring):
+            pick_types = [s for s in scntypes if t2w == s[0]]
+        if isinstance(t2w, list):
+            pick_types = []
+            for tt in t2w:
+                pick_types += [s for s in scntypes if tt == s[0]]
+        else:
+            pick_types = [s for s in scntypes if 't1' in s[0].lower()]
+
+        #-go through all scan types
+        for sel_type in pick_types:
+            TYPE = sel_type[0]
+            QLTY = sel_type[1]
+            ID = sel_type[2]
+            files = get_xnatList(
+                xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+ID+'/resources/NIFTI/files',
+                cookie=cookie
+            )
+            if download:
+                opth = t2pth
+                create_dir(opth)
+                for i in range(len(files)):
+                    # add 't2_' for the file to be recognised as T1w
+                    fname = 't2_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+sbjno+'_'+sbjid+'.'+files[i]['Name'].split('.',1)[-1]
+                    status = get_xnatFile(
+                        xc['url']+files[i]['URI'],
+                        os.path.join(opth, fname),
+                        cookie=cookie)
+                    if status<0:
+                        print 'e> no T1w image data:', sbjid, sbjno
+                    else:
+                        out['T1nii'].append(os.path.join(opth, fname))
+                if len(files)<1: 
+                    print 'e> no T1w image data:', sbjid, sbjno
+            else:
+                out['T2nii'] += len(files)
+    # --------------------------------------------------------------------------------
+
+    if ute:
+        out['UTE1'], out['UTE2'] = [], []
+        if isinstance(ute, basestring):
+            pick_types = [s for s in scntypes if ute == s[0]]
+        elif isinstance(ute, list):
+            pick_types = []
+            for tt in ute:
+                pick_types += [s for s in scntypes if tt == s[0]]
+        else:
+            pick_types = [s for s in scntypes if 'ute' in s[0].lower()]
+
+        print 'i> picked types:', pick_types
+
+        for sel_type in pick_types:
+            TYPE = sel_type[0]
+            QLTY = sel_type[1]
+            ID = sel_type[2]
+            files = get_xnatList(
+                xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+ID+'/resources/DICOM/files',
+                cookie=cookie
+            )
+            if download:
+                create_dir(utepth)
+                for i in range(len(files)):
+                    status = get_xnatFile(
+                        xc['url']+files[i]['URI'],
+                        os.path.join(utepth, files[i]['Name']),
+                        cookie=cookie
+                    )
+                    if status<0:
+                        print 'e> no UTE data:', sbjid, sbjno
+                        raise IOError('Could not cownload the UTE data')
+                        
+                if len(files)<192 and [n['Name'] for n in files if '.zip' in n['Name']]:
+                    fnm = [n['Name'] for n in files if '.zip' in n['Name']][0]
+                    fzip = zipfile.ZipFile(os.path.join(utepth,fnm), 'r')
+                    fzip.extractall(utepth)
+                    fzip.close()
+                # get the number of DICOM files
+                out['#UTE'] = len([f for f in os.listdir(utepth) if f.endswith(dcm_ext)])
+                # read one of the DICOM files to get the echo time
+                fdcm = glob.glob(os.path.join(utepth, '*.dcm'))[0]
+                dhdr = dcm.dcmread(fdcm)
+                # get the Echo time of the UTE sequences
+                if [0x018, 0x081] in dhdr:
+                    ETstr = str(dhdr[0x018, 0x081].value)
+                    # target path depending on the echo time
+                    trgtpth = os.path.join(os.path.dirname(utepth), 'UTE_scan-'+ID+'_ET-'+ETstr.replace('.','-'))
+                    os.rename(utepth,  trgtpth)
+                else:
+                    raise KeyError('Could  not find Echo Time in the DICOM header')
+                if np.float32(ETstr)<0.1:
+                    out['UTE1'] = trgtpth
+                else:
+                    out['UTE2'] = trgtpth
+
+                        
+
+    # DCM mu-map (UTE)
+    if umap:
+        um_TYPE = '1946_MRAC_UTE_UMAP'
+        # get the list of norm files
+        umfiles = get_xnatList(
+            xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+um_TYPE+'/resources/DICOM/files',
+            cookie=cookie
+        )
+        # download the norm files:
+        out['UTE'] = []
+        if download:
+            create_dir(umpth)
+            for i in range(len(umfiles)):
+                status = get_xnatFile(
+                    xc['url']+umfiles[i]['URI'],
+                    os.path.join(umpth, umfiles[i]['Name']),
+                    cookie=cookie
+                )
+                if status<0:
+                    print 'e> no UTE/Dixon mu-map data:', sbjid, sbjno
+                else:
+                    out['UTE'].append(os.path.join(umpth, umfiles[i]['Name']))
+            if len(umfiles)<192:
+                if any(n['Name'] for n in umfiles if 'zip' in n['Name']):
+                    fzip = zipfile.ZipFile(out['UTE'][0], 'r')
+                    fzip.extractall(os.path.dirname(out['UTE'][0]))
+                    fzip.close()
+                    out['#UTE'] = len(os.listdir(os.path.dirname(out['UTE'][0])))
+                else:
+                    print 'e> UTE image data too small (<10):', sbjid, sbjno
+                    out['UTE'] = 'missing'
+            elif len(umfiles)==192:
+                out['#UTE'] = 192
+        else:
+            out['UTE'] = str(len(umfiles))
+
+    #--------------------------------------------------------------------------------------
     # brain parcellations
     if prcl:
         PAR_TYPE = 'GIF_v2_TEST'
@@ -415,41 +581,6 @@ def download(xc, sbjid, sbjno,
         else:
             out['pCT'] = str(len(pctfiles))
 
-    # DCM mu-map (UTE)
-    if umap:
-        um_TYPE = '1946_MRAC_UTE_UMAP'
-        # get the list of norm files
-        umfiles = get_xnatList(
-            xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+um_TYPE+'/resources/DICOM/files',
-            cookie=cookie
-        )
-        # download the norm files:
-        out['UTE'] = []
-        if download:
-            create_dir(umpth)
-            for i in range(len(umfiles)):
-                status = get_xnatFile(
-                    xc['url']+umfiles[i]['URI'],
-                    os.path.join(umpth, umfiles[i]['Name']),
-                    cookie=cookie
-                )
-                if status<0:
-                    print 'e> no UTE/Dixon mu-map data:', sbjid, sbjno
-                else:
-                    out['UTE'].append(os.path.join(umpth, umfiles[i]['Name']))
-            if len(umfiles)<192:
-                if any(n['Name'] for n in umfiles if 'zip' in n['Name']):
-                    fzip = zipfile.ZipFile(out['UTE'][0], 'r')
-                    fzip.extractall(os.path.dirname(out['UTE'][0]))
-                    fzip.close()
-                    out['#UTE'] = len(os.listdir(os.path.dirname(out['UTE'][0])))
-                else:
-                    print 'e> UTE image data too small (<10):', sbjid, sbjno
-                    out['UTE'] = 'missing'
-            elif len(umfiles)==192:
-                out['#UTE'] = 192
-        else:
-            out['UTE'] = str(len(umfiles))
 
     # get the list of norm files
     if nrm:

@@ -726,6 +726,7 @@ def get_niifiles(dfile, datain, v):
         if v: print 'i> pseudoCT of the object.'
 
 
+# =======================================================================================
 def get_dicoms(dfile, datain, Cnt):
 
     v = Cnt['VERBOSE']
@@ -741,6 +742,7 @@ def get_dicoms(dfile, datain, Cnt):
     csatype = ''
     TR      = 0
     TE      = 0
+    ET      = 0
     if [0x29, 0x1108] in d:
         csatype = d[0x29, 0x1108].value
         if v: print '   CSA Data Type:', csatype
@@ -753,6 +755,7 @@ def get_dicoms(dfile, datain, Cnt):
     if [0x18, 0x81] in d:
         TE = float(d[0x18, 0x81].value)
         if v: print '   TE:', TE
+
 
     #check if it is norm file
     if dtype[2]=='PET_NORM' or cmmnt=='PET Normalization data' or csatype=='MRPETNORM':
@@ -836,20 +839,39 @@ def get_dicoms(dfile, datain, Cnt):
         datain['mumapDCM'] = os.path.dirname(dfile)
         if '#mumapDCM' not in datain:
             datain['#mumapDCM'] = 1
-        datain['#mumapDCM'] += 1
+        else:
+            datain['#mumapDCM'] += 1
 
     # check for MR T1w and T2w images
     if TR>400 and TR<2500 and TE<20:
         datain['T1dcm'] = os.path.dirname(dfile)
         if '#T1dcm' not in datain:
             datain['#T1dcm'] = 1
-        datain['#T1dcm'] += 1
+        else:
+            datain['#T1dcm'] += 1
 
     if TR>2500 and TE>50:
         datain['T2dcm'] = os.path.dirname(dfile)
         if '#T2dcm' not in datain:
             datain['#T2dcm'] = 1
-        datain['#T2dcm'] += 1
+        else:
+            datain['#T2dcm'] += 1
+
+    # UTE's two sequences:
+    if TR<50 and TE<20 and TE>0.1:
+        datain['UTE1'] = os.path.dirname(dfile)
+        if '#UTE1' not in datain:
+            datain['#UTE2'] = 1
+        else:
+            datain['#UTE2'] += 1
+
+    if TR<50 and TE<20 and TE<0.1:
+        datain['UTE1'] = os.path.dirname(dfile)
+        if '#UTE1' not in datain:
+            datain['#UTE1'] = 1
+        else:
+            datain['#UTE1'] += 1
+
     
     if v: print ''
 

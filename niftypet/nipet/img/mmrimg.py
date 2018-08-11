@@ -395,7 +395,7 @@ def align_mumap(
         store=False,
         petopt='ac',
         musrc='ute', # another option is pct for mu-map source
-        ute_name='ute1',
+        ute_name='UTE1',
     ):
 
     if not os.path.isfile(faff):
@@ -518,7 +518,7 @@ def align_mumap(
         if musrc=='pct':
             mudir = os.path.dirname(datain['pCT'])
         elif musrc=='ute':
-            mudir = os.path.dirname(datain['ute'])
+            mudir = os.path.dirname(datain['UTE'])
         else:
             raise NameError('Non-existent mu-map source selection.')
     else:
@@ -532,7 +532,7 @@ def align_mumap(
         fflo = datain['pCT']
     elif musrc=='ute':
         freg = os.path.join(mudir, 'UTE-r-tmp'+fcomment+'.nii.gz')
-        if 'ute' not in datain:
+        if 'UTE' not in datain:
             fnii = 'converted'
             # convert the DICOM mu-map images to nii
             if 'mumapDCM' not in datain: 
@@ -542,8 +542,8 @@ def align_mumap(
             fflo = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
             fflo = fflo[0]
         else:
-            if os.path.isfile(datain['ute']):
-                fflo = datain['ute']
+            if os.path.isfile(datain['UTE']):
+                fflo = datain['UTE']
             else:
                 raise IOError('The provided NIfTI UTE path is not valid.')
 
