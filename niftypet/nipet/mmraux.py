@@ -689,7 +689,7 @@ def get_niifiles(dfile, datain, v):
 
     #MR T1 
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )
-    if len(fmri)==1:
+    if len(fmri)==1 and (not 'Parcellation' in os.path.basename(fmri[0]) or 'giflabels' in os.path.basename(fmri[0])):
         datain['T1nii'] = fmri[0]
         if v: print 'i> NIfTI for T1w of the object.'
 
@@ -834,8 +834,10 @@ def get_dicoms(dfile, datain, Cnt):
                 return None
         #---
 
+    mumapFLG = False
     # check if MR-based mu-map
     if any('MRPET_UMAP3D' in s for s in dtype) or cmmnt=='MR based umap':
+        mumapFLG = True
         datain['mumapDCM'] = os.path.dirname(dfile)
         if '#mumapDCM' not in datain:
             datain['#mumapDCM'] = 1
@@ -858,14 +860,14 @@ def get_dicoms(dfile, datain, Cnt):
             datain['#T2dcm'] += 1
 
     # UTE's two sequences:
-    if TR<50 and TE<20 and TE>0.1:
-        datain['UTE1'] = os.path.dirname(dfile)
+    if TR<50 and TE<20 and TE>1 and not mumapFLG:
+        datain['UTE2'] = os.path.dirname(dfile)
         if '#UTE2' not in datain:
             datain['#UTE2'] = 1
         else:
             datain['#UTE2'] += 1
 
-    if TR<50 and TE<20 and TE<0.1:
+    if TR<50 and TE<20 and TE<0.1 and TR>0 and TE>0:
         datain['UTE1'] = os.path.dirname(dfile)
         if '#UTE1' not in datain:
             datain['#UTE1'] = 1
