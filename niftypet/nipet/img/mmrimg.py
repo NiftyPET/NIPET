@@ -480,10 +480,15 @@ def align_mumap(
         mu_dct['fpet'] = fpet
 
         #------------------------------
-        if musrc=='ute' and ute_name in datain and os.path.isfile(datain[ute_name]):
+        if musrc=='ute' and ute_name in datain and os.path.exists(datain[ute_name]):
+            # change to NIfTI if the UTE sequence is in DICOM files (folder)
+            if os.path.isdir(datain[ute_name]):
+                fnew =  os.path.basename(datain[ute_name])
+                call( [ Cnt['DCM2NIIX'], '-f', fnii, datain[ute_name] ] )
+                fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
             # get the affine transformation
             faff, _ = nimpa.affine_niftyreg(
-                fpet, datain[ute_name],
+                fpet, fute,
                 outpath=outpath,
                 #fcomment=fcomment,
                 exepath = Cnt['REGPATH'],
