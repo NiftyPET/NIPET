@@ -489,7 +489,7 @@ def download(xc, sbjid, sbjno,
                 if [0x018, 0x081] in dhdr:
                     ETstr = str(dhdr[0x018, 0x081].value)
                     # target path depending on the echo time
-                    trgtpth = os.path.join(os.path.dirname(utepth), 'UTE_scan-'+ID+'_ET-'+ETstr.replace('.','-'))
+                    trgtpth = os.path.join(os.path.dirname(utepth), 'UTE_scan-'+ID+'_Q-'+QLTY+'_ET-'+ETstr.replace('.','-'))
                     os.rename(utepth,  trgtpth)
                 else:
                     raise KeyError('Could  not find Echo Time in the DICOM header')
