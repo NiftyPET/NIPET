@@ -484,7 +484,7 @@ def align_mumap(
             # change to NIfTI if the UTE sequence is in DICOM files (folder)
             if os.path.isdir(datain[ute_name]):
                 fnew =  os.path.basename(datain[ute_name])
-                call( [ Cnt['DCM2NIIX'], '-f', fnii, datain[ute_name] ] )
+                call( [ Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name] ] )
                 fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
             # get the affine transformation
             faff, _ = nimpa.affine_niftyreg(
