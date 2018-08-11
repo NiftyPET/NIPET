@@ -860,7 +860,7 @@ def get_dicoms(dfile, datain, Cnt):
     # UTE's two sequences:
     if TR<50 and TE<20 and TE>0.1:
         datain['UTE1'] = os.path.dirname(dfile)
-        if '#UTE1' not in datain:
+        if '#UTE2' not in datain:
             datain['#UTE2'] = 1
         else:
             datain['#UTE2'] += 1
