@@ -689,9 +689,40 @@ def get_niifiles(dfile, datain, v):
 
     #MR T1 
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )
-    if len(fmri)==1 and (not 'Parcellation' in os.path.basename(fmri[0]) or 'giflabels' in os.path.basename(fmri[0])):
-        datain['T1nii'] = fmri[0]
-        if v: print 'i> NIfTI for T1w of the object.'
+    if len(fmri)==1:
+        bnm = os.path.basename(fmri[0]).lower()
+        if not 'giflabels' in bnm and not 'parcellation' in bnm \
+        and not 'pct' in bnm and not 'n4bias' in bnm:
+            datain['T1nii'] = fmri[0]
+            if v: print 'i> NIfTI for T1w of the object.'
+    elif len(fmri)>1:
+        for fg in fmri:
+            bnm = os.path.basename(fg).lower()
+            if not 'giflabels' in bnm and not 'parcellation' in bnm\
+            and not 'pct' in bnm and not 'n4bias' in bnm:
+                if 'preferred' in bnm:
+                    datain['T1nii'] = fg
+                elif 'usable' in bnm:
+                    datain['T1nii_2'] = fg
+
+    #MR T1 N4bias-corrected
+    fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*[nN]4bias*.nii*') )
+    if len(fmri)==1:
+        bnm = os.path.basename(fmri[0]).lower()
+        if not 'giflabels' in bnm and not 'parcellation' in bnm \
+        and not 'pct' in bnm:
+            datain['T1N4'] = fmri[0]
+            if v: print 'i> NIfTI for T1w of the object.'
+    elif len(fmri)>1:
+        for fg in fmri:
+            bnm = os.path.basename(fg).lower()
+            if not 'giflabels' in bnm and not 'parcellation' in bnm\
+            and not 'pct' in bnm:
+                if 'preferred' in bnm:
+                    datain['T1N4'] = fg
+                elif 'usable' in bnm:
+                    datain['T1N4_2'] = fg
+
 
     #T1w corrected
     fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*gifbc.nii*') )

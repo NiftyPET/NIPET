@@ -229,7 +229,7 @@ setup(
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/pjmark/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=['nimpa>=1.0.12', 'pydicom>=1.0.2,<1.1.0', 'nibabel>=2.2.1, <2.3.0'],
+    install_requires=['nimpa>=1.0.17', 'pydicom>=1.0.2,<1.1.0', 'nibabel>=2.2.1, <2.3.0'],
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],

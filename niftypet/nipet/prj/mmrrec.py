@@ -260,9 +260,10 @@ def osemone(datain, mumaps, hst, txLUT, axLUT, Cnt,
     #=========================================================================
 
     
-    if Cnt['VERBOSE']: print 'i> applying decay correction', dcycrr
+    if Cnt['VERBOSE']: 
+        print 'i> applying decay correction', dcycrr
+        print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
     
-    if Cnt['VERBOSE']: print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
     img *= dcycrr * qf * 0.205 #additional factor for making it quantitative in absolute terms (derived from measurements)
 
     #---- save images -----
