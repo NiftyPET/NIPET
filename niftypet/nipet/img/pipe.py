@@ -30,7 +30,7 @@ def mmrchain(datain,        # all input data in a dictionary
             trim=False,
             trim_scale=2,
             trim_interp=1,  # interpolation for upsampling used in PVC
-            trim_memlim=False,   # reduced use of memory for machines with limited memory (makes it slower though)
+            trim_memlim=True,   # reduced use of memory for machines with limited memory (makes it slower though)
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC is performed. 
             psfkernel=[],
             pvcitr=5, 

@@ -427,7 +427,8 @@ def align_mumap(
         raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
     #=========================================================
     #-check if T1w image is available
-    if not 'MRT1W#' in datain and not os.path.isfile(datain['T1nii']) and not os.path.isfile(datain['T1bc']):
+    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain \
+    and not 'T1N4' in datain:
         print 'e> no MR T1w images required for co-registration!'
         raise IOError('T1w image could not be obtained')
     #=========================================================
@@ -486,6 +487,8 @@ def align_mumap(
                 fnew =  os.path.basename(datain[ute_name])
                 call( [ Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name] ] )
                 fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
+            elif os.path.isfile(datain[ute_name]):
+                fute = datain[ute_name]
             # get the affine transformation
             faff, _ = nimpa.affine_niftyreg(
                 fpet, fute,
@@ -507,6 +510,7 @@ def align_mumap(
                 fthrsh=0.05,
                 verbose=Cnt['VERBOSE']
             )
+            os.remove(fute)
         elif musrc=='pct':
             faff, _ = nimpa.reg_mr2pet(  
             fpet, datain, Cnt,
