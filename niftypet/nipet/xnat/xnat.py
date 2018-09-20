@@ -277,7 +277,7 @@ def download(xc, sbjid, sbjno,
     ute=False,
     pct=False,
     nrm=False,
-    lm=True,
+    lm=False,
     cookie=''):
 
     '''

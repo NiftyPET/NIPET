@@ -504,9 +504,9 @@ def align_mumap(
                 smof=0, smor=0,
                 rmsk=True,
                 fmsk=True,
-                rfwhm=1.5,
+                rfwhm=15., #millilitres
                 rthrsh=0.05,
-                ffwhm = 15.,
+                ffwhm = 15., #millilitres
                 fthrsh=0.05,
                 verbose=Cnt['VERBOSE']
             )
