@@ -52,7 +52,7 @@ from img.pipe import mmrchain
 if resources.ENBLAGG:
 	from lm.pviews import video_frm, video_dyn
 
-if resources.ENBLAGG and resources.ENBLXNAT:
+if resources.ENBLXNAT:
 	from xnat import xnat
 
 # import sigaux

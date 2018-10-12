@@ -248,7 +248,28 @@ def hu2mu(im):
     rhobone  = 0.326
     uim = np.zeros(im.shape, dtype=np.float32)
     uim[im<=0] = muwater * ( 1+im[im<=0]*1e-3 )
-    uim[im> 0] = muwater * ( 1+im[im> 0]*1e-3 * rhowater/muwater*(mubone-muwater)/(rhobone-rhowater) )
+    uim[im> 0] = muwater * \
+        ( 1+im[im>0]*1e-3 * rhowater/muwater*(mubone-muwater)/(rhobone-rhowater) )
+    # remove negative values
+    uim[uim<0] = 0
+    return uim
+
+def ct2mu(im):
+    '''HU units to 511keV PET mu-values
+        https://link.springer.com/content/pdf/10.1007%2Fs00259-002-0796-3.pdf
+        C. Burger, et al., PET attenuation coefficients from CT images, 
+    '''
+
+    # convert nans to -1024 for the HU values only
+    im[np.isnan(im)] = -1024
+    # constants
+    muwater  = 0.096
+    mubone   = 0.172
+    rhowater = 0.184
+    rhobone  = 0.428
+    uim = np.zeros(im.shape, dtype=np.float32)
+    uim[im<=0] = muwater * ( 1+im[im<=0]*1e-3 )
+    uim[im> 0] = muwater+im[im>0]*(rhowater*(mubone-muwater)/(1e3*(rhobone-rhowater)))
     # remove negative values
     uim[uim<0] = 0
     return uim

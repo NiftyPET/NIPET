@@ -1,7 +1,3 @@
-import matplotlib
-# # switch off X-windows (used for storing in png format) 
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import math
 import os
@@ -28,9 +24,11 @@ from datetime import datetime
 dcm_ext = ('dcm', 'DCM', 'ima', 'IMA')
 
 
-# version of matplotlib to int
-mplv =  matplotlib.__version__.split('.')
-mplv = int(mplv[0])*10 + int(mplv[1])
+# # version of matplotlib to int
+# import matplotlib.pyplot as plt
+# import matplotlib
+# mplv =  matplotlib.__version__.split('.')
+# mplv = int(mplv[0])*10 + int(mplv[1])
 
 # -----------------------------
 def create_dir(pth):
@@ -211,54 +209,6 @@ def put_xnatPetMrRes(usrpwd, xnatsbj, sbjix, lbl, frmt, fpth):
     # upload
     xnaturi = xnatsbj+'/' +sbjix+ '/experiments/' + expt[0]['ID'] + '/resources/' +lbl+ '/files'
     xnat_upload(usrpwd, xnaturi, fpth)
-
-
-
-#----------------------------------------------------------------------------------------------------------
-def pltQC(hst, outpth, Cnt):
-    T = hst['dur']
-    # plot headcurve:
-    plt.figure(0)
-    prm, = plt.plot(range(T), hst['phc']/1000, 'k', label='prompts')
-    rnd, = plt.plot(range(T), hst['dhc']/1000, 'r', label='delayeds')
-    plt.grid(b=True, which='major', color='k', linestyle=':', linewidth=.5)
-    plt.ylabel('kcounts')
-    plt.xlabel('seconds')
-    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3, ncol=2, mode="expand", borderaxespad=0.)
-    plt.savefig(os.path.join(outpth, 'headcurve.png'), format='png', dpi=300)
-
-    # plot centre of mass:
-    plt.figure(1)
-    scmass = ndi.filters.gaussian_filter(hst['cmass'], 5, mode='mirror')
-    plt.plot(scmass,'k')
-    plt.grid(b=True, which='major', color='k', linestyle=':', linewidth=.5)
-    plt.ylabel('cm')
-    plt.xlabel('seconds')
-    plt.savefig(os.path.join(outpth, 'mass_centre.png'), format='png', dpi=300)
-    # ---
-    #find the peak in hc to get the zooming-in range
-    # i = np.argmax(hst['phc'])
-    # ymin = np.floor( min(hst['cmass'][i:i+300]) )
-    # ymax = np.ceil( max(hst['cmass'][i+100:]) )
-
-    # prompt peak
-    HCpeakIdx = np.nanargmax(hst['phc'])
-    # the centre of mass peak has to be just around the prompt peak
-    CMpeakIdx = np.nanargmax(hst['cmass'][:HCpeakIdx+60])
-    # lowest point after the peak
-    lcmss = np.nanmin(hst['cmass'][CMpeakIdx:])
-    # get the index of the point
-    il = CMpeakIdx + np.nanargmin(hst['cmass'][CMpeakIdx:])
-    ymin = np.floor(lcmss*10)/10
-    ymax = np.nanmax(hst['cmass'][il:])
-    # range
-    Rng = ymax-ymin
-    if Rng<0.5:  ymax += 0.5-Rng
-    plt.ylim([ymin, ymax])
-    plt.xlim([0,hst['dur']])
-    plt.savefig(os.path.join(outpth, 'mass_centre_zoom.png'), format='png', dpi=300)
-
-
 #----------------------------------------------------------------------------------------------------------
 
 
@@ -666,302 +616,302 @@ def download(xc, sbjid, sbjno,
 
 
 
-#<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-def dobtp(xc, sbjid, sbjno, t0, t1, Nr, gpth, labels, dkeys, rois, txLUT, axLUT, Cnt):
-    # xc: dictionary of all properties for accessing XNAT server
-    # sbjid: subject ID
-    # sbjno: subject number
-    # t0: frame start time
-    # t1: frame stop time
-    # Nr: number of bootstrap realisations
-    # gpth: path to GIF parcellations
-    # labels: ROI labels based on the provided parcellation
-    # dkeys: keys (labels) used in the dictionary of the ROIs (easier/shorter for programming than the above labels)
-    # rois: the actual ROIs defined in numbers
-    # txLUT, axLUT, Cnt: transaxial, axial LUTs and scanner (Siemens mMR) constants
+# #<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+# def dobtp(xc, sbjid, sbjno, t0, t1, Nr, gpth, labels, dkeys, rois, txLUT, axLUT, Cnt):
+#     # xc: dictionary of all properties for accessing XNAT server
+#     # sbjid: subject ID
+#     # sbjno: subject number
+#     # t0: frame start time
+#     # t1: frame stop time
+#     # Nr: number of bootstrap realisations
+#     # gpth: path to GIF parcellations
+#     # labels: ROI labels based on the provided parcellation
+#     # dkeys: keys (labels) used in the dictionary of the ROIs (easier/shorter for programming than the above labels)
+#     # rois: the actual ROIs defined in numbers
+#     # txLUT, axLUT, Cnt: transaxial, axial LUTs and scanner (Siemens mMR) constants
 
-    # subject index in XNAT server
-    sbjix = xc['prjf']+ '_' + sbjno
+#     # subject index in XNAT server
+#     sbjix = xc['prjf']+ '_' + sbjno
 
-    # core subject output path
-    spth = os.path.join(xc['opth'], sbjno+'_'+sbjid)
-    # processing output path
-    outpth = os.path.join(spth, 'output')
-    # LM path
-    lmpth = os.path.join(spth, 'LM')
+#     # core subject output path
+#     spth = os.path.join(xc['opth'], sbjno+'_'+sbjid)
+#     # processing output path
+#     outpth = os.path.join(spth, 'output')
+#     # LM path
+#     lmpth = os.path.join(spth, 'LM')
     
-    # output file names and their xnat content tags
-    btpresults = [['SEimg_btp_'+str(Nr)+'.nii.gz',
-                   'Rimg_btp_' +str(Nr)+'.nii.gz',
-                   'bootstrap_boxplot_btp_'+str(Nr)+'.png'],
-                   ['SEBIMG','RBIMG','BTPBXP']]
+#     # output file names and their xnat content tags
+#     btpresults = [['SEimg_btp_'+str(Nr)+'.nii.gz',
+#                    'Rimg_btp_' +str(Nr)+'.nii.gz',
+#                    'bootstrap_boxplot_btp_'+str(Nr)+'.png'],
+#                    ['SEBIMG','RBIMG','BTPBXP']]
 
 
-    #------------------------------------------------------
-    # check if the parcellation is available
-    g_lb = glob.glob( os.path.join(gpth, sbjid+'*labels.nii*') )
-    g_bc = glob.glob( os.path.join(gpth, sbjid+'*bc.nii*') ) 
-    if not (g_bc and g_lb):
-        print 'e> no GIF parcellation files available'
-        return {'pliststr':'m:par'}
+#     #------------------------------------------------------
+#     # check if the parcellation is available
+#     g_lb = glob.glob( os.path.join(gpth, sbjid+'*labels.nii*') )
+#     g_bc = glob.glob( os.path.join(gpth, sbjid+'*bc.nii*') ) 
+#     if not (g_bc and g_lb):
+#         print 'e> no GIF parcellation files available'
+#         return {'pliststr':'m:par'}
 
-    # split the label file path
-    lbpth = os.path.split(g_lb[0])
+#     # split the label file path
+#     lbpth = os.path.split(g_lb[0])
 
-    # sum of all voxel values in any given ROI
-    roisum = {}
-    for k in dkeys: roisum[k] = [] 
+#     # sum of all voxel values in any given ROI
+#     roisum = {}
+#     for k in dkeys: roisum[k] = [] 
 
-    # sum of the mask values <0,1> used for getting the mean value of any ROI
-    roimsk = {}
-    for k in dkeys: roimsk[k] = []
-    #------------------------------------------------------
-
-
-    #------------------------------------------------------
-    #GET THE RAW & INPUT DATA FOR RECONSTRUCTION
-    folderin = spth
-    datain = nipet.mmraux.explore_input(folderin, Cnt)
-    #------------------------------------------------------
-
-    #print the time difference between calibration and acquisition
-    nipet.mmraux.time_diff_norm_acq(datain)
+#     # sum of the mask values <0,1> used for getting the mean value of any ROI
+#     roimsk = {}
+#     for k in dkeys: roimsk[k] = []
+#     #------------------------------------------------------
 
 
-    # =============================================================
-    # R E C O N    W I T H    R O I    S A M P L I N G
-    # -------------------------------------------------------------
-    if Cnt['SPN']==11:
-        snshape = (Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS'])
-    elif Cnt['SPN']==1:
-        snshape = (Cnt['NSN1'], Cnt['NSANGLES'], Cnt['NSBINS'])
-    print 'i> using this sino shape:', snshape
+#     #------------------------------------------------------
+#     #GET THE RAW & INPUT DATA FOR RECONSTRUCTION
+#     folderin = spth
+#     datain = nipet.mmraux.explore_input(folderin, Cnt)
+#     #------------------------------------------------------
 
-    # for calculating variance online of scatter and random sinos
-    M1_ssn = np.zeros(snshape, dtype=np.float32)
-    M2_ssn = np.zeros(snshape, dtype=np.float32)
-
-    M1_sss = np.zeros(snshape, dtype=np.float32)
-    M2_sss = np.zeros(snshape, dtype=np.float32)
-
-    M1_rsn = np.zeros(snshape, dtype=np.float32)
-    M2_rsn = np.zeros(snshape, dtype=np.float32)
-
-    M1_img = np.zeros((Cnt['SO_IMZ'],Cnt['SO_IMY'],Cnt['SO_IMX']), dtype=np.float32)
-    M2_img = np.zeros((Cnt['SO_IMZ'],Cnt['SO_IMY'],Cnt['SO_IMX']), dtype=np.float32)
-
-    # sys.exit()
+#     #print the time difference between calibration and acquisition
+#     nipet.mmraux.time_diff_norm_acq(datain)
 
 
-    # do single non-bootstrap or multiple bootstrap (Nr) realisations
-    for itr in range((Nr-1)*(Cnt['BTP']>0)+1):
+#     # =============================================================
+#     # R E C O N    W I T H    R O I    S A M P L I N G
+#     # -------------------------------------------------------------
+#     if Cnt['SPN']==11:
+#         snshape = (Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS'])
+#     elif Cnt['SPN']==1:
+#         snshape = (Cnt['NSN1'], Cnt['NSANGLES'], Cnt['NSBINS'])
+#     print 'i> using this sino shape:', snshape
 
-        print ''
-        print '++++++++++++++++++++++++++++'
-        print 'i> performing realisation:', itr
-        print '++++++++++++++++++++++++++++'
-        print ''
+#     # for calculating variance online of scatter and random sinos
+#     M1_ssn = np.zeros(snshape, dtype=np.float32)
+#     M2_ssn = np.zeros(snshape, dtype=np.float32)
 
-        # --------------------------------------------------------------
-        # histogram the LM data and save the results
-        hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, hst_store=False, t0=t0, t1=t1)
+#     M1_sss = np.zeros(snshape, dtype=np.float32)
+#     M2_sss = np.zeros(snshape, dtype=np.float32)
 
-        #get the mu-maps (hardware and object);  use the comment to save each affine transformation text file
-        cmmnt = '_btp'+str(Cnt['BTP'])+'_'+str(itr)
-        mumaps = nipet.img.mmrimg.get_mumaps(datain, Cnt, hst=hst, t0=t0, t1=t1, fcomment=cmmnt)
+#     M1_rsn = np.zeros(snshape, dtype=np.float32)
+#     M2_rsn = np.zeros(snshape, dtype=np.float32)
 
-        #update datain
-        datain = nipet.mmraux.explore_input(folderin, Cnt)
+#     M1_img = np.zeros((Cnt['SO_IMZ'],Cnt['SO_IMY'],Cnt['SO_IMX']), dtype=np.float32)
+#     M2_img = np.zeros((Cnt['SO_IMZ'],Cnt['SO_IMY'],Cnt['SO_IMX']), dtype=np.float32)
 
-        # do the proper recon with attenuation and scatter
-        recon = nipet.prj.mmrprj.osemone(datain, mumaps, hst, txLUT, axLUT, Cnt, recmod=3, itr=4, fwhm=0., store_img=True, ret_sct=True)
-        # name of saved file
-        fpetq = recon[1]
-        # reconstructed image
-        imcrr = recon[0]
-        # if bootstrap, calculate variance online
-        if Cnt['BTP']>0:
-            # calculate variance online:
-            nipet.mmr_auxe.varon(M1_ssn, M2_ssn, recon[3], itr, Cnt)
-            nipet.mmr_auxe.varon(M1_sss, M2_sss, recon[4], itr, Cnt)
-            nipet.mmr_auxe.varon(M1_rsn, M2_rsn, recon[6], itr, Cnt)
-            nipet.mmr_auxe.varon(M1_img, M2_img, imcrr, itr, Cnt)
-        # --------------------------------------------------------------
+#     # sys.exit()
 
 
-        # --------------------------------------------------------------
-        # GIF: get the T1w and labels in register with PET
-        print '';  print ''
-        print 'i> extracting ROI values:'
-        # T1w:
-        t1dir = os.path.dirname(datain['T1nii'])
-        f_ = glob.glob( os.path.join(t1dir, '*_affine'+cmmnt+'.txt') )
-        if len(f_)>0:
-            frigid = f_[0]
-            print 'i> using rigid transform from this file:', frigid
-        else:
-            print 'e> no affine transformation text file found!'
-            return {'pliststr':'m:--'}
+#     # do single non-bootstrap or multiple bootstrap (Nr) realisations
+#     for itr in range((Nr-1)*(Cnt['BTP']>0)+1):
 
-        # PET (without scatter and attenuation corrections):
-        petdir = os.path.dirname(datain['em_nocrr'])
-        fpet = glob.glob( os.path.join(petdir, '*__ACbed.nii.gz') )
-        if len(fpet)==0:
-            print 'w> NAC PET image not found: using quantitative PET image for registration of MR to PET.'
-            fpet = fpetq
-        elif len(fpet)>1:
-            print 'w> multiple NAC/NSCT PET images found: using quantitative PET image for registration of MR to PET.'
-            fpet = fpetq
-        # resample the GIF T1/labels
-        #call the resampling routine to get the GIF T1/labels in PET space
-        if len(g_lb)>0 and len(fpet)>0:
-            fgt1 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET' +'.nii.gz')
-            if os.path.isfile( Cnt['RESPATH'] ):
-                call(
-                    [Cnt['RESPATH'],
-                    '-ref', fpet[0],
-                    '-flo', g_bc[0],
-                    '-trans', frigid,
-                    '-res', fgt1])
-            else:
-                print 'e> path to resampling executable is incorrect!'
-                sys.exit()
+#         print ''
+#         print '++++++++++++++++++++++++++++'
+#         print 'i> performing realisation:', itr
+#         print '++++++++++++++++++++++++++++'
+#         print ''
 
-        if len(g_lb)==0 or len(fpet)==0:
-            print 'e> no enough input data for resampling (e.g., floating labels or target PET image)!'
-            return {'pliststr':'m:--'}
+#         # --------------------------------------------------------------
+#         # histogram the LM data and save the results
+#         hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, hst_store=False, t0=t0, t1=t1)
 
-        # Get the labels before resampling to PET space
-        nilb = nib.load(g_lb[0])
-        A = nilb.get_sform()
-        imlb = nilb.get_data()
-        # get a copy of the image for masks (still in the original T1 orientation)
-        roi_img = np.copy(imlb)
+#         #get the mu-maps (hardware and object);  use the comment to save each affine transformation text file
+#         cmmnt = '_btp'+str(Cnt['BTP'])+'_'+str(itr)
+#         mumaps = nipet.img.mmrimg.get_mumaps(datain, Cnt, hst=hst, t0=t0, t1=t1, fcomment=cmmnt)
 
-        for k in rois.keys():
-            roi_img[:] = 0
-            for i in rois[k]:
-                roi_img[imlb==i] = 1.
-            # now save the image mask to nii file <froi1>
-            froi1 = os.path.join(t1dir, lbpth[1].split('.')[0][:8]+'_'+k+'.nii.gz')
-            nii_roi = nib.Nifti1Image(roi_img, A)
-            nii_roi.header['cal_max'] = 1.
-            nii_roi.header['cal_min'] = 0.
-            nib.save(nii_roi, froi1)
-            # file name for the resampled ROI to PET space
-            froi2 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET_'+k+'.nii.gz')
-            if os.path.isfile( Cnt['RESPATH'] ):
-                call(
-                    [Cnt['RESPATH'],
-                    '-ref', fpet[0],
-                    '-flo', froi1,
-                    '-trans', frigid,
-                    '-res', froi2])
-            else:
-                print 'e> path to resampling executable is incorrect!'
-                sys.exit()
-            # get the resampled ROI mask image
-            rmsk = nimpa.prc.getnii(froi2)
-            rmsk[rmsk>1.] = 1.
-            rmsk[rmsk<0.] = 0.
+#         #update datain
+#         datain = nipet.mmraux.explore_input(folderin, Cnt)
 
-            # erode the cerebral white matter region
-            if k=='EroWM':
-                nilb = nib.load(froi2)
-                B = nilb.get_sform()
-                # tmp = nilb.get_data()
-                tmp = ndi.filters.gaussian_filter(rmsk, nipet.mmraux.fwhm2sig(12./10), mode='mirror')
-                rmsk = np.float32(tmp>0.85)
-                froi3 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET_'+k+'_eroded.nii.gz')
-                nipet.img.mmrimg.savenii(rmsk, froi3, B, Cnt)
-
-            # ROI value and mask sums:
-            rvsum  = np.sum(imcrr*rmsk)
-            rmsum  = np.sum(rmsk)
-            roisum[k].append( rvsum )
-            roimsk[k].append( rmsum )
-            print ''
-            print '================================================================'
-            print 'i> ROI extracted:', k
-            print '   > value sum:', rvsum
-            print '   > mask sum :', rmsum
-            print '================================================================'
-        # --------------------------------------------------------------
-
-    # =============================================================
-
-    if Cnt['BTP']>0:
-        np.save(os.path.join(outpth,'saved_roisum_btp'+str(itr+1)+'.npy'), roisum)
-        np.save(os.path.join(outpth,'saved_roimsk_btp'+str(itr+1)+'.npy'), roimsk)
-        np.save(os.path.join(outpth,'saved_varon_btp'+str(itr+1)+'.npy'), (M1_rsn, M1_sss, M1_ssn, M2_rsn, M2_sss, M2_ssn, itr))
-        np.save(os.path.join(outpth,'saved_varon_img_btp'+str(itr+1)+'.npy'), (M1_img, M2_img, itr))
-    else:
-        np.save(os.path.join(outpth,'saved_roisum.npy'), roisum)
-        np.save(os.path.join(outpth,'saved_roimsk.npy'), roimsk)
+#         # do the proper recon with attenuation and scatter
+#         recon = nipet.prj.mmrprj.osemone(datain, mumaps, hst, txLUT, axLUT, Cnt, recmod=3, itr=4, fwhm=0., store_img=True, ret_sct=True)
+#         # name of saved file
+#         fpetq = recon[1]
+#         # reconstructed image
+#         imcrr = recon[0]
+#         # if bootstrap, calculate variance online
+#         if Cnt['BTP']>0:
+#             # calculate variance online:
+#             nipet.mmr_auxe.varon(M1_ssn, M2_ssn, recon[3], itr, Cnt)
+#             nipet.mmr_auxe.varon(M1_sss, M2_sss, recon[4], itr, Cnt)
+#             nipet.mmr_auxe.varon(M1_rsn, M2_rsn, recon[6], itr, Cnt)
+#             nipet.mmr_auxe.varon(M1_img, M2_img, imcrr, itr, Cnt)
+#         # --------------------------------------------------------------
 
 
-    # ANALYSIS
-    # get the ROIs for reference and neocortex regions
-    ROIs = np.zeros((len(dkeys),itr+1), dtype=np.float32)
-    for i in range(len(dkeys)):
-        ROIs[i,:] = np.array(roisum[dkeys[i]]) / np.array(roimsk[dkeys[i]])
+#         # --------------------------------------------------------------
+#         # GIF: get the T1w and labels in register with PET
+#         print '';  print ''
+#         print 'i> extracting ROI values:'
+#         # T1w:
+#         t1dir = os.path.dirname(datain['T1nii'])
+#         f_ = glob.glob( os.path.join(t1dir, '*_affine'+cmmnt+'.txt') )
+#         if len(f_)>0:
+#             frigid = f_[0]
+#             print 'i> using rigid transform from this file:', frigid
+#         else:
+#             print 'e> no affine transformation text file found!'
+#             return {'pliststr':'m:--'}
 
-    # pick the reference regions for reporting
-    refi = [0,2,3]
-    # pick the neocortex regions for reporting (boxplot)
-    roii = range(7, len(dkeys))
-    roilables = [labels[k] for k in roii]
-    print 'i> chosen regions of interests:',[labels[i] for i in refi]
-    print 'i> chosen regions of interests:', roilables
+#         # PET (without scatter and attenuation corrections):
+#         petdir = os.path.dirname(datain['em_nocrr'])
+#         fpet = glob.glob( os.path.join(petdir, '*__ACbed.nii.gz') )
+#         if len(fpet)==0:
+#             print 'w> NAC PET image not found: using quantitative PET image for registration of MR to PET.'
+#             fpet = fpetq
+#         elif len(fpet)>1:
+#             print 'w> multiple NAC/NSCT PET images found: using quantitative PET image for registration of MR to PET.'
+#             fpet = fpetq
+#         # resample the GIF T1/labels
+#         #call the resampling routine to get the GIF T1/labels in PET space
+#         if len(g_lb)>0 and len(fpet)>0:
+#             fgt1 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET' +'.nii.gz')
+#             if os.path.isfile( Cnt['RESPATH'] ):
+#                 call(
+#                     [Cnt['RESPATH'],
+#                     '-ref', fpet[0],
+#                     '-flo', g_bc[0],
+#                     '-trans', frigid,
+#                     '-res', fgt1])
+#             else:
+#                 print 'e> path to resampling executable is incorrect!'
+#                 sys.exit()
+
+#         if len(g_lb)==0 or len(fpet)==0:
+#             print 'e> no enough input data for resampling (e.g., floating labels or target PET image)!'
+#             return {'pliststr':'m:--'}
+
+#         # Get the labels before resampling to PET space
+#         nilb = nib.load(g_lb[0])
+#         A = nilb.get_sform()
+#         imlb = nilb.get_data()
+#         # get a copy of the image for masks (still in the original T1 orientation)
+#         roi_img = np.copy(imlb)
+
+#         for k in rois.keys():
+#             roi_img[:] = 0
+#             for i in rois[k]:
+#                 roi_img[imlb==i] = 1.
+#             # now save the image mask to nii file <froi1>
+#             froi1 = os.path.join(t1dir, lbpth[1].split('.')[0][:8]+'_'+k+'.nii.gz')
+#             nii_roi = nib.Nifti1Image(roi_img, A)
+#             nii_roi.header['cal_max'] = 1.
+#             nii_roi.header['cal_min'] = 0.
+#             nib.save(nii_roi, froi1)
+#             # file name for the resampled ROI to PET space
+#             froi2 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET_'+k+'.nii.gz')
+#             if os.path.isfile( Cnt['RESPATH'] ):
+#                 call(
+#                     [Cnt['RESPATH'],
+#                     '-ref', fpet[0],
+#                     '-flo', froi1,
+#                     '-trans', frigid,
+#                     '-res', froi2])
+#             else:
+#                 print 'e> path to resampling executable is incorrect!'
+#                 sys.exit()
+#             # get the resampled ROI mask image
+#             rmsk = nimpa.prc.getnii(froi2)
+#             rmsk[rmsk>1.] = 1.
+#             rmsk[rmsk<0.] = 0.
+
+#             # erode the cerebral white matter region
+#             if k=='EroWM':
+#                 nilb = nib.load(froi2)
+#                 B = nilb.get_sform()
+#                 # tmp = nilb.get_data()
+#                 tmp = ndi.filters.gaussian_filter(rmsk, nipet.mmraux.fwhm2sig(12./10), mode='mirror')
+#                 rmsk = np.float32(tmp>0.85)
+#                 froi3 = os.path.join(t1dir, os.path.basename(g_lb[0]).split('.')[0]+ '_toPET_'+k+'_eroded.nii.gz')
+#                 nipet.img.mmrimg.savenii(rmsk, froi3, B, Cnt)
+
+#             # ROI value and mask sums:
+#             rvsum  = np.sum(imcrr*rmsk)
+#             rmsum  = np.sum(rmsk)
+#             roisum[k].append( rvsum )
+#             roimsk[k].append( rmsum )
+#             print ''
+#             print '================================================================'
+#             print 'i> ROI extracted:', k
+#             print '   > value sum:', rvsum
+#             print '   > mask sum :', rmsum
+#             print '================================================================'
+#         # --------------------------------------------------------------
+
+#     # =============================================================
+
+#     if Cnt['BTP']>0:
+#         np.save(os.path.join(outpth,'saved_roisum_btp'+str(itr+1)+'.npy'), roisum)
+#         np.save(os.path.join(outpth,'saved_roimsk_btp'+str(itr+1)+'.npy'), roimsk)
+#         np.save(os.path.join(outpth,'saved_varon_btp'+str(itr+1)+'.npy'), (M1_rsn, M1_sss, M1_ssn, M2_rsn, M2_sss, M2_ssn, itr))
+#         np.save(os.path.join(outpth,'saved_varon_img_btp'+str(itr+1)+'.npy'), (M1_img, M2_img, itr))
+#     else:
+#         np.save(os.path.join(outpth,'saved_roisum.npy'), roisum)
+#         np.save(os.path.join(outpth,'saved_roimsk.npy'), roimsk)
 
 
-    # one plot per ROI
-    if Cnt['BTP']>0:
-        ip = 1
-        plt.figure(figsize=(16, 12))
-        for i in range(len(refi)):
-            print 'i> ref region:', labels[refi[i]]
-            roi = np.array(roisum[dkeys[refi[i]]]) / np.array(roimsk[dkeys[refi[i]]])
-            roi.shape = (1, itr+1)
-            roi = np.repeat(roi, len(roii), axis=0)
-            suvr = ROIs[roii,:]/roi
-            plt.subplot(1,3,ip)
-            if mplv>15:       plt.boxplot(suvr.T, showmeans=True, labels=roilables)
-            else:             plt.boxplot(suvr.T, labels=roilables)
-            plt.axhline(y=suvr[-1,:].mean(),linewidth=1, color='b')
-            plt.xticks(range(1,1+len(roii)), rotation='vertical')
-            plt.title(labels[refi[i]]+' as reference')
-            plt.subplots_adjust(bottom=0.20)
-            ip += 1
-        plt.savefig(os.path.join(outpth, btpresults[0][2]), format='png', dpi=300)
+#     # ANALYSIS
+#     # get the ROIs for reference and neocortex regions
+#     ROIs = np.zeros((len(dkeys),itr+1), dtype=np.float32)
+#     for i in range(len(dkeys)):
+#         ROIs[i,:] = np.array(roisum[dkeys[i]]) / np.array(roimsk[dkeys[i]])
 
-        # ratio (aka. SUVR) and SE image
-        Rimg = M1_img/np.mean(ROIs[0,:])
-        SEimg = ( (M2_img/itr)**.5 ) / np.mean(ROIs[0,:])
-        nipet.img.mmrimg.savenii(SEimg, os.path.join(outpth, btpresults[0][0]), Cnt['AFFINE'], Cnt)
-        nipet.img.mmrimg.savenii(Rimg,  os.path.join(outpth, btpresults[0][1]), Cnt['AFFINE'], Cnt)
-
-        # write ROIs to csv file
-        np.savetxt( os.path.join(outpth,'bootstrap_ROIsum.csv'), ROIs.T, delimiter=',', header=','.join(fieldnames) )
+#     # pick the reference regions for reporting
+#     refi = [0,2,3]
+#     # pick the neocortex regions for reporting (boxplot)
+#     roii = range(7, len(dkeys))
+#     roilables = [labels[k] for k in roii]
+#     print 'i> chosen regions of interests:',[labels[i] for i in refi]
+#     print 'i> chosen regions of interests:', roilables
 
 
-    # save the boxplot and the NIfTI images to XNAT
-    if xc['upload']:
-        xnatURL = xc['sbjs']+'/' +sbjix+ '/experiments/' + expt[0]['ID'] + '/resources/BTP'
-        nipet.xnat.qc_xnat.put_xnat(xc['usrpwd'], xnatURL+'?xsi:type=xnat:resourceCatalog&format=PNG')
-        nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][2], os.path.join(outpth, btpresults[0][2]) )
+#     # one plot per ROI
+#     if Cnt['BTP']>0:
+#         ip = 1
+#         plt.figure(figsize=(16, 12))
+#         for i in range(len(refi)):
+#             print 'i> ref region:', labels[refi[i]]
+#             roi = np.array(roisum[dkeys[refi[i]]]) / np.array(roimsk[dkeys[refi[i]]])
+#             roi.shape = (1, itr+1)
+#             roi = np.repeat(roi, len(roii), axis=0)
+#             suvr = ROIs[roii,:]/roi
+#             plt.subplot(1,3,ip)
+#             if mplv>15:       plt.boxplot(suvr.T, showmeans=True, labels=roilables)
+#             else:             plt.boxplot(suvr.T, labels=roilables)
+#             plt.axhline(y=suvr[-1,:].mean(),linewidth=1, color='b')
+#             plt.xticks(range(1,1+len(roii)), rotation='vertical')
+#             plt.title(labels[refi[i]]+' as reference')
+#             plt.subplots_adjust(bottom=0.20)
+#             ip += 1
+#         plt.savefig(os.path.join(outpth, btpresults[0][2]), format='png', dpi=300)
 
-        nipet.xnat.qc_xnat.put_xnat(xc['usrpwd'], xnatURL+'?xsi:type=xnat:resourceCatalog&format=NIFTI')
-        nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][1], os.path.join(outpth, btpresults[0][1]) )
-        nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][0], os.path.join(outpth, btpresults[0][0]) )
+#         # ratio (aka. SUVR) and SE image
+#         Rimg = M1_img/np.mean(ROIs[0,:])
+#         SEimg = ( (M2_img/itr)**.5 ) / np.mean(ROIs[0,:])
+#         nipet.img.mmrimg.savenii(SEimg, os.path.join(outpth, btpresults[0][0]), Cnt['AFFINE'], Cnt)
+#         nipet.img.mmrimg.savenii(Rimg,  os.path.join(outpth, btpresults[0][1]), Cnt['AFFINE'], Cnt)
 
-    dic_out = { 'pliststr':'y',
-                'roisum':roisum, 'roimsk':roimsk, 'M1_rsn':M1_rsn, 'M1_sss':M1_sss, 'M1_ssn':M1_ssn, 'M2_rsn':M2_rsn,
-                'M2_sss':M2_sss, 'M2_ssn':M2_ssn, 'M1_img':M1_img, 'M2_img':M1_img, 'itr':itr, 'ROIs':ROIs, 'labels':labels }
+#         # write ROIs to csv file
+#         np.savetxt( os.path.join(outpth,'bootstrap_ROIsum.csv'), ROIs.T, delimiter=',', header=','.join(fieldnames) )
+
+
+#     # save the boxplot and the NIfTI images to XNAT
+#     if xc['upload']:
+#         xnatURL = xc['sbjs']+'/' +sbjix+ '/experiments/' + expt[0]['ID'] + '/resources/BTP'
+#         nipet.xnat.qc_xnat.put_xnat(xc['usrpwd'], xnatURL+'?xsi:type=xnat:resourceCatalog&format=PNG')
+#         nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][2], os.path.join(outpth, btpresults[0][2]) )
+
+#         nipet.xnat.qc_xnat.put_xnat(xc['usrpwd'], xnatURL+'?xsi:type=xnat:resourceCatalog&format=NIFTI')
+#         nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][1], os.path.join(outpth, btpresults[0][1]) )
+#         nipet.xnat.qc_xnat.put_xnatFile(xc['usrpwd'], xnatURL+'/files?content='+btpresults[1][0], os.path.join(outpth, btpresults[0][0]) )
+
+#     dic_out = { 'pliststr':'y',
+#                 'roisum':roisum, 'roimsk':roimsk, 'M1_rsn':M1_rsn, 'M1_sss':M1_sss, 'M1_ssn':M1_ssn, 'M2_rsn':M2_rsn,
+#                 'M2_sss':M2_sss, 'M2_ssn':M2_ssn, 'M1_img':M1_img, 'M2_img':M1_img, 'itr':itr, 'ROIs':ROIs, 'labels':labels }
     
-    #remove the downloaded LM file
-    if xc['rmvlm']:   os.remove(os.path.join(lmpth, lmfiles[i]['Name']))
+#     #remove the downloaded LM file
+#     if xc['rmvlm']:   os.remove(os.path.join(lmpth, lmfiles[i]['Name']))
 
-    return dic_out
+#     return dic_out
 
 
