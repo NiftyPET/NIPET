@@ -138,10 +138,15 @@ def dev_setup():
     import dinf
     # get the list of installed CUDA devices
     Ldev = dinf.dev_info(0)
+    if len(Ldev)==0:
+        raise IOError('No CUDA devices have been detected')
     # extract the compute capability as a single number 
     cclist = [int(str(e[2])+str(e[3])) for e in Ldev]
     # get the list of supported CUDA devices (with minimum compute capability)
     spprtd = [str(cc) for cc in cclist if cc>=mincc]
+    if len(spprtd)==0:
+        print 'w> installed devices have the compute capability of:', spprtd
+        raise IOError('No supported CUDA devices have been found.')
     # best for the default CUDA device
     i = [int(s) for s in spprtd]
     devid = i.index(max(i))

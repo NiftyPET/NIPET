@@ -580,7 +580,7 @@ def transaxial_lut(Cnt):
 
     # #---visualisation of the crystal ring in trasaxial view
     # p = 8 #pixel density of the visualiastion
-    # VISXY = 344*p;
+    # VISXY = 344*p
     # T = np.zeros((VISXY,VISXY), dtype=np.float32)
     # #---
 
@@ -592,23 +592,24 @@ def transaxial_lut(Cnt):
     NTBLK = 56
     alpha = 0.1122  #2*pi/NTBLK
     crs = np.zeros((4,Cnt['NCRS']), dtype=np.float32)
+    # phi angle points in the middle and is used for obtaining the normal of detector block
     phi = 0.5*pi - alpha/2 -0.001
     for bi in range(NTBLK):
-        #tangent point (ring against detector block)
+        #-tangent point (ring against detector block)
         # ye = RE*np.sin(phi)
         # xe = RE*np.cos(phi)
         y  =  Cnt['RE']*np.sin(phi)
         x  =  Cnt['RE']*np.cos(phi)
-        #vector for the face of crystals
+        #-vector for the face of crystals
         pv  = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
         #update phi for next block
         phi -= alpha
-        #end block points
+        #-end block points
         xcp = x + (bw/2)*pv[0]
         ycp = y + (bw/2)*pv[1]
-        # u = .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p));
-        # v = .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p));
+        # u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
+        # v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
         # T[v,u] = 5
         for n in range(1,9):
             c = bi*9 +n-1
