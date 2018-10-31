@@ -222,7 +222,7 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license = 'Apache 2.0',
-    version='1.0.16',
+    version='1.0.18',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author='Pawel J. Markiewicz',

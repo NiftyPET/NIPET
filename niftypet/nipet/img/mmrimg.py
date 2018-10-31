@@ -681,9 +681,9 @@ def pct_mumap(
         print 'e> obtain the hardware mu-map first.'
         raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
 
-    if not 'MRT1W#' in datain and not os.path.isfile(datain['T1nii']) and not os.path.isfile(datain['T1bc']):
+    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain:
         print 'e> no MR T1w images required for co-registration!'
-        sys.exit()
+        raise IOError('Missing MR data')
     # ----------------------------------
 
     # output dictionary
