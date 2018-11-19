@@ -30,6 +30,8 @@ The following software has to be installed prior to NIMPA installation:
 
 * Python with the recommended Anaconda distribution: https://www.anaconda.com/download
 
+* NIMPA, a sub-package of *NiftyPET*: https://github.com/pjmark/NIMPA
+
 
 Installation
 ------------

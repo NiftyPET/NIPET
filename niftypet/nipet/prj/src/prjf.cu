@@ -354,10 +354,11 @@ void gpu_fprj(float * prjout,
 	int Noblq = (nrng_c - 1)*nrng_c / 2;
 
 	//first for reduced number of detector rings
-	if (Cnt.SPN == 1 && Noblq <= 1024 && Noblq>0)
-		fprj_oblq << < Nprj, Noblq >> >(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-	error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel oblique projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+	if (Cnt.SPN == 1 && Noblq <= 1024 && Noblq>0){
+		fprj_oblq <<< Nprj, Noblq >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) { printf("CUDA kernel oblique projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+	}
 	else {
 		fprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
 		error = cudaGetLastError();

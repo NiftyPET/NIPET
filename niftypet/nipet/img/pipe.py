@@ -285,7 +285,7 @@ def mmrchain(datain,        # all input data in a dictionary
 
         # run OSEM reconstruction of a single time frame
         recimg = mmrrec.osemone(datain, [muhd['im'], muo], 
-                                hst, txLUT, axLUT, Cnt,
+                                hst, scanner_params,
                                 recmod=recmod, itr=itr, fwhm=fwhm,
                                 outpath=petimg,
                                 frmno=frmno,

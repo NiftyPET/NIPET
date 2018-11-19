@@ -101,11 +101,13 @@ def get_components(datain, Cnt):
     f1 = f0+nhdr[f0:].find('\n')
     #regular expression for the needed three numbers
     p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{3,10}[e][+-]\d{1,4}')
-    #quantification factor:
+    #-quantification factor:
     qf = float(p.findall(nhdr[f0:f1])[0])
+    #-local quantification correction factor
+    qf_loc = 0.205
     #-------------------------------------------------
 
-    nrmcmp = {'qf':qf, 'geo':geo, 'cinf':crs_intf, 'ceff':crs_eff,
+    nrmcmp = {'qf':qf, 'qf_loc':qf_loc, 'geo':geo, 'cinf':crs_intf, 'ceff':crs_eff,
                 'axe1':ax_eff1, 'dtp':rng_dtp, 'dtnp':rng_dtnp,
                 'dtc':crs_dt, 'axe2':ax_eff2, 'axf1':ax_f1, 
                 'sax_f11':sax_f11, 'sax_f1':sax_f1}

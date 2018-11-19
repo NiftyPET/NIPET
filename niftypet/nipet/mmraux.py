@@ -13,6 +13,7 @@ pjoin = os.path.join
 import glob
 
 import scipy.ndimage as ndi
+from pkg_resources import resource_filename
 
 import nibabel as nib
 import pydicom as dcm
@@ -22,9 +23,6 @@ from niftypet import nimpa
 
 import resources
 import mmr_auxe
-
-from pkg_resources import resource_filename
-
 
 #=================================================================================================
 def create_dir(pth):
@@ -569,6 +567,54 @@ def sino2ssr(sino, axLUT, Cnt):
 
     return ssr
 
+#=================================================================================================
+def reduce_rings(pars, rs=0, re=64):
+    ''' Reduce the axial rings for faster reconstructions, particularly simulations.
+        This function customises axial FOV for reduced rings in range(rs,re).
+        Note it only works in span-1 and ring re is not included in the reduced rings.
+        Arguments:
+        pars -- scanner parameters: constants, LUTs
+        rs -- start ring
+        re -- end ring (not included in the resulting reduced rings)
+    '''
+
+    Cnt = pars['Cnt']
+    axLUT = pars['axLUT']
+
+    pars['Cnt']['SPN'] = 1
+    # select the number of sinograms for the number of rings
+    # RNG_STRT is included in detection
+    # RNG_END is not included in detection process
+    pars['Cnt']['RNG_STRT'] = rs
+    pars['Cnt']['RNG_END']  = re
+    # now change the voxels dims too
+    vz0 = 2*pars['Cnt']['RNG_STRT']
+    vz1 = 2*(pars['Cnt']['RNG_END']-1)
+    # number of axial voxels
+    pars['Cnt']['rSO_IMZ'] = vz1-vz0+1
+    pars['Cnt']['rSZ_IMZ'] = vz1-vz0+1
+    # axial voxel size for scatter (mu-map and emission image)
+    # pars['Cnt']['SS_IMZ'] = pars['Cnt']['rSG_IMZ']
+    # number of rings customised for the given ring range (only optional in span-1)
+    rNRNG = pars['Cnt']['RNG_END'] - pars['Cnt']['RNG_STRT']
+    pars['Cnt']['rNRNG'] = rNRNG
+    # number of reduced sinos in span-1
+    rNSN1 = rNRNG**2
+    pars['Cnt']['rNSN1'] = rNSN1
+    # correct for the limited max. ring difference in the full axial extent. 
+    # don't use ring range (1,63) as for this case no correction
+    if rNRNG==64:  rNSN1 -= 12
+    # apply the new ring subset to axial LUTs
+    raxLUT = axial_lut(pars['Cnt'])
+    # michelogram for reduced rings in span-1
+    Msn1_c = raxLUT['Msn1']
+    # michelogram for full ring case in span-1
+    Msn1 = np.copy(pars['axLUT']['Msn1'])
+    # from full span-1 sinogram index to reduced rings sinogram index
+    rlut = np.zeros(rNSN1, dtype=np.int16)
+    rlut[Msn1_c[Msn1_c>=0]] = Msn1[Msn1_c>=0]
+    raxLUT['rLUT'] = rlut
+    pars['axLUT'] = raxLUT
 
 
 #=================================================================================================
@@ -878,11 +924,11 @@ def get_dicoms(dfile, datain, Cnt):
 
     # check for MR T1w and T2w images
     if TR>400 and TR<2500 and TE<20:
-        datain['T1dcm'] = os.path.dirname(dfile)
-        if '#T1dcm' not in datain:
-            datain['#T1dcm'] = 1
+        datain['T1DCM'] = os.path.dirname(dfile)
+        if '#T1DCM' not in datain:
+            datain['#T1DCM'] = 1
         else:
-            datain['#T1dcm'] += 1
+            datain['#T1DCM'] += 1
 
     if TR>2500 and TE>50:
         datain['T2dcm'] = os.path.dirname(dfile)
@@ -1015,6 +1061,14 @@ def mmrinit():
 def mMR_params():
     '''
     get all scanner parameters in one dictionary
+    '''
+    Cnt, txLUT, axLUT = mmrinit()
+    return {'Cnt':Cnt, 'txLUT':txLUT, 'axLUT':axLUT}
+
+def get_mmrpars():
+    '''
+    Get all mMR scanner parameters in one dictionary.
+    The parameters include scanner constants, transaxial and axial LUTs.
     '''
     Cnt, txLUT, axLUT = mmrinit()
     return {'Cnt':Cnt, 'txLUT':txLUT, 'axLUT':axLUT}

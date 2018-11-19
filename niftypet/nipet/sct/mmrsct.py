@@ -203,20 +203,26 @@ def get_sctinterp(ssn2d, sct2AW, Cnt):
 #====================================================================================================
 
 
-def vsm(mumaps, em, datain, hst, rsinos, txLUT, axLUT, Cnt, prcntScl=0.1, emmsk=False):
+def vsm(mumaps, em, datain, hst, rsinos, scanner_params, prcntScl=0.1, emmsk=False):
 
     muh, muo = mumaps
 
+
+    #-constants, transaxial and axial LUTs are extracted
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
     if emmsk and not os.path.isfile(datain['em_nocrr']):
         if Cnt['VERBOSE']: print 'i> reconstruction of emission data without scatter and attenuation correction for mask generation'
-        recnac = mmrrec.osemone(datain, mumaps, hst, txLUT, axLUT, Cnt, recmod=0, itr=3, fwhm=2.0, store_img=True)
+        recnac = mmrrec.osemone(datain, mumaps, hst, scanner_params, recmod=0, itr=3, fwhm=2.0, store_img=True)
         datain['em_nocrr'] = recnac.fpet
 
 
-    #get the normalisation components
+    #-get the normalisation components
     nrmcmp, nhdr = mmrnorm.get_components(datain, Cnt)
 
-    #smooth for defining the sino scatter only regions
+    #-smooth for defining the sino scatter only regions
     mu_sctonly =  ndi.filters.gaussian_filter(
         mmrimg.convert2dev(muo, Cnt),
         fwhm2sig(0.42, Cnt),
@@ -238,16 +244,16 @@ def vsm(mumaps, em, datain, hst, rsinos, txLUT, axLUT, Cnt, prcntScl=0.1, emmsk=
     sctLUT = get_sctLUT(Cnt)
     
     
-    #smooth before downsampling mu-map and emission image
+    #-smooth before down-sampling mu-map and emission image
     muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(0.42, Cnt), mode='mirror')
     muim = ndi.interpolation.zoom( muim, Cnt['SCTSCLMU'], order=3 ) #(0.499, 0.5, 0.5)
 
     emim = ndi.filters.gaussian_filter(em, fwhm2sig(0.42, Cnt), mode='mirror')
     emim = ndi.interpolation.zoom( emim, Cnt['SCTSCLEM'], order=3 ) #(0.34, 0.33, 0.33)
-    # emim = ndi.interpolation.zoom( emim, (0.499, 0.5, 0.5), order=3 )
+    #emim = ndi.interpolation.zoom( emim, (0.499, 0.5, 0.5), order=3 )
     
 
-    #smooth the mu-map for mask creation.  the mask contains voxels for which attenuation ray LUT is found.
+    #-smooth the mu-map for mask creation.  the mask contains voxels for which attenuation ray LUT is found.
     smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(0.84, Cnt), mode='mirror')
     mumsk = np.int8(smomu>0.003)
 

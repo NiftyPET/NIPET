@@ -303,10 +303,6 @@ void gpu_bprj(float *bimg,
 	//number of oblique sinograms
 	int Noblq = (nrng_c - 1)*nrng_c / 2;
 
-	//============================================================================
-	//first for reduced number of detector rings
-	//int nDevices;
-
 	//cudaGetDeviceCount(&nDevices);
 	//for (int i = 0; i < nDevices; i++) {
 	// cudaDeviceProp prop;
@@ -319,11 +315,18 @@ void gpu_bprj(float *bimg,
 	//cudaMemPrefetchAsync(d_sino, Nprj*snno * sizeof(float), nDevices, NULL);
 
 	if (Cnt.SPN == 1 && Noblq <= 1024)
-		bprj_oblq << < Nprj, Noblq >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		bprj_oblq <<< Nprj, Noblq >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
 	else {
-		bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p1): %s\n", cudaGetErrorString(error)); exit(-1); }
 		zoff += NSINOS / 4;
-		bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
+		error = cudaGetLastError();
+		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p2): %s\n", cudaGetErrorString(error)); exit(-1); }
+
 	}
 	//============================================================================
 

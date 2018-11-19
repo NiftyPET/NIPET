@@ -30,7 +30,7 @@ from niftypet import nimpa
 #===================================================================================
 
 def convert2e7(img, Cnt):
-    '''Convert GPU optimised image to E7 image dimension (127,344,344).'''
+    '''Convert GPU optimised image to Siemens/E7 image shape (127,344,344).'''
 
     margin = (Cnt['SO_IMX']-Cnt['SZ_IMX'])/2
 
@@ -39,29 +39,34 @@ def convert2e7(img, Cnt):
 
     nvz = img.shape[2]
 
-    #get the x-axis filler and apply it
+    #> get the x-axis filler and apply it
     filler = np.zeros((nvz, Cnt['SZ_IMY'], margin), dtype=np.float32)
     imo = np.concatenate((filler, imo, filler), axis=2)
 
-    #get the y-axis filler and apply it
+    #> get the y-axis filler and apply it
     filler = np.zeros((nvz, margin, Cnt['SO_IMX']), dtype=np.float32)
     imo = np.concatenate((filler, imo, filler), axis=1)
     return imo
 
 def convert2dev(im, Cnt):
-    '''Reshape E7 (default) image for optimal GPU execution.'''
-    im_sqzd = np.zeros((Cnt['SZ_IMZ'], Cnt['SZ_IMY'], Cnt['SZ_IMX']), dtype=np.float32)
-    vz0  = 2*Cnt['RNG_STRT']
-    vz1_ = 2*Cnt['RNG_END']
+    '''Reshape Siemens/E7 (default) image for optimal GPU execution.'''
+
+    if im.shape[1]!=Cnt['SO_IMY'] or im.shape[2]!=Cnt['SO_IMX']:
+        raise ValueError('e> input image array is not of the correct Siemens shape.')
+    
+    if 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['rSZ_IMZ']:
+        print 'w> the axial number of voxels does not match the reduced rings.'
+    elif not 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
+        print 'w> the axial number of voxels does not match the rings.'
+
+    im_sqzd = np.zeros((im.shape[0], Cnt['SZ_IMY'], Cnt['SZ_IMX']), dtype=np.float32)
     margin = (Cnt['SO_IMX']-Cnt['SZ_IMX'])/2
     margin_=-margin
     if margin==0: 
         margin = None
         margin_= None
-    if Cnt['RNG_STRT']!=0 or Cnt['RNG_END']!=Cnt['NRNG']:
-        im_sqzd[vz0:vz1_, :, :] = im[:, margin:margin_, margin:margin_]
-    else:
-        im_sqzd = im[:, margin:margin_, margin:margin_]
+
+    im_sqzd = im[:, margin:margin_, margin:margin_]
     im_sqzd = np.transpose(im_sqzd, (1, 2, 0))
     return im_sqzd
 
@@ -230,7 +235,11 @@ def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False):
         v = np.int32(.5*Cnt['SO_IMX'] - np.ceil(yf/Cnt['SO_VXY']))
         u = np.int32(.5*Cnt['SO_IMY'] + np.floor(x/Cnt['SO_VXY']))
         imdsk[0,v,u] = unival
-    imdsk = np.repeat(imdsk, Cnt['SO_IMZ'], axis=0)
+    if 'rSO_IMZ' in Cnt:
+        nvz = Cnt['rSO_IMZ']
+    else:
+        nvz = Cnt['SO_IMZ']
+    imdsk = np.repeat(imdsk, nvz, axis=0)
     if gpu_dim: imdsk = convert2dev(imdsk, Cnt)
     return imdsk
 
@@ -250,26 +259,6 @@ def hu2mu(im):
     uim[im<=0] = muwater * ( 1+im[im<=0]*1e-3 )
     uim[im> 0] = muwater * \
         ( 1+im[im>0]*1e-3 * rhowater/muwater*(mubone-muwater)/(rhobone-rhowater) )
-    # remove negative values
-    uim[uim<0] = 0
-    return uim
-
-def ct2mu(im):
-    '''HU units to 511keV PET mu-values
-        https://link.springer.com/content/pdf/10.1007%2Fs00259-002-0796-3.pdf
-        C. Burger, et al., PET attenuation coefficients from CT images, 
-    '''
-
-    # convert nans to -1024 for the HU values only
-    im[np.isnan(im)] = -1024
-    # constants
-    muwater  = 0.096
-    mubone   = 0.172
-    rhowater = 0.184
-    rhobone  = 0.428
-    uim = np.zeros(im.shape, dtype=np.float32)
-    uim[im<=0] = muwater * ( 1+im[im<=0]*1e-3 )
-    uim[im> 0] = muwater+im[im>0]*(rhowater*(mubone-muwater)/(1e3*(rhobone-rhowater)))
     # remove negative values
     uim[uim<0] = 0
     return uim
@@ -469,7 +458,7 @@ def align_mumap(
             # reconstruct PET image with UTE mu-map to which co-register T1w
             recout = mmrrec.osemone(   
                 datain, [muh, muo], 
-                hst, txLUT, axLUT, Cnt,
+                hst, scanner_params,
                 recmod=3, itr=itr, fwhm=0.,
                 fcomment=fcomment+'_qntUTE',
                 outpath=os.path.join(outpath,'PET'),
@@ -480,7 +469,8 @@ def align_mumap(
             # reconstruct PET image with UTE mu-map to which co-register T1w
             muo = np.zeros(muh.shape, dtype=muh.dtype)
             recout = mmrrec.osemone(
-                datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
+                datain, [muh, muo],
+                hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_NAC',
                 outpath=os.path.join(outpath,'PET'),
@@ -492,7 +482,8 @@ def align_mumap(
             mudic = obj_mumap(datain, Cnt, outpath=outpath)
             muo = mudic['im']
             recout = mmrrec.osemone(
-                datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
+                datain, [muh, muo],
+                hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_AC',
                 outpath=os.path.join(outpath,'PET'),
@@ -699,7 +690,7 @@ def pct_mumap(
             # reconstruct PET image with UTE mu-map to which co-register T1w
             recout = mmrrec.osemone(   
                 datain, [muh, muo], 
-                hst, txLUT, axLUT, Cnt,
+                hst, scanner_params,
                 recmod=3, itr=itr, fwhm=0.,
                 fcomment=fcomment+'_qntUTE',
                 outpath=os.path.join(outpath,'PET'),
@@ -710,7 +701,8 @@ def pct_mumap(
             # reconstruct PET image with UTE mu-map to which co-register T1w
             muo = np.zeros(muh.shape, dtype=muh.dtype)
             recout = mmrrec.osemone(
-                datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
+                datain, [muh, muo],
+                hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_NAC',
                 outpath=os.path.join(outpath,'PET'),
@@ -722,7 +714,8 @@ def pct_mumap(
             mudic = obj_mumap(datain, Cnt, outpath=outpath)
             muo = mudic['im']
             recout = mmrrec.osemone(
-                datain, [muh, muo], hst, txLUT, axLUT, Cnt, 
+                datain, [muh, muo],
+                hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_AC',
                 outpath=os.path.join(outpath,'PET'),
@@ -1176,12 +1169,16 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     if os.path.isfile(datain['pCT']):
         # reconstruct PET image with default settings to be used to alight pCT mu-map
-        Cnt_, txLUT_, axLUT_ = mmraux.mmrinit()
+        params = mmraux.mMR_params()
+        Cnt_ = params['Cnt']
+        txLUT_ = params['txLUT']
+        axLUT_ = params['axLUT']
+        
         # histogram for reconstruction with UTE mu-map
         hst = mmrhist.hist(datain, txLUT_, axLUT_, Cnt_, t0=t0, t1=t1)
         # reconstruct PET image with UTE mu-map to which co-register T1w
         recute = mmrrec.osemone(
-            datain, [muh, muo], hst, txLUT_, axLUT_, Cnt_, 
+            datain, [muh, muo], hst, params, 
             recmod=3, itr=4, fwhm=0., store_img=True, fcomment=fcomment+'_QNT-UTE'
         )
         # --- MR T1w
