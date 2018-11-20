@@ -1064,11 +1064,3 @@ def mMR_params():
     '''
     Cnt, txLUT, axLUT = mmrinit()
     return {'Cnt':Cnt, 'txLUT':txLUT, 'axLUT':axLUT}
-
-def get_mmrpars():
-    '''
-    Get all mMR scanner parameters in one dictionary.
-    The parameters include scanner constants, transaxial and axial LUTs.
-    '''
-    Cnt, txLUT, axLUT = mmrinit()
-    return {'Cnt':Cnt, 'txLUT':txLUT, 'axLUT':axLUT}

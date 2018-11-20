@@ -295,8 +295,8 @@ void gpu_bprj(float *bimg,
 
 	//============================================================================
 	bprj_drct << <Nprj, nrng_c >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno);
-	// cudaError_t error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel direct projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	cudaError_t error = cudaGetLastError();
+	if(error != cudaSuccess){printf("CUDA kernel direct back-projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
 	//============================================================================
 
 	int zoff = nrng_c;

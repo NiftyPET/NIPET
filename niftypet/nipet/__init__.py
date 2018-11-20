@@ -32,16 +32,21 @@ except ImportError as ie:
     raise ImportError
 #===========================
 
+
 import mmraux
-from mmraux import get_mmrpars
+from mmraux import explore_input as classify_input
+from mmraux import mMR_params as get_mmrparams
+
+# shared CUDA C library for extended auxiliary functions for the mMR
 import mmr_auxe
+
 import mmrnorm
 import lm
 import prj
 import sct
 import img
 
-from dinf import dev_info
+from dinf import gpuinfo, dev_info
 
 from img.mmrimg import hdw_mumap
 from img.mmrimg import obj_mumap
