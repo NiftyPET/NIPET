@@ -6,7 +6,10 @@ NIPET: high-throughput Neuro-Image PET reconstruction
   :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
   :alt: Documentation Status
 
-NIPET is a Python sub-package of *NiftyPET*, which is a Python software platform, offering high-throughput PET image reconstruction (through ``nipet``) as well as image processing and analysis (``nimpa``: https://github.com/pjmark/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
+
+NIPET is a Python sub-package of NiftyPET_, offering high-throughput PET image reconstruction as well as image processing and analysis (``nimpa``: https://github.com/pjmark/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
+
+.. _NiftyPET: https://github.com/pjmark/NiftyPET
 
 The scientific aspects of this software are covered in two open-access publications:
 
