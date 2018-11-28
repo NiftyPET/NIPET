@@ -103,8 +103,8 @@ typedef struct{
   int tmidd;
   int flgs; //write out sinos in span-11
   int span; //choose span (1, 11 or SSRB)
-  int nfrm; //ouput dynamic sinos in span-11
-  int flgf; //do fansums calculatins and output by randoms estimation
+  int nfrm; //output dynamic sinos in span-11
+  int flgf; //do fan-sums calculations and output by randoms estimation
   int nfrm2;
   short *t2dfrm;
   int frmoff; //frame offset to account for the splitting of the dynamic data into two
@@ -120,7 +120,7 @@ typedef struct{
 #define TA1  0.7885139f   // angle threshold 1 for Siddon calculations ~ PI/4
 #define TA2 -0.7822831f   // angle threshold 2 for Siddon calculations ~-PI/4
 #define N_TV 907    // max number of voxels intersections with a ray (t)
-#define N_TT 10     // number of constants precaluclated and saved for proper axial calculations
+#define N_TT 10     // number of constants pre-calculated and saved for proper axial calculations
 #define UV_SHFT  9  // shift when representing 2 voxel indx in one float variable
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>

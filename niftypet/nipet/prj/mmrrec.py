@@ -101,7 +101,7 @@ def get_subsets14(n, params):
 #=== OSEM image reconstruction with several modes (with/without scatter and/or attenuation correction) ===#
 def osemone(datain, mumaps, hst, scanner_params,
             recmod=3, itr=4, fwhm=0., mask_radious=29.,
-            scatsino=np.array([]),
+            sctsino=np.array([]),
             outpath='',
             store_img=False, frmno='', fcomment='',
             store_itr=[],
@@ -185,8 +185,8 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-------------------------------------------------------------------------
     if recmod==2:
         if sctsino.size>0:
-            ssng = mmraux.remgaps(scatsino, txLUT, Cnt)
-        elif scatsino.size==0 and os.path.isfile(datain['em_crr']):
+            ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
+        elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
             ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, emd['im'], datain, hst, rsino, 0.1, txLUT, axLUT, Cnt)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
@@ -412,7 +412,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #     if recmod==2:
 #         if sctsino != None:
 #             # remove the gaps from the provided scatter sinogram
-#             ssng = mmraux.remgaps(scatsino, txLUT, Cnt)
+#             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
 #         elif sctsino == None and os.path.isfile(datain['em_crr']):
 #             # estimate scatter from already reconstructed and corrected emission image
 #             emd = nimpa.prc.getnii(datain['em_crr'], Cnt)
