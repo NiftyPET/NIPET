@@ -314,10 +314,11 @@ void gpu_bprj(float *bimg,
 
 	//cudaMemPrefetchAsync(d_sino, Nprj*snno * sizeof(float), nDevices, NULL);
 
-	if (Cnt.SPN == 1 && Noblq <= 1024)
+	if (Cnt.SPN == 1 && Noblq <= 1024){
 		bprj_oblq <<< Nprj, Noblq >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
 		error = cudaGetLastError();
 		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+	}
 	else {
 		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
 		error = cudaGetLastError();
