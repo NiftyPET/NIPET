@@ -338,12 +338,20 @@ def obj_mumap(datain, params, outpath='', store=False, comment='', gantry_offset
         print 'e> DICOM forlder for the mu-map does not exist.'
         return None
 
-    fnii = 'converted'
+    fnii = 'converted-from-object-DICOM_'
+    tstmp = nimpa.time_stamp(simple_ascii=True)
+
+    # find residual(s) from previous runs and delete them
+    resdcm = glob.glob( os.path.join(fmudir, '*'+fnii+'*.nii*') )
+    for d in resdcm:
+        os.remove(d)
+
     # convert the DICOM mu-map images to nii
-    call( [ Cnt['DCM2NIIX'], '-f', fnii, datain['mumapDCM'] ] )
+    call( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', fmudir, datain['mumapDCM'] ] )
     #files for the T1w, pick one:
-    fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
-    fmunii = fmunii[0]
+    fmunii = glob.glob( os.path.join(fmudir, '*'+fnii+tstmp+'*.nii*') )[0]
+    # fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
+    # fmunii = fmunii[0]
 
     # the converted nii image resample to the reference size
     fmu = os.path.join(fmudir, comment+'mumap_tmp.nii.gz')
@@ -368,9 +376,9 @@ def obj_mumap(datain, params, outpath='', store=False, comment='', gantry_offset
     mu = np.float32(mu)/1e4
     mu[mu<0] = 0
 
-    # del the temporary file for mumap
-    os.remove(fmu)
-    os.remove(fmunii)
+    # # del the temporary file for mumap
+    # os.remove(fmu)
+    # os.remove(fmunii)
     
     #return image dictionary with the image itself and some other stats
     mu_dct = {  'im':mu,
