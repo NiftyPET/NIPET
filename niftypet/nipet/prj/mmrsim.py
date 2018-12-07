@@ -10,23 +10,51 @@ import mmrprj
 from niftypet.nipet import mmraux
 
 
-def simulate_sino(petim, ctim, zi, scanner_params):
+def simulate_sino(petim, ctim, scanner_params, slice_idx=-1):
     ''' Simulate the measured sinogram with photon attenuation.
         Arguments:
         petim -- the input PET image based on which the emission sinogram is found
         ctim -- CT image, in register with PET and the same dimensions, is used 
             for estimating the attenuation factors, which are then applied to 
             simulate emission sinogram with realistic photon attenuation. 
-        zi -- chosen 2D slice out of the 3D image for the fast simulation.
+        slice_idx -- chosen 2D slice out of the 3D image for the fast simulation.
         scanner_params -- scanner parameters containing scanner constants and
             axial and transaxial look up tables (LUTs)
     '''
 
-    
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    if petim.shape != ctim.shape:
+        raise ValueError('The shapes of the PET and CT images are inconsistent.')
+
+
+    if len(petim.shape)==3:
+        
+        # make sure that the shape of the input image matches the image size of the scanner
+        if petim.shape[1:]!=(Cnt['SO_IMY'], Cnt['SO_IMX']):
+            raise ValueError('The input image shape for x and y does not match the scanner image size.')
+
+        # pick the right slice index (slice_idx) if not given or mistaken
+        if slice_idx<0:
+            print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
+            slice_idx = petim.shape[0]/2
+        if slice_idx>=petim.shape[0]:
+            raise ValueError('The axial index for 2D slice selection is outside the image.')
+
+    elif len(petim.shape)==2:
+        
+        # make sure that the shape of the input image matches the image size of the scanner
+        if petim.shape != (Cnt['SO_IMY'], Cnt['SO_IMX']):
+            raise ValueError('The input image shape for x and y does not match the scanner image size.')
+
+        petim.shape = (1,) + petim.shape
+        ctim.shape  = (1,) + ctim.shape
+        slice_idx = 0
+
+
 
     if not 'rSZ_IMZ' in Cnt:
         raise ValueError('Missing reduced axial FOV parameters.')
@@ -35,15 +63,18 @@ def simulate_sino(petim, ctim, zi, scanner_params):
     #> get the mu-map from CT
     mui = nimpa.ct2mu(ctim)
     mui[mui<0] = 0
+    #--------------------
+
+    #--------------------
     #> create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
-    rmu = mui[zi,:,:]
+    rmu = mui[slice_idx,:,:]
     rmu.shape = (1,) + rmu.shape
     rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
     #--------------------
 
     #--------------------
     #> form a short 3D image of the same emission image slice
-    rpet = petim[zi,:,:].copy()
+    rpet = petim[slice_idx,:,:].copy()
     rpet.shape = (1,) + rpet.shape
     rpet = np.repeat(rpet, Cnt['rSZ_IMZ'], axis=0)
     #--------------------
@@ -62,17 +93,17 @@ def simulate_sino(petim, ctim, zi, scanner_params):
 def simulate_recon(
     measured_sino,
     ctim,
-    slice_idx,
     scanner_params,
     nitr = 60,
+    slice_idx = -1,
     randoms=None):
 
     ''' Reconstruct PET image from simulated input data using the EM-ML algorithm.
         Arguments:
         measured_sino -- simulated emission data with photon attenuation
-        ctim -- 3D CT image from which a 2D slice is chosen (slice_idx) for estimation
+        ctim -- either a 2D CT image or a 3D CT image from which a 2D slice is chosen (slice_idx) for estimation
             of the attenuation factors
-        slice_idx -- index to extract one 2D slice for this simulation
+        slice_idx -- index to extract one 2D slice for this simulation if input image is 3D
         nitr -- number of iterations used for the EM-ML reconstruction algorithm
         scanner_params -- scanner parameters containing scanner constants and
             axial and transaxial look up tables (LUTs)
@@ -83,6 +114,47 @@ def simulate_recon(
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    if len(ctim.shape)==3:
+        
+        # make sure that the shape of the input image matches the image size of the scanner
+        if ctim.shape[1:]!=(Cnt['SO_IMY'], Cnt['SO_IMX']):
+            raise ValueError('The input image shape for x and y does not match the scanner image size.')
+
+        # pick the right slice index (slice_idx) if not given or mistaken
+        if slice_idx<0:
+            print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
+            slice_idx = ctim.shape[0]/2
+        if slice_idx>=ctim.shape[0]:
+            raise ValueError('The axial index for 2D slice selection is outside the image.')
+
+    elif len(ctim.shape)==2:
+        
+        # make sure that the shape of the input image matches the image size of the scanner
+        if ctim.shape != (Cnt['SO_IMY'], Cnt['SO_IMX']):
+            raise ValueError('The input image shape for x and y does not match the scanner image size.')
+
+        ctim.shape  = (1,) + ctim.shape
+        slice_idx = 0
+
+        
+
+    if not 'rSZ_IMZ' in Cnt:
+        raise ValueError('Missing reduced axial FOV parameters.')
+
+    #--------------------
+    #> get the mu-map from CT
+    mui = nimpa.ct2mu(ctim)
+    mui[mui<0] = 0
+    #--------------------
+
+    #--------------------
+    #> create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
+    rmu = mui[slice_idx,:,:]
+    rmu.shape = (1,) + rmu.shape
+    rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
+    #--------------------
+
 
     #--------------------
     #> get the input mu-map from CT
