@@ -224,15 +224,20 @@ def osemone(datain, mumaps, hst, scanner_params,
 
     #-decay correction
     lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
-    if 't0' in hst and 'dur' in hst:
+    if Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
         dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
         # apply quantitative correction to the image
         qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
         qf_loc = ncmp['qf_loc']
+    elif not Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
+        dcycrr = 1.
+        # apply quantitative correction to the image
+        qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
+        qf_loc = ncmp['qf_loc']
     else:
-        dcycrr = 1
-        qf = 1
-        qf_loc = 1
+        dcycrr = 1.
+        qf = 1.
+        qf_loc = 1.
 
     #-affine matrix for the reconstructed images
     B = mmrimg.image_affine(datain, Cnt)
@@ -281,7 +286,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 
     
     if Cnt['VERBOSE']: 
-        print 'i> applying decay correction', dcycrr
+        print 'i> applying decay correction of', dcycrr
         print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
     
     img *= dcycrr * qf * qf_loc #additional factor for making it quantitative in absolute terms (derived from measurements)

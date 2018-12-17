@@ -175,6 +175,8 @@ SCTSCLEM = [float(SSE_IMZ)/SO_IMZ, float(SSE_IMY)/SO_IMY, float(SSE_IMX)/SO_IMX]
 # SSE_VXZ = round((SO_VXZ*SO_IMZ)/SSE_IMZ,6) #0.599927
 #-------
 
+#> decay correction
+DCYCRR = True
 
 #--- Time of Flight ---
 #speed of light
@@ -277,6 +279,7 @@ def get_mmr_constants():
 
     Cnt = {
         'ISOTOPE':'F18',
+        'DCYCRR':DCYCRR,
         'ALPHA':ALPHA,
         'NRNG':NRNG,
         'NSRNG':NSRNG,
