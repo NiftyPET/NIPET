@@ -6,6 +6,68 @@ __copyright__   = "Copyright 2018"
 
 import numpy as np
 
+#==============================================================================
+
+def obtain_image(img, Cnt=[], imtype='', verbose=False):
+    ''' 
+    Obtain the image (hardware or object mu-map) from file,
+    numpy array, dictionary or empty list (assuming blank then).
+    The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
+    '''
+
+    if Cnt: verbose = Cnt['VERBOSE']
+    # establishing what and if the image object has been provided
+    # all findings go to the output dictionary
+    output = {}
+    if isinstance(img, dict):
+        if Cnt and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+            print 'e> provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.'
+            raise ValueError('Wrong dimensions of the mu-map')
+        else:
+            output['im'] = img['im']
+            output['exists'] = True
+            output['fim'] = img['fim']
+            if 'faff' in img: output['faff'] = img['faff']
+            if 'fmuref' in img: output['fmuref'] = img['fmuref']
+            if 'affine' in img: output['affine'] = img['affine']
+            if verbose: print 'i> using '+imtype+' from dictionary.'
+
+    elif isinstance(img, (np.ndarray, np.generic) ):
+        if Cnt and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+            print 'e> provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.'
+            raise ValueError('Wrong dimensions of the mu-map')
+        else:
+            output['im'] = img
+            output['exists'] = True
+            output['fim'] = ''
+            if verbose: print 'i> using hardware mu-map from numpy array.'
+
+    elif isinstance(img, basestring):
+        if os.path.isfile(img):
+            imdct = nimpa.getnii(img, output='all')
+            output['im'] = imdct['im']
+            output['affine'] = imdct['affine']
+            if Cnt and output['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+                print 'e> provided '+imtype+' via file has inconsistent dimensions compared to Cnt.'
+                raise ValueError('Wrong dimensions of the mu-map')
+            else:
+                output['exists'] = True
+                output['fim'] = img
+                if verbose: print 'i> using '+imtype+' from NIfTI file.'
+        else:
+            print 'e> provided '+imtype+' path is invalid.'
+            return None
+    elif isinstance(img, list):
+        output['im'] = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
+        if verbose: print 'w> '+imtype+' has not been provided -> using blank.'
+        output['fim'] = ''
+        output['exists'] = False
+    #------------------------------------------------------------------------
+    return output
+
+
+#==============================================================================
+
 def dynamic_timings(flist, offset=0):
     '''
     Get start and end frame timings from a list of dynamic PET frame definitions.

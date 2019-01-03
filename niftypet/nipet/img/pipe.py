@@ -1,7 +1,7 @@
 """module for pipelined image reconstruction and analysis"""
 __author__      = "Pawel Markiewicz"
 __copyright__   = "Copyright 2018"
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 
 import numpy as np
 import sys
@@ -10,40 +10,56 @@ import scipy.ndimage as ndi
 from subprocess import call
 
 from niftypet import nimpa
-from niftypet.nipet.prj import mmrrec
-from niftypet.nipet import mmraux
 
-#-------------------------------------------------------------------------------
+from niftypet.nipet.lm import dynamic_timings
+from niftypet.nipet.prj import mmrrec
+from niftypet.nipet.img import obtain_image
+from niftypet.nipet.img.mmrimg import image_affine
+from niftypet.nipet.lm.mmrhist import mmrhist
+
+integers = (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)
+
+#------------------------------------------------------------------------------ 
 def mmrchain(datain,        # all input data in a dictionary
-            scanner_params, # all scanner parameters in one dictionary containing constants, transaxial and axial LUTs
+            scanner_params, # all scanner parameters in one dictionary 
+                            # containing constants, transaxial and axial
+                            # LUTs.
             outpath='',     # output path for results
-            frames=['fluid', [0,0]], # definition of time frames
-            mu_h = [],      # hardware mu-map
-            mu_o = [],      # object mu-map
-            tAffine = [],   # affine transformations for the mu-map for each time frame separately
+            frames=['fluid', [0,0]], # definition of time frames.
+            mu_h = [],      # hardware mu-map.
+            mu_o = [],      # object mu-map.
+            tAffine = [],   # affine transformations for the mu-map for
+                            # each time frame separately.
             
             itr=4,          # number of OSEM iterations
             fwhm=0.,        # Gaussian Smoothing FWHM
-            recmod = -1,    # reconstruction mode: -1: undefined, chosen automatically. 3: attenuation and scatter correction, 1: attenuation correction only, 0: no correction (randoms only)
-            histo=[],         # input histogram (from list-mode data).  if not given, it will be performed.
+            recmod = -1,    # reconstruction mode: -1: undefined, chosen
+                            # automatically. 3: attenuation and scatter 
+                            # correction, 1: attenuation correction
+                            # only, 0: no correction (randoms only).
+            histo=[],       # input histogram (from list-mode data);
+                            # if not given, it will be performed.
 
             trim=False,
             trim_scale=2,
             trim_interp=1,  # interpolation for upsampling used in PVC
-            trim_memlim=True,   # reduced use of memory for machines with limited memory (makes it slower though)
-            pvcroi=[],      # ROI used for PVC.  If undefined no PVC is performed. 
+            trim_memlim=True,   # reduced use of memory for machines
+                                # with limited memory (slow though)
+            pvcroi=[],      # ROI used for PVC.  If undefined no PVC
+                            # is performed. 
             psfkernel=[],
             pvcitr=5, 
             
-            fcomment='',    # text comment used in the file name of generated image files
-            ret_sinos=False,  # return prompt, scatter and randoms sinograms for each reconstruction
+            fcomment='',    # text comment used in the file name of
+                            # generated image files
+            ret_sinos=False,# return prompt, scatter and randoms
+                            # sinograms for each reconstruction
             store_img = True,
             store_img_intrmd=False,
-            store_itr=[],   # store any reconstruction iteration in the list.  ignored if the list is empty.
+            store_itr=[],   # store any reconstruction iteration in
+                            # the list.  ignored if the list is empty.
             del_img_intrmd=False):
 
-
-    from niftypet import nipet
 
     # decompose all the scanner parameters and constants
     Cnt   = scanner_params['Cnt']
@@ -56,29 +72,35 @@ def mmrchain(datain,        # all input data in a dictionary
     # check for the provided dynamic frames
     if isinstance(frames, list):
         # Can be given in three ways:
-        # a 1D list (duration of each frame is listed)
-        # a more concise 2D list (lists repetition and duration in each list entry)
-        # or 'fluid', a 2D list with first entry 'fluid' meaning that the concecutive lists are start and end time [t0, t1].
-        # for the last option the number of time frames is unlimited, provided that the t0 and t1 are within the acquisition times
-        # Starting with the 'fluid':
-        # if 'fluid'
-        if isinstance(frames[0], basestring) and frames[0]=='fluid' and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
+        # * a 1D list (duration of each frame is listed)
+        # * a more concise 2D list--repetition and duration lists in 
+        #   each entry.  Must start with the 'def' entry.
+        # * a 2D list with fluid timings: must start with the string 
+        #   'fluid' or 'timings.  a 2D list with consecutive lists 
+        #   describing start and end of the time frame, [t0, t1]; 
+        #   The number of time frames for this option is unlimited,
+        #   provided the t0 and t1 are within the acquisition times.
+        
+        # 2D starting with entry 'fluid' or 'timings'
+        if  isinstance(frames[0], basestring) and (frames[0]=='fluid' or frames[0]=='timings') \
+            and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
             t_frms = frames[1:]
-        # if 2D:
-        elif all([isinstance(t,list) and len(t)==2 for t in frames]):
+
+        # if 2D definitions, starting with entry 'def':
+        elif isinstance(frames[0], basestring) and frames[0]=='def' \
+            and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
             # get total time and list of all time frames
-            dfrms = mmraux.timings_from_list(frames)
-            t_frms = dfrms['timings']
+            dfrms = dynamic_timings(frames)
+            t_frms = dfrms['timings'][1:]
+
         # if 1D:
-        elif all([isinstance(t,(int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)) for t in frames]):
+        elif all([isinstance(t, integers) for t in frames]):
             # get total time and list of all time frames
-            dfrms = mmraux.timings_from_list(frames)
-            t_frms = dfrms['timings']
+            dfrms = dynamic_timings(frames)
+            t_frms = dfrms['timings'][1:]
+
         else:
             print 'e> osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]'
-    elif isinstance(frames, (np.ndarray, np.generic) ):
-        dfrms = mmraux.timings_from_list( list(frames) )
-        t_frms = dfrms['timings']
     else:
         print 'e> osemdyn: provided dynamic frames definitions are not in either Python list or nympy array.'
         raise TypeError('Wrong data type for dynamic frames')
@@ -86,6 +108,7 @@ def mmrchain(datain,        # all input data in a dictionary
     nfrm = len(t_frms)
     # -------------------------------------------------------------------------
 
+    
 
     # -------------------------------------------------------------------------
     # create folders for results
@@ -98,7 +121,7 @@ def mmrchain(datain,        # all input data in a dictionary
         fmudir = os.path.join(outpath, 'mumap-obj')
         pvcdir = os.path.join(outpath, 'PRCL')
 
-    # folder for coregistered mu-maps (for motion compensation)
+    # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join( fmudir, 'registered')
     # folder for affine transformation MR/CT->PET
     petaff = os.path.join( petdir, 'faffine')
@@ -114,20 +137,22 @@ def mmrchain(datain,        # all input data in a dictionary
         print 'e> confused!'
         raise TypeError('Unrecognised time frames!')
     # create now the folder
-    mmraux.create_dir(petimg)
+    nimpa.create_dir(petimg)
     # create folder
-    mmraux.create_dir(petdir)
+    nimpa.create_dir(petdir)
     # -------------------------------------------------------------------------
     
     
     # -------------------------------------------------------------------------
     # MU-MAPS
-    # get the mu-maps, if given.  otherwise will use blank mu-maps
+    # get the mu-maps, if given;  otherwise will use blank mu-maps.
     if tAffine:
-        muod = nipet.img.mmrimg.obtain_image(mu_o, imtype='object mu-map', verbose=Cnt['VERBOSE'])
+        muod = obtain_image(mu_o, imtype='object mu-map', verbose=Cnt['VERBOSE'])
     else:
-        muod = nipet.img.mmrimg.obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
-    muhd = nipet.img.mmrimg.obtain_image(mu_h, Cnt, imtype='hardware mu-map')
+        muod = obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
+
+    # hardware mu-map
+    muhd = obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
     if muod['exists'] and muhd['exists'] and recmod==-1:
@@ -141,6 +166,7 @@ def mmrchain(datain,        # all input data in a dictionary
             print 'w> no mu-map provided: scatter and attenuation corrections are switched off.'
     # -------------------------------------------------------------------------
     
+    #import pdb; pdb.set_trace()
 
     # output dictionary
     output = {}
@@ -174,7 +200,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # check if all are numpy arrays
         elif all([isinstance(t, (np.ndarray, np.generic)) for t in tAffine]):
             # create the folder for dynamic affine transformations
-            mmraux.create_dir(petaff)
+            nimpa.create_dir(petaff)
             faff_frms = []
             for i in range(nfrm):
                 fout = os.path.join(petaff, 'affine_frame('+str(i)+').txt')
@@ -192,11 +218,11 @@ def mmrchain(datain,        # all input data in a dictionary
             if Cnt['VERBOSE']: print 'i> reusing the reference mu-map from the object mu-map dictionary.'
         else:
             # create folder if doesn't exists
-            mmraux.create_dir(fmudir)
+            nimpa.create_dir(fmudir)
             # ref file name
             fmuref = os.path.join(fmudir, 'muref.nii.gz')
             # ref affine
-            B = nipet.img.mmrimg.image_affine(datain, Cnt, gantry_offset=False)
+            B = image_affine(datain, Cnt, gantry_offset=False)
             # ref image (blank)
             im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
             # store ref image
@@ -235,7 +261,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # --------------
         print 'i> dynamic frame times t0, t1:', t0, t1
         if not histo:
-            hst = nipet.lm.mmrhist.hist(datain, txLUT, axLUT, Cnt, t0=t0, t1=t1)
+            hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
             print ''
@@ -251,7 +277,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # transform the mu-map if given the affine transformation for each frame
         if tAffine:
             # create the folder for aligned (registered for motion compensation) mu-maps
-            mmraux.create_dir(fmureg)
+            nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size
             fmu = os.path.join(fmureg, 'mumap_dyn_frm'+str(ifrm)+fcomment+'.nii.gz')
             # command for resampling
@@ -320,7 +346,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # trim PET and upsample
         petu = nimpa.trimim(
             dynim,
-            affine=nipet.img.mmrimg.image_affine(datain, Cnt),
+            affine=image_affine(datain, Cnt),
             scale=trim_scale,
             int_order=trim_interp,
             outpath=petimg,
@@ -432,7 +458,7 @@ def mmrchain(datain,        # all input data in a dictionary
             # folder for trimmed and dynamic
             pettrim = os.path.join( petimg, 'trimmed')
             # make folder
-            mmraux.create_dir(pettrim)
+            nimpa.create_dir(pettrim)
             # trimming scale added to NIfTI descritoption
             descrip_trim = descrip + ';trim_scale='+str(trim_scale)
             # file name for saving the trimmed image

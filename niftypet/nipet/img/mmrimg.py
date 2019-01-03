@@ -514,7 +514,7 @@ def align_mumap(
                 fpet, fute,
                 outpath=outpath,
                 #fcomment=fcomment,
-                exepath = Cnt['REGPATH'],
+                executable = Cnt['REGPATH'],
                 omp = multiprocessing.cpu_count()/2,
                 rigOnly = True,
                 affDirect = False,
@@ -1078,7 +1078,13 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
 
 
 #-------------------------------------------------------------------------------------
-def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
+def hdw_mumap(
+        datain, 
+        hparts, 
+        params, 
+        outpath='', 
+        use_stored=False,
+        del_interm=True):
     ''' Get hardware mu-map components, including bed, coils etc.
     '''
 
@@ -1095,9 +1101,17 @@ def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
 
     # if requested to use the stored hardware mu_map get it from the path in datain
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
-        hmu, A, fmu = np.load(datain['hmumap'])
-        if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
-        fnp = datain['hmumap']
+
+        if datain['hmumap'].endswith(('.nii', '.nii.gz')):
+            dct = nimpa.getnii(datain['hmumap'], output='all')
+            hmu = dct['im']
+            A = dct['affine']
+            fmu = datain['hmumap']
+        elif datain['hmumap'].endswith(('.nii', '.nii.gz')):
+            hmu, A, fmu = np.load(datain['hmumap'])
+            if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+            fnp = datain['hmumap']
+
     elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
         fnp = os.path.join(fmudir, 'hmumap.npy')
         hmu, A, fmu = np.load(fnp)
@@ -1112,8 +1126,8 @@ def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
         imo[:] = 0
 
         for i in hparts:
-            fin  = os.path.join(    os.path.dirname (hmupos[0]['niipath']),
-                                    'r'+os.path.basename(hmupos[i]['niipath']).split('.')[0]+'.nii.gz' )
+            fin  = os.path.join(os.path.dirname (hmupos[0]['niipath']),
+                                'r'+os.path.basename(hmupos[i]['niipath']).split('.')[0]+'.nii.gz' )
             nim = nib.load(fin)
             mu = nim.get_data()
             mu[mu<0] = 0
@@ -1134,11 +1148,18 @@ def hdw_mumap(datain, hparts, params, outpath='', use_stored=False):
         #update the datain dictionary (assuming it is mutable)
         datain['hmumap'] = fnp
 
+        if del_interm:
+            for fname in glob.glob(os.path.join(fmudir, '_*.nii*')):
+                os.remove(fname)
+            for fname in glob.glob(os.path.join(fmudir, 'r_*.nii*')):
+                os.remove(fname)
+
     #return image dictionary with the image itself and some other stats
     hmu_dct = { 'im':hmu,
-                'fim':fmu,
-                'fnp':fnp,
+                'fim':fmu,                
                 'affine':A}
+    if 'fnp' in locals():
+        hmu_dct['fnp'] = fnp
 
     return hmu_dct
 
@@ -1235,59 +1256,3 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         return [muh, muo]
 
 #------------------------------------------------------------------------
-def obtain_image(img, Cnt=[], imtype='', verbose=False):
-    ''' 
-    Obtain the image (hardware or object mu-map) from file,
-    numpy array, dictionary or empty list (assuming blank then).
-    The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
-    '''
-
-    if Cnt: verbose = Cnt['VERBOSE']
-    # establishing what and if the image object has been provided
-    # all findings go to the output dictionary
-    output = {}
-    if isinstance(img, dict):
-        if Cnt and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-            print 'e> provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.'
-            raise ValueError('Wrong dimensions of the mu-map')
-        else:
-            output['im'] = img['im']
-            output['exists'] = True
-            output['fim'] = img['fim']
-            if 'faff' in img: output['faff'] = img['faff']
-            if 'fmuref' in img: output['fmuref'] = img['fmuref']
-            if 'affine' in img: output['affine'] = img['affine']
-            if verbose: print 'i> using '+imtype+' from dictionary.'
-
-    elif isinstance(img, (np.ndarray, np.generic) ):
-        if Cnt and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-            print 'e> provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.'
-            raise ValueError('Wrong dimensions of the mu-map')
-        else:
-            output['im'] = img
-            output['exists'] = True
-            output['fim'] = ''
-            if verbose: print 'i> using hardware mu-map from numpy array.'
-
-    elif isinstance(img, basestring):
-        if os.path.isfile(img):
-            imdct = nimpa.getnii(img, output='all')
-            output['im'] = imdct['im']
-            output['affine'] = imdct['affine']
-            if Cnt and output['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-                print 'e> provided '+imtype+' via file has inconsistent dimensions compared to Cnt.'
-                raise ValueError('Wrong dimensions of the mu-map')
-            else:
-                output['exists'] = True
-                output['fim'] = img
-                if verbose: print 'i> using '+imtype+' from NIfTI file.'
-        else:
-            print 'e> provided '+imtype+' path is invalid.'
-            return None
-    elif isinstance(img, list):
-        output['im'] = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-        if verbose: print 'w> '+imtype+' has not been provided -> using blank.'
-        output['fim'] = ''
-        output['exists'] = False
-    #------------------------------------------------------------------------
-    return output

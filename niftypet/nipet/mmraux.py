@@ -813,33 +813,14 @@ def get_dicoms(dfile, datain, Cnt):
         print 'i> file:', dfile
 
     d = dcm.read_file(dfile)
-    dtype   = d[0x08, 0x08].value
-    if v: print '   Image Type:', dtype
+    dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])
 
-    cmmnt   = ''
-    csatype = ''
-    TR      = 0
-    TE      = 0
-    ET      = 0
-    if [0x29, 0x1108] in d:
-        csatype = d[0x29, 0x1108].value
-        if v: print '   CSA Data Type:', csatype
-    if [0x20, 0x4000] in d:
-        cmmnt = d[0x0020, 0x4000].value
-        if v: print '   Comments:', cmmnt
-    if [0x18, 0x80] in d:
-        TR = float(d[0x18, 0x80].value)
-        if v: print '   TR:', TR
-    if [0x18, 0x81] in d:
-        TE = float(d[0x18, 0x81].value)
-        if v: print '   TE:', TE
-
-
-    #check if it is norm file
-    if dtype[2]=='PET_NORM' or cmmnt=='PET Normalization data' or csatype=='MRPETNORM':
+    #> check if it is norm file
+    if 'mmr' in dcmtype and 'norm' in dcmtype:
         if os.path.splitext(dfile)[-1].lower()=='.dcm':
             datain['nrm_dcm'] = dfile
-            #check if the binary file exists
+            
+            #> check if the binary file exists
             if os.path.isfile(dfile[:-4]+'.bf'):
                 datain['nrm_bf'] = dfile[:-4]+'.bf'
             else:
@@ -856,10 +837,10 @@ def get_dicoms(dfile, datain, Cnt):
             with open(bf, 'wb') as f:
                 f.write(nrm)
             datain['nrm_bf'] = bf
-            if v: print 'i> saved component norm data to binary file:', bf
+            if Cnt['VERBOSE']: print 'i> saved component norm data to binary file:', bf
 
     #--- check if it is list-mode file     
-    if dtype[2]=='PET_LISTMODE' or cmmnt=='Listmode' or csatype=='MRPETLM_LARGE':
+    elif 'mmr' in dcmtype and 'list' in dcmtype:
         if os.path.splitext(dfile)[-1]=='.dcm':
             datain['lm_dcm'] = dfile
             #check if the binary file exists
@@ -877,14 +858,15 @@ def get_dicoms(dfile, datain, Cnt):
                 with open(bf, 'wb') as f:
                     f.write(lm)
                 datain['lm_bf'] = bf
-                if v: print 'i> saved list-mode data to binary file:', bf
+                if Cnt['VERBOSE']: print 'i> saved list-mode data to binary file:', bf
             elif os.path.isfile(bf):
-                if v: print 'i> the binary list-mode data was already extracted from the IMA DICOM file.'
+                if Cnt['VERBOSE']: print 'i> the binary list-mode data was already extracted from the IMA DICOM file.'
                 datain['lm_bf'] = bf
             else:
                 print 'e> could not find binary list-mode data in the IMA DICOM file.'
                 return None
-        # get info about the PET tracer being used
+        
+        #> get info about the PET tracer being used
         lmhdr, _ = hdr_lm(datain, Cnt)
         f0 = lmhdr.find('isotope name')
         if f0>=0:
@@ -912,10 +894,8 @@ def get_dicoms(dfile, datain, Cnt):
                 return None
         #---
 
-    mumapFLG = False
     # check if MR-based mu-map
-    if any('MRPET_UMAP3D' in s for s in dtype) or cmmnt=='MR based umap':
-        mumapFLG = True
+    elif 'mumap' in dcmtype:
         datain['mumapDCM'] = os.path.dirname(dfile)
         if '#mumapDCM' not in datain:
             datain['#mumapDCM'] = 1
@@ -923,14 +903,14 @@ def get_dicoms(dfile, datain, Cnt):
             datain['#mumapDCM'] += 1
 
     # check for MR T1w and T2w images
-    if TR>400 and TR<2500 and TE<20:
+    elif 'mr' in dcmtype and 't1' in dcmtype:
         datain['T1DCM'] = os.path.dirname(dfile)
         if '#T1DCM' not in datain:
             datain['#T1DCM'] = 1
         else:
             datain['#T1DCM'] += 1
 
-    if TR>2500 and TE>50:
+    elif 'mr' in dcmtype and 't2' in dcmtype:
         datain['T2dcm'] = os.path.dirname(dfile)
         if '#T2dcm' not in datain:
             datain['#T2dcm'] = 1
@@ -938,14 +918,14 @@ def get_dicoms(dfile, datain, Cnt):
             datain['#T2dcm'] += 1
 
     # UTE's two sequences:
-    if TR<50 and TE<20 and TE>1 and not mumapFLG:
+    elif 'mr' in dcmtype and 'ute2' in dcmtype:
         datain['UTE2'] = os.path.dirname(dfile)
         if '#UTE2' not in datain:
             datain['#UTE2'] = 1
         else:
             datain['#UTE2'] += 1
 
-    if TR<50 and TE<20 and TE<0.1 and TR>0 and TE>0:
+    elif 'mr' in dcmtype and 'ute1' in dcmtype:
         datain['UTE1'] = os.path.dirname(dfile)
         if '#UTE1' not in datain:
             datain['#UTE1'] = 1
@@ -953,7 +933,7 @@ def get_dicoms(dfile, datain, Cnt):
             datain['#UTE1'] += 1
 
     
-    if v: print ''
+    if Cnt['VERBOSE']: print ''
 
 #-------------------------------------------------------------------------------------------------
 def explore_input(fldr, params, print_paths=False):

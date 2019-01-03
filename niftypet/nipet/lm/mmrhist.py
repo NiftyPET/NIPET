@@ -339,7 +339,33 @@ def get_michem(sino, axLUT, Cnt):
 
     return Mem
 
-#-------------------------------------------------------------------------------------------------
+
+#=================================================================================
+#---------------------------------------------------------------------------------
+#=================================================================================
+
+
+#------------------------------------------------------
+def draw_frames(hst, tfrms, plot_diff=True):
+    import matplotlib.pyplot as plt
+    diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
+    plt.figure()
+    plt.plot(hst['phc'], label='prompts')
+    plt.plot(hst['dhc'], label='randoms')
+    if plot_diff:
+        plt.plot(diff, label='difference')
+    for k in tfrms:
+        yval = hst['phc'][k]
+        if yval<0.2*np.max(hst['phc']):
+            yval = 0.2*np.max(hst['phc'])
+        plt.plot([k, k], [0, yval], 'k--', lw=.75)
+    plt.legend()
+    plt.xlabel('time [sec]')
+    plt.ylabel('counts/sec')
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+#------------------------------------------------------
+
+
 def get_time_offset(hst):
     '''
     Detects when the signal is stronger than the randoms (noise) in the list-mode data stream.
@@ -444,11 +470,11 @@ def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
 
 
 def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
-    ''' Get auxilary time frames with equal count levels for constant precision in
+    ''' Get auxiliary time frames with equal count levels for constant precision in
         the estimation of subject motion based on PET data. 
     '''
     
-    # claculate the difference between the prompts and delays (more realistic count level)
+    # calculate the difference between the prompts and delays (more realistic count level)
     diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
 
     # previous frame (time tuple)
@@ -480,3 +506,72 @@ def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
     # form the list of auxilary dynamic frames of equivalent count level (as in Cref) for reconstruction
     mfrm = ['fluid'] + timings 
     return {'timings':mfrm, 'frame_idx':fi2afi}
+
+
+def dynamic_timings(flist, offset=0):
+    '''
+    Get start and end frame timings from a list of dynamic PET frame definitions.
+    Arguments:
+    flist can be 1D list of time duration for each dynamic frame, e.g.: flist = [15, 15, 15, 15, 30, 30, 30, ...]
+        or a 2D list of lists having 2 entries per definition: first for the number of repetitions and the other
+        for the frame duration, e.g.: flist = ['def', [4, 15], [8, 30], ...], meaning 4x15s, then 8x30s, etc.
+    offset adjusts for the start time (usually when prompts are strong enough over randoms)
+    The output is a dictionary:
+    out['timings'] = [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
+    out['total'] = total time
+    out['frames'] = array([ 15,  15,  15,  15,  30,  30,  30,  30, ...])
+
+    '''
+    if not isinstance(flist, list):
+        raise TypeError('Wrong type of frame data input')
+    if all([isinstance(t,(int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)) for t in flist]):
+        tsum = offset
+        # list of frame timings
+        if offset>0:
+            t_frames = ['timings', [0, offset]]
+        else:
+            t_frames = ['timings']
+        for i in range(len(flist)):
+            # frame start time
+            t0 = tsum
+            tsum += flist[i]
+            # frame end time
+            t1 = tsum
+            # append the timings to the list
+            t_frames.append([t0, t1])
+        frms = np.uint16(flist)
+
+    elif all( [isinstance(t,list) and len(t)==2 for t in flist[1:]] ) and flist[0]=='def':
+        flist = flist[1:]
+        if offset>0:
+            flist.insert(0,[0,offset])
+            farray = np.asarray(flist, dtype=np.uint16)
+        else:
+            farray = np.array(flist)
+        # number of dynamic frames
+        nfrm = np.sum(farray[:,0])
+        # list of frame duration
+        frms = np.zeros(nfrm,dtype=np.uint16)
+        #frame iterator
+        fi = 0
+        #time sum of frames
+        tsum = 0
+        # list of frame timings
+        t_frames = ['timings']
+        for i in range(0, farray.shape[0]):
+            for t in range(0, farray[i,0]):
+                # frame start time
+                t0 = tsum
+                tsum += farray[i,1]
+                # frame end time
+                t1 = tsum
+                # append the timings to the list
+                t_frames.append([t0, t1])
+                frms[fi] = farray[i,1]
+                fi += 1
+    else:
+        raise TypeError('Unrecognised time frame definitions.')
+    # prepare the output dictionary
+    out = {'total':tsum, 'frames':frms, 'timings':t_frames}
+    return out
+#=================================================================================================
