@@ -105,7 +105,11 @@ def osemone(datain, mumaps, hst, scanner_params,
             outpath='',
             store_img=False, frmno='', fcomment='',
             store_itr=[],
-            ret_sinos=False, emmskS=False, randsino = None, normcomp = None):
+            emmskS=False,
+            ret_sinos=False,
+            attnsino = None,
+            randsino = None,
+            normcomp = None):
 
 
     #---------- sort out OUTPUT ------------
@@ -159,13 +163,23 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # ATTENUATION FACTORS FOR COMBINED OBJECT AND BED MU-MAP
     #-------------------------------------------------------------------------
-    # combine attenuation and norm together depending on reconstruction mode
+    #> combine attenuation and norm together depending on reconstruction mode
     if recmod==0:
         asng = np.ones(psng.shape, dtype=np.float32)
     else:
-        asng = np.zeros(psng.shape, dtype=np.float32)
-        petprj.fprj(asng, mus, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
-    # combine attenuation and normalisation
+        #> check if the attenuation sino is given as an array
+        if isinstance(attnsino, np.ndarray) \
+                and attnsino.shape==(Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
+            asng = mmraux.remgaps(attnsino, txLUT, Cnt)
+            print 'i> using provided attenuation factor sinogram'
+        elif isinstance(attnsino, np.ndarray) \
+                and attnsino.shape==(Cnt['Naw'], Cnt['NSN11']):
+            asng = attnsino
+            print 'i> using provided attenuation factor sinogram'
+        else:
+            asng = np.zeros(psng.shape, dtype=np.float32)
+            petprj.fprj(asng, mus, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
+    #> combine attenuation and normalisation
     ansng = asng*nsng
     #=========================================================================
 
