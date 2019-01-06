@@ -1107,7 +1107,7 @@ def hdw_mumap(
             hmu = dct['im']
             A = dct['affine']
             fmu = datain['hmumap']
-        elif datain['hmumap'].endswith(('.nii', '.nii.gz')):
+        elif datain['hmumap'].endswith(('.npy')):
             hmu, A, fmu = np.load(datain['hmumap'])
             if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
             fnp = datain['hmumap']
