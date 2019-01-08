@@ -812,7 +812,7 @@ def get_dicoms(dfile, datain, Cnt):
         print '--------------------------------------------------------------------------'
         print 'i> file:', dfile
 
-    d = dcm.read_file(dfile)
+    d = dcm.dcmread(dfile)
     dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])
 
     #> check if it is norm file
