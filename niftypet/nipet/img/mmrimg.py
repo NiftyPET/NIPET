@@ -510,7 +510,7 @@ def align_mumap(
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
             # get the affine transformation
-            faff, _ = nimpa.affine_niftyreg(
+            regdct = nimpa.affine_niftyreg(
                 fpet, fute,
                 outpath=outpath,
                 #fcomment=fcomment,
@@ -531,13 +531,18 @@ def align_mumap(
                 verbose=Cnt['VERBOSE']
             )
             os.remove(fute)
+            faff = regdct['faff']
+            
         elif musrc=='pct':
-            faff, _ = nimpa.reg_mr2pet(  
-            fpet, datain, Cnt,
-            rigOnly = True,
-            outpath=outpath,
-            #fcomment=fcomment
-        )
+            
+            regdct = nimpa.reg_mr2pet(  
+                fpet, datain, Cnt,
+                rigOnly = True,
+                outpath=outpath,
+                #fcomment=fcomment
+            )
+            faff = regdct['faff']
+
         else: 
             raise IOError('Floating MR image not provided or is invalid.')
         

@@ -445,11 +445,19 @@ def mmrchain(datain,        # all input data in a dictionary
             if t1==t0:
                 t0 = 0
                 t1 = hst['dur']
-            fpet = os.path.join( petimg, os.path.basename(recimg.fpet)[:8]+'_itr-'+str(itr)+'_t-'+str(t0)+'-'+str(t1)+'sec' )
+            fpet = os.path.join( 
+                    petimg,
+                    os.path.basename(recimg.fpet)[:8] \
+                    +'_t-'+str(t0)+'-'+str(t1)+'sec' \
+                    +'_itr-'+str(itr) )
             fpeto = fpet+fcomment+'.nii.gz'
             nimpa.prc.array2nii( dynim[::-1,::-1,:], recimg.affine, fpeto, descrip=descrip)
         else:
-            fpet = os.path.join( petimg, os.path.basename(recimg.fpet)[:8]+'_itr-'+str(itr)+'_nfrm-'+str(nfrm) )
+            fpet = os.path.join(
+                    petimg,
+                    os.path.basename(recimg.fpet)[:8]\
+                    +'_nfrm-'+str(nfrm)+'_itr-'+str(itr)
+                )
             fpeto = fpet+fcomment+'.nii.gz'
             nimpa.prc.array2nii( dynim[:,::-1,::-1,:], recimg.affine, fpeto, descrip=descrip)
 
