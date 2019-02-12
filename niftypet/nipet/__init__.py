@@ -10,18 +10,18 @@ import platform
 
 # if using conda put the resources in the folder with the environment name
 if 'CONDA_DEFAULT_ENV' in os.environ:
-	env = os.environ['CONDA_DEFAULT_ENV']
-	print 'i> conda environment found:', env
+    env = os.environ['CONDA_DEFAULT_ENV']
+    print 'i> conda environment found:', env
 else:
-	env = ''
+    env = ''
 # create the path for the resources files according to the OS platform
-if platform.system() == 'Linux' :
-	path_resources = os.path.join( os.path.join(os.path.expanduser('~'),   '.niftypet'), env )
-elif platform.system() == 'Windows' :
-	path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
+if platform.system() in ['Linux', 'Darwin']:
+    path_resources = os.path.join( os.path.join(os.path.expanduser('~'),   '.niftypet'), env )
+elif platform.system() == 'Windows':
+    path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
 else:
-	print 'e> unrecognised operating system!  Linux and Windows operating systems only are supported.'
-	
+    print 'e> unrecognised operating system!'
+    
 sys.path.append(path_resources)
 try:
     import resources
@@ -66,10 +66,10 @@ from prj.mmrprj import back_prj
 from prj.mmrsim import simulate_sino, simulate_recon
 
 if resources.ENBLAGG:
-	from lm.pviews import video_frm, video_dyn
+    from lm.pviews import video_frm, video_dyn
 
 if resources.ENBLXNAT:
-	from xnat import xnat
+    from xnat import xnat
 
 # import sigaux
 # import lms

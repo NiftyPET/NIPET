@@ -510,7 +510,7 @@ scatOUT prob_scatt(scatOUT sctout,
 		cudaEventCreate(&stop);
 		cudaEventRecord(start, 0);
 		//<<<<<<<<<<<<<<<<<<<<<<<<<<<< KERNEL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-		//dimenstion of the grid.  depending on how many crystals (receiving an unscattered photon) there are.
+		//dimension of the grid.  depending on how many crystals (receiving an unscattered photon) there are.
 		//MAKE SURE <nsrng> and <nscrs> are less than 255 due to data type limits (uchar)
 		//printf("\n   i> nvx %d nsrng %d nscrs %d\n", d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);
 		dim3 grid(d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);//d_em_msk.nvx

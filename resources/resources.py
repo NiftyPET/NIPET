@@ -32,6 +32,8 @@ DIRTOOLS  = 'NiftyPET_tools'
 MSVC_VRSN = 'Visual Studio 12 2013 Win64'
 CMAKE_TLS_PAR = '' #-DUSE_SSE=OFF'
 # PATHTOOLS = os.path.join('/chosen/path/', DIRTOOLS)
+#> path to Python wrapper of Vinci
+VINCIPATH = ''
 # -----------------------------------------------------
 
 # -----------------------------------------------------
