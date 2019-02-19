@@ -9,6 +9,7 @@ import sys
 import os
 import scipy.ndimage as ndi
 from collections import namedtuple
+from tqdm.auto import trange
 
 import petprj
 
@@ -261,10 +262,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
-    for k in range(itr):
-        if Cnt['VERBOSE']:
-            print ''
-            print '--------------- itr-{}/{} ---------------'.format(k,itr)
+    for k in trange(itr, disable=not Cnt['VERBOSE'], desc="OSEM"):
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
             print '---------------------------------------------------------------------'

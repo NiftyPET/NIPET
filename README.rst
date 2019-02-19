@@ -31,7 +31,8 @@ Quick install
 .. code:: sh
 
     conda create -n niftypet python=2.7 \
-      conda-forge::nibabel conda-forge::pydicom ipykernel matplotlib
+      conda-forge::nibabel conda-forge::pydicom ipykernel matplotlib \
+      conda-forge::tqdm conda-forge::ipywidgets
     git clone https://github.com/pjmark/NIMPA.git nimpa
     git clone https://github.com/pjmark/NIPET.git nipet
     cd nimpa
