@@ -19,9 +19,9 @@ from niftypet.nipet.lm.mmrhist import mmrhist
 
 integers = (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)
 
-#------------------------------------------------------------------------------ 
+#------------------------------------------------------------------------------
 def mmrchain(datain,        # all input data in a dictionary
-            scanner_params, # all scanner parameters in one dictionary 
+            scanner_params, # all scanner parameters in one dictionary
                             # containing constants, transaxial and axial
                             # LUTs.
             outpath='',     # output path for results
@@ -30,11 +30,11 @@ def mmrchain(datain,        # all input data in a dictionary
             mu_o = [],      # object mu-map.
             tAffine = [],   # affine transformations for the mu-map for
                             # each time frame separately.
-            
+
             itr=4,          # number of OSEM iterations
             fwhm=0.,        # Gaussian Smoothing FWHM
             recmod = -1,    # reconstruction mode: -1: undefined, chosen
-                            # automatically. 3: attenuation and scatter 
+                            # automatically. 3: attenuation and scatter
                             # correction, 1: attenuation correction
                             # only, 0: no correction (randoms only).
             histo=[],       # input histogram (from list-mode data);
@@ -46,10 +46,10 @@ def mmrchain(datain,        # all input data in a dictionary
             trim_memlim=True,   # reduced use of memory for machines
                                 # with limited memory (slow though)
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
-                            # is performed. 
+                            # is performed.
             psfkernel=[],
-            pvcitr=5, 
-            
+            pvcitr=5,
+
             fcomment='',    # text comment used in the file name of
                             # generated image files
             ret_sinos=False,# return prompt, scatter and randoms
@@ -73,14 +73,14 @@ def mmrchain(datain,        # all input data in a dictionary
     if isinstance(frames, list):
         # Can be given in three ways:
         # * a 1D list (duration of each frame is listed)
-        # * a more concise 2D list--repetition and duration lists in 
+        # * a more concise 2D list--repetition and duration lists in
         #   each entry.  Must start with the 'def' entry.
-        # * a 2D list with fluid timings: must start with the string 
-        #   'fluid' or 'timings.  a 2D list with consecutive lists 
-        #   describing start and end of the time frame, [t0, t1]; 
+        # * a 2D list with fluid timings: must start with the string
+        #   'fluid' or 'timings.  a 2D list with consecutive lists
+        #   describing start and end of the time frame, [t0, t1];
         #   The number of time frames for this option is unlimited,
         #   provided the t0 and t1 are within the acquisition times.
-        
+
         # 2D starting with entry 'fluid' or 'timings'
         if  isinstance(frames[0], basestring) and (frames[0]=='fluid' or frames[0]=='timings') \
             and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
@@ -108,15 +108,15 @@ def mmrchain(datain,        # all input data in a dictionary
     nfrm = len(t_frms)
     # -------------------------------------------------------------------------
 
-    
+
 
     # -------------------------------------------------------------------------
     # create folders for results
-    if outpath=='':     
+    if outpath=='':
         petdir = os.path.join(datain['corepath'], 'reconstructed')
         fmudir = os.path.join(datain['corepath'], 'mumap-obj')
         pvcdir = os.path.join(datain['corepath'], 'PRCL')
-    else:               
+    else:
         petdir = os.path.join(outpath, 'PET')
         fmudir = os.path.join(outpath, 'mumap-obj')
         pvcdir = os.path.join(outpath, 'PRCL')
@@ -141,8 +141,8 @@ def mmrchain(datain,        # all input data in a dictionary
     # create folder
     nimpa.create_dir(petdir)
     # -------------------------------------------------------------------------
-    
-    
+
+
     # -------------------------------------------------------------------------
     # MU-MAPS
     # get the mu-maps, if given;  otherwise will use blank mu-maps.
@@ -165,7 +165,7 @@ def mmrchain(datain,        # all input data in a dictionary
             recmod = 0
             print 'w> no mu-map provided: scatter and attenuation corrections are switched off.'
     # -------------------------------------------------------------------------
-    
+
     #import pdb; pdb.set_trace()
 
     # output dictionary
@@ -248,7 +248,7 @@ def mmrchain(datain,        # all input data in a dictionary
 
     # import pdb; pdb.set_trace()
 
-    # starting frame index with reasonable prompt data 
+    # starting frame index with reasonable prompt data
     ifrmP = 0
     # iterate over frame index
     for ifrm in range(nfrm):
@@ -310,7 +310,7 @@ def mmrchain(datain,        # all input data in a dictionary
             frmno = ''
 
         # run OSEM reconstruction of a single time frame
-        recimg = mmrrec.osemone(datain, [muhd['im'], muo], 
+        recimg = mmrrec.osemone(datain, [muhd['im'], muo],
                                 hst, scanner_params,
                                 recmod=recmod, itr=itr, fwhm=fwhm,
                                 outpath=petimg,
@@ -323,7 +323,7 @@ def mmrchain(datain,        # all input data in a dictionary
         dynim[ifrm,:,:,:] = recimg.im
         if ret_sinos and itr>1 and recmod>2:
             dynpsn[ifrm,:,:,:] = hst['psino']
-            dynssn[ifrm,:,:,:] = recimg.ssn 
+            dynssn[ifrm,:,:,:] = recimg.ssn
             dynrsn[ifrm,:,:,:] = recimg.rsn
 
         if store_img_intrmd: output['fpeti'].append(recimg.fpet)
@@ -409,7 +409,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 outpath=pvcdir,
                 store_img=store_img_intrmd)
             #============================
-            if nfrm>1: 
+            if nfrm>1:
                 dynpvc[i,:,:,:] = petpvc_dic['im']
             else:
                 dynpvc = petpvc_dic['im']
@@ -437,7 +437,7 @@ def mmrchain(datain,        # all input data in a dictionary
         dynim = np.squeeze(dynim)
 
         # NIfTI file name for the full PET image (single or multiple frame)
-        
+
         # save the image to NIfTI file
         if nfrm==1:
             t0 = hst['t0']
@@ -445,7 +445,7 @@ def mmrchain(datain,        # all input data in a dictionary
             if t1==t0:
                 t0 = 0
                 t1 = hst['dur']
-            fpet = os.path.join( 
+            fpet = os.path.join(
                     petimg,
                     os.path.basename(recimg.fpet)[:8] \
                     +'_t-'+str(t0)+'-'+str(t1)+'sec' \
@@ -510,4 +510,4 @@ def mmrchain(datain,        # all input data in a dictionary
 
 
 
-    return output 
+    return output

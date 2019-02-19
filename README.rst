@@ -1,5 +1,5 @@
 ===========================================================
-NIPET: high-throughput Neuro-Image PET reconstruction 
+NIPET: high-throughput Neuro-Image PET reconstruction
 ===========================================================
 
 .. image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
@@ -17,7 +17,7 @@ The scientific aspects of this software are covered in two open-access publicati
 
 * *Rapid processing of PET list-mode data for efficient uncertainty estimation and data analysis* Physics in Medicine & Biology (2016). https://doi.org/10.1088/0031-9155/61/13/N322
 
-Although, the two stand-alone and independent packages, ``nipet`` and ``nimpa``, are dedicated to brain imaging, they can equally well be used for whole body imaging.  Strong emphasis is put on the data, which are acquired using positron emission tomography (PET) and magnetic resonance (MR), especially the hybrid and simultaneous PET/MR scanners.  
+Although, the two stand-alone and independent packages, ``nipet`` and ``nimpa``, are dedicated to brain imaging, they can equally well be used for whole body imaging.  Strong emphasis is put on the data, which are acquired using positron emission tomography (PET) and magnetic resonance (MR), especially the hybrid and simultaneous PET/MR scanners.
 
 This software platform and Python name-space *NiftyPET* covers the entire processing pipeline, from the raw list-mode (LM) PET data through to the final image statistic of interest (e.g., regional SUV), including LM bootstrapping and multiple reconstructions to facilitate voxel-wise estimation of uncertainties.
 
@@ -25,6 +25,19 @@ In order to facilitate all the functionality, *NiftyPET* relies on third-party s
 
 **Documentation with installation manual and tutorials**: https://niftypet.readthedocs.io/
 
+Quick install
+~~~~~~~~~~~~~
+
+.. code:: sh
+
+    conda create -n niftypet python=2.7 \
+      conda-forge::nibabel conda-forge::pydicom ipykernel matplotlib
+    git clone https://github.com/pjmark/NIMPA.git nimpa
+    git clone https://github.com/pjmark/NIPET.git nipet
+    cd nimpa
+    pip install --no-binary :all: --verbose .
+    cd ../nipet
+    pip install --no-binary :all: --verbose .
 
 Author: Pawel J. Markiewicz @ University College London
 

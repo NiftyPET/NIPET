@@ -1,0 +1,7 @@
+*.py[co]
+*.so
+/build/
+/dist/
+/nipet.egg-info/
+/setup_nimpa.log
+.ipynb_checkpoints/
