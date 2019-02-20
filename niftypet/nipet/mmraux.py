@@ -696,7 +696,7 @@ def transaxial_lut(Cnt):
 #=================================================================================================
 # Explore files in folder with raw PET/MR data
 #-------------------------------------------------------------------------------------------------
-def get_npfiles(dfile, datain, v):
+def get_npfiles(dfile, datain):
     log = logging.getLogger(__name__)
 
     log.debug('file:' + dfile)
@@ -724,7 +724,7 @@ def get_npfiles(dfile, datain, v):
     #     log.debug('prompt sinogram data in span-11.')
 
 
-def get_niifiles(dfile, datain, v):
+def get_niifiles(dfile, datain):
     log = logging.getLogger(__name__)
 
     log.debug('file:' + dfile)

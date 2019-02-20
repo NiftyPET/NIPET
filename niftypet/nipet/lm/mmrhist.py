@@ -478,7 +478,7 @@ def split_frames(hst, Tref=0, t0=0, t1=0):
 
 #-------------------------------------------------------------------------------------------------
 
-def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
+def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15):
     ''' hst: histogram data
         tposition: time position (middle point) of the frame to be defined
         Cref: reference count level to be in the frame (prompts - delays)
@@ -518,7 +518,7 @@ def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
     return (tw0, tw1)
 
 
-def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
+def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15):
     ''' Get auxiliary time frames with equal count levels for constant precision in
         the estimation of subject motion based on PET data.
     '''
@@ -544,7 +544,7 @@ def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
         t = np.arange(t0,t1)
         tcm = np.sum(diff[t]*t)/np.sum(diff[t])
         # get the tuple of the equivalent count level frame
-        frm = frame_position(hst, tcm, tr0=tr0, tr1=tr1, verbose=False)
+        frm = frame_position(hst, tcm, tr0=tr0, tr1=tr1)
         # form the LUT
         if frm!=prev_frm:
             prev_frm = frm

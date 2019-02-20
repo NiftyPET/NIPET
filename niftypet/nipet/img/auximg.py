@@ -11,7 +11,7 @@ from niftypet import nimpa
 
 #==============================================================================
 
-def obtain_image(img, Cnt=[], imtype='', verbose=False):
+def obtain_image(img, Cnt=[], imtype=''):
     '''
     Obtain the image (hardware or object mu-map) from file,
     numpy array, dictionary or empty list (assuming blank then).
