@@ -90,7 +90,7 @@ def get_components(datain, Cnt):
             if loc in d:
                 nhdr = d[loc].value
                 if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
-                    if Cnt['VERBOSE']: print 'i> got the normalisation interfile header from [', hex(loc[0]),',', hex(loc[1]), ']'
+                    log.debug('got the normalisation interfile header from [%#x, %#x]' % (loc[0], loc[1]))
                     found_nhdr = True
                     break
         if not found_nhdr:

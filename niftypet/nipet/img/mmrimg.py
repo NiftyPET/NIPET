@@ -95,7 +95,7 @@ def cropxy(im, imsize, datain, Cnt, store_pth=''):
 
     if store_pth!='':
         nimpa.array2nii( cim[::-1,::-1,:], B, store_pth, descrip='cropped')
-        if Cnt['VERBOSE']:  print 'i> saved cropped image to:', store_pth
+        log.debug('saved cropped image to:' + store_pth)
 
     return cim, B
 #-------------------------------------------------------------------------------------------
@@ -804,7 +804,7 @@ def pct_mumap(
     # get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
         muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
-        log.debug('loaded hardware mu-map from file:', datain['hmumap'])
+        log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
@@ -1095,7 +1095,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     tpostr = csainfo[fi:fi+200]
     tpo = re.sub(r'[^a-zA-Z0-9\-\.]', '', tpostr).split('M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])]) / 10
-    if Cnt['VERBOSE']: print 'i> table position (z,y,x) (cm):', tpozyx
+    log.debug('table position (z,y,x) (cm):%r' % tpozyx)
     #--------------------------------------------------------
 
     #------- get positions from the DICOM mu-map file -------
@@ -1108,7 +1108,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     gtozyx = np.float32(gtoxyz)[::-1]/10
     #--------------------------------------------------------
 
-    if Cnt['VERBOSE']: print 'i> gantry table offset (z,y,x) (cm):', gtozyx
+    log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
 
     ## ----
     ## old II
@@ -1142,7 +1142,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     #             c+=1
     #     #gantry table offset
     #     gtozyx = zyx[::-1]/10
-    #     if Cnt['VERBOSE']: print 'i> gantry table offset (z,y,x) (cm):', gtozyx
+    #     log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
     # # older scanner version
     # elif dhdr[0x0018, 0x1020].value == 'syngo MR B18P':
     #     zyx = np.zeros(3, dtype=np.float32)
@@ -1154,7 +1154,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     #         gtostr = gtostr[i1:]
     #     #gantry table offset
     #     gtozyx = zyx[::-1]/10
-    #     if Cnt['VERBOSE']: print 'i> gantry table offset (z,y,x) (cm):', gtozyx
+    #     log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
     ## -----
 
     # create the folder for hardware mu-maps
@@ -1178,7 +1178,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     fi = ihdr[m.start():m.end()].find('=')
     vbedpos = 0.1*float(ihdr[m.start()+fi+1:m.end()])
 
-    if Cnt['VERBOSE']: print 'i> creating reference nii image for resampling'
+    log.debug('creating reference nii image for resampling')
     B = np.diag(np.array([-10*Cnt['SO_VXX'], 10*Cnt['SO_VXY'], 10*Cnt['SO_VXZ'], 1]))
     B[0,3] = 10*(.5*Cnt['SO_IMX'])*Cnt['SO_VXX']
     B[1,3] = 10*( -.5*Cnt['SO_IMY']+1)*Cnt['SO_VXY']
@@ -1221,7 +1221,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
             'niipath' :   os.path.join(dirhmu, '_'+Cnt['HMULIST'][i-1].split('.')[0]+'.nii.gz')
         }
         #save to NIfTI
-        if Cnt['VERBOSE']: print 'i> creating mu-map for:', Cnt['HMULIST'][i-1]
+        log.debug('creating mu-map for:%r' % Cnt['HMULIST'][i-1])
         A = np.diag(np.append(10*vs[::-1], 1))
         A[0,0] *= -1
         A[0,3] =  10*(-vpos[2])
@@ -1276,7 +1276,7 @@ def hdw_mumap(
             fmu = datain['hmumap']
         elif datain['hmumap'].endswith(('.npy')):
             hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
-            if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+            log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
             fnp = datain['hmumap']
 
     elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
@@ -1345,7 +1345,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
     # get hardware mu-map
     if os.path.isfile(datain['hmumap']) and use_stored:
         muh, _ = np.load(datain['hmumap'], allow_pickle=True)
-        if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+        log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
     else:
         hmudic = hdw_mumap(datain, [1,2,4], Cnt)
         muh = hmudic['im']

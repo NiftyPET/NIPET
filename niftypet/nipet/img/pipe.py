@@ -234,7 +234,7 @@ def mmrchain(datain,        # all input data in a dictionary
             im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
             # store ref image
             nimpa.array2nii(im, B, fmuref)
-            if Cnt['VERBOSE']: print 'i> generated a reference mu-map in', fmuref
+            log.debug('generated a reference mu-map in' + fmuref)
         # -------------------------------------------------------------------------------------
 
         output['fmuref'] = fmuref
@@ -266,7 +266,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # --------------
         # check if there is enough prompt data to do a reconstruction
         # --------------
-        print 'i> dynamic frame times t0, t1:', t0, t1
+        log.info('dynamic frame times t0, t1:%r, %r' % (t0, t1))
         if not histo:
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:

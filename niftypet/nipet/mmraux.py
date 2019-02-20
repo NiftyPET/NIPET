@@ -78,14 +78,14 @@ def lm_pos(datain, Cnt):
     yoff = float(xyz[1])/10
     zoff = float(xyz[2])/10
     goff = flip * np.array([xoff, yoff, zoff])
-    if Cnt['VERBOSE']: print 'i> gantry offset:', goff
+    log.debug('gantry offset:%r' % goff)
 
     fi = csainfo.find('TablePositionOrigin')
     #regular expression for the needed three numbers
     tpostr = csainfo[fi:fi+200]
     tpo = re.sub(r'[^a-zA-Z0-9\-]', '', tpostr).split('M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])])
-    if Cnt['VERBOSE']: print 'i> table position origin:', tpozyx
+    log.debug('table position origin:%r' % tpozyx)
 
     return goff, tpozyx
 
@@ -113,7 +113,6 @@ def hdr_lm(datain, Cnt):
         else:
             log.warning('DICOM field [0x29,0x1010] not found!')
             lmhdr = None
-
         #CSA Series Header Info
         if [0x29,0x1120] in dhdr:
             csahdr = dhdr[0x29,0x1120].value
@@ -129,13 +128,12 @@ def hdr_lm(datain, Cnt):
             if loc in dhdr:
                 lmhdr = dhdr[loc].value
                 if '!INTERFILE' in lmhdr and 'start horizontal bed position' in lmhdr:
-                    if Cnt['VERBOSE']: print 'i> got LM interfile from [', hex(loc[0]),',', hex(loc[1]), ']'
+                    log.debug('got LM interfile from [%#x, %#x]' % (loc[0], loc[1]))
                     found_lmhdr = True
                     break
         if not found_lmhdr:
             log.error('DICOM field with LM interfile header has not been found!')
             lmhdr = None
-
         #CSA Series Header Info
         if [0x29,0x1020] in dhdr:
             csahdr = dhdr[0x29,0x1020].value
@@ -268,7 +266,7 @@ def time_diff_norm_acq(datain):
     dhrs = tdiff/3600
     dmns = (tdiff - 3600*dhrs)/60
     if dhrs>12:
-        print 'w> time difference between calibration and acquisition is:', dhrs,'hrs and',dmns,'mins'
+        log.warning('time difference between calibration and acquisition is: %dhrs and %dmins' % (dhrs, dmns))
 
     if np.sum([cy-y, cm-m, cd-d])!=0:
         log.warning('daily QC/calibration was performed on different day !!!')
@@ -543,9 +541,9 @@ def axial_lut(Cnt):
     #---------------------------------------------------------------------
 
 
-    axLUT = {'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn1, 'li2nos':li2nos, 'li2rng':li2rng, 
+    axLUT = {'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn1, 'li2nos':li2nos, 'li2rng':li2rng,
              'sn1_rno':sn1_rno, 'sn1_ssrb':sn1_ssrb, 'sn1_sn11':sn1_sn11, 'sn1_sn11no':sn1_sn11no,
-             'sn11_ssrb':sn11_ssrb, 'sn1_ssrno':sn1_ssrno, 'sn11_ssrno':sn11_ssrno, 
+             'sn11_ssrb':sn11_ssrb, 'sn1_ssrno':sn1_ssrno, 'sn11_ssrno':sn11_ssrno,
              'Msn11':Msn, 'Msn1':Msn1, 'Mnos':Mnos, 'rng':rng}
 
     log.debug('axial LUTs done.')
@@ -787,21 +785,21 @@ def get_niifiles(dfile, datain, v):
     fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*gifbc.nii*') )
     if len(fbc)==1:
         datain['T1bc'] = fbc[0]
-        if v: print 'i> NIfTI for bias corrected T1w of the object:', fbc[0]
+        log.debug('NIfTI for bias corrected T1w of the object:' + fbc[0])
     fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*BiasCorrected.nii*') )
     if len(fbc)==1:
         datain['T1bc'] = fbc[0]
-        if v: print 'i> NIfTI for bias corrected T1w of the object:', fbc[0]
+        log.debug('NIfTI for bias corrected T1w of the object:' + fbc[0])
 
     #T1-based labels after parcellation
     flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*giflabels.nii*') )
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
-        if v: print 'i> NIfTI for regional parcellations of the object:', flbl[0]
+        log.debug('NIfTI for regional parcellations of the object:' + flbl[0])
     flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*') )
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
-        if v: print 'i> NIfTI for regional parcellations of the object:', flbl[0]
+        log.debug('NIfTI for regional parcellations of the object:' + flbl[0])
 
     #reconstructed emission data without corrections, minimum 2 osem iter
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*__ACbed.nii*') )
@@ -834,7 +832,7 @@ def get_dicoms(dfile, datain, Cnt):
             if os.path.isfile(dfile[:-4]+'.bf'):
                 datain['nrm_bf'] = dfile[:-4]+'.bf'
             else:
-                print 'e> file does not exists:', dfile[:-4]+'.bf'
+                log.error('file does not exists:' + dfile[:-4] + '.bf')
         elif os.path.splitext(dfile)[-1].lower()=='.ima':
             datain['nrm_ima'] = dfile
             # extract the binary norm data from the IMA DICOM
@@ -847,7 +845,7 @@ def get_dicoms(dfile, datain, Cnt):
             with open(bf, 'wb') as f:
                 f.write(nrm)
             datain['nrm_bf'] = bf
-            if Cnt['VERBOSE']: print 'i> saved component norm data to binary file:', bf
+            log.debug('saved component norm data to binary file:' + bf)
 
     #--- check if it is list-mode file
     elif 'mmr' in dcmtype and 'list' in dcmtype:
@@ -857,7 +855,7 @@ def get_dicoms(dfile, datain, Cnt):
             if os.path.isfile(dfile[:-4]+'.bf'):
                 datain['lm_bf'] = dfile[:-4]+'.bf'
             else:
-                print 'e> file does not exists:', dfile[:-4]+'.bf'
+                log.error('file does not exists:' + dfile[:-4] + '.bf')
         elif os.path.splitext(dfile)[-1].lower()=='.ima':
             datain['lm_ima'] = dfile
             # extract the binary list-mode data from the IMA DICOM if it does not exist already
@@ -868,7 +866,7 @@ def get_dicoms(dfile, datain, Cnt):
                 with open(bf, 'wb') as f:
                     f.write(lm)
                 datain['lm_bf'] = bf
-                if Cnt['VERBOSE']: print 'i> saved list-mode data to binary file:', bf
+                log.debug('saved list-mode data to binary file:' + bf)
             elif os.path.isfile(bf):
                 log.debug('the binary list-mode data was already extracted from the IMA DICOM file.')
                 datain['lm_bf'] = bf

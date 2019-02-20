@@ -306,7 +306,7 @@ def vsm(
     sct3d  = sctout['sct_3d']
     sctind = sctout['bin_indx']
 
-    if Cnt['VERBOSE']: print 'i> total scatter sum:', np.sum(sct3d)
+    log.debug('total scatter sum:%r' % np.sum(sct3d))
     if np.sum(sct3d)<1e-04:
         sss    = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         amsksn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
@@ -379,7 +379,7 @@ def vsm(
         tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float64)
         log.debug('interpolate each scatter sino...')
         for k in range(Cnt['TOFBINN']):
-            if Cnt['VERBOSE']: print 'i> doing TOF bin k =', k
+            log.debug('doing TOF bin k = %d' % k)
             for i in range(snno):
                 tmp2d[:] = 0
                 for ti in range(len(sctind)):
@@ -387,7 +387,7 @@ def vsm(
                 #interpolate estimated scatter
                 ssn[k,i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
                 sssr[k, ssrlut[i], :, :] += ssn[k,i,:,:]
-            if Cnt['VERBOSE']: print 'i> TOF bin #', k
+            log.debug('TOF bin #%d' % k)
     elif Cnt['TOFBINN']==1:
         ssn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);

@@ -60,8 +60,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
-    if Cnt['VERBOSE']: print 'i> histograming with span', Cnt['SPN'], 'and', nfrm, 'dynamic frames.'
-
+    log.debug('histograming with span %d and %d dynamic frames.' % (Cnt['SPN'], nfrm))
 
     if use_stored==True and 'sinos' in datain and os.path.basename(datain['sinos'])=='sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy' :
 
@@ -74,13 +73,13 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
          hstout['ssr']) =   np.load( datain['sinos'] )
 
         nitag = len(hstout['phc'])
-        if Cnt['VERBOSE']: print 'i> duration by integrating time tags [s]:', nitag
+        log.debug('duration by integrating time tags [s]:%d' % nitag)
 
     elif os.path.isfile(datain['lm_bf']):
         # gather info about the LM time tags
         nele, ttags, tpos = mmr_lmproc.lminfo(datain['lm_bf'])
         nitag = (ttags[1]-ttags[0]+999)/1000
-        if Cnt['VERBOSE']: print 'i> duration by integrating time tags [s]:', nitag
+        log.debug('duration by integrating time tags [s]:%d' % nitag)
 
         # adjust frame time if outside the limit
         if t1>nitag: t1 = nitag
@@ -161,7 +160,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
     cmass = Cnt['SO_VXZ']*ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
-    if Cnt['VERBOSE']: print 'i> centre of mass of axial radiodistribution (filtered with Gaussian of SD =', cmass_sig, '):  COMPLETED.'
+    log.debug('centre of mass of axial radiodistribution (filtered with Gaussian of SD = %.3g):  COMPLETED.' % cmass_sig)
 
     #========================== BUCKET SINGLES ==============================
     #number of single rates reported for the given second
@@ -238,7 +237,7 @@ def rand(fansums, txLUT, axLUT, Cnt):
 
     #number of frames
     nfrm = fansums.shape[0]
-    if Cnt['VERBOSE']: print 'i> # of dynamic frames:', nfrm
+    log.debug('# of dynamic frames:%d' % nfrm)
 
     #random sino and estimated crystal map of singles put into a dictionary
     rsn  = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
@@ -279,7 +278,7 @@ def prand(fansums, pmsk, txLUT, axLUT, Cnt):
 
     #number of frames
     nfrm = fansums.shape[0]
-    if Cnt['VERBOSE']: print 'i> # of dynamic frames:', nfrm
+    log.debug('# of dynamic frames:%d' % nfrm)
 
     #random sino and estimated crystal map of singles put into a dictionary
     rsn  = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
