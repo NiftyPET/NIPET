@@ -141,6 +141,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
             if outpath=='':
                 fsino = os.path.dirname(datain['lm_bf'])
             else:
+                from niftypet import nipet
                 fsino = os.path.join(outpath, 'sino')
                 nipet.mmraux.create_dir(fsino)
             # complete the path with the file name

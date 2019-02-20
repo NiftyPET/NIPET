@@ -222,7 +222,7 @@ def hmu_resample0(hmupos, parts ,Cnt):
             imr += nimpa.prc.improc.resample(im, A, Cim)
 
         else:
-            imr += improc.resample(hmupos[i]['img'], A, Cim)
+            imr += nimpa.prc.improc.resample(hmupos[i]['img'], A, Cim)
 
     return imr
     

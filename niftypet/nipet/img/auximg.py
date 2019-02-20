@@ -16,6 +16,7 @@ def obtain_image(img, Cnt=[], imtype='', verbose=False):
     numpy array, dictionary or empty list (assuming blank then).
     The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
+    from os import path
 
     if Cnt: verbose = Cnt['VERBOSE']
     # establishing what and if the image object has been provided
@@ -45,7 +46,8 @@ def obtain_image(img, Cnt=[], imtype='', verbose=False):
             if verbose: print 'i> using hardware mu-map from numpy array.'
 
     elif isinstance(img, basestring):
-        if os.path.isfile(img):
+        if path.isfile(img):
+            from niftypet import nimpa
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']
