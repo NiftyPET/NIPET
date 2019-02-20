@@ -37,16 +37,15 @@ def fwhm2sig(fwhm, Cnt):
 #=========================================================================
 # OSEM RECON
 #-------------------------------------------------------------------------
-def get_subsets14(n, params):
-    '''Define the n-th subset out of 14 in the transaxial projection space
+def get_subsets14(n, params, N=14):
+    '''Define the n-th subset out of 14 in the transaxial projection space.
+    N  : number of subsets.
     '''
     Cnt = params['Cnt']
     txLUT = params['txLUT']
 
     # just for check of sums (have to be equal for all subsets to make them balanced)
     aisum = np.sum(txLUT['msino'], axis=0)
-    # number of subsets
-    N = 14
     # projections per subset
     P = Cnt['NSANGLES']/N
     # the remaining projections which have to be spread over the N subsets with a given frequency
@@ -110,7 +109,8 @@ def osemone(datain, mumaps, hst, scanner_params,
             ret_sinos=False,
             attnsino = None,
             randsino = None,
-            normcomp = None):
+            normcomp = None,
+            Sn=14):
     log = logging.getLogger(__name__)
 
     #---------- sort out OUTPUT ------------
@@ -223,9 +223,8 @@ def osemone(datain, mumaps, hst, scanner_params,
 
     log.debug('------ OSEM (%d) -------' % itr)
     #------------------------------------
-    Sn = 14 # number of subsets
     #-get one subset to get number of projection bins in a subset
-    Sprj, s = get_subsets14(0,scanner_params)
+    Sprj, s = get_subsets14(0,scanner_params, N=Sn)
     Nprj = len(Sprj)
     #-init subset array and sensitivity image for a given subset
     sinoTIdx = np.zeros((Sn, Nprj+1), dtype=np.int32)
@@ -233,7 +232,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     imgsens = np.zeros((Sn, Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
     for n in range(Sn):
         sinoTIdx[n,0] = Nprj #first number of projection for the given subset
-        sinoTIdx[n,1:], s = get_subsets14(n,scanner_params)
+        sinoTIdx[n,1:], s = get_subsets14(n,scanner_params,N=Sn)
         # sensitivity image
         petprj.bprj(imgsens[n,:,:,:], ansng[sinoTIdx[n,1:],:], txLUT, axLUT,  sinoTIdx[n,1:], Cnt )
     #-------------------------------------

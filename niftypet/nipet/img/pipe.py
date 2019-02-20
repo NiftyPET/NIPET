@@ -33,6 +33,7 @@ def mmrchain(datain,        # all input data in a dictionary
                             # each time frame separately.
 
             itr=4,          # number of OSEM iterations
+            subs=14,        # number of OSEM subsets
             fwhm=0.,        # Gaussian Smoothing FWHM
             recmod = -1,    # reconstruction mode: -1: undefined, chosen
                             # automatically. 3: attenuation and scatter
@@ -321,7 +322,8 @@ def mmrchain(datain,        # all input data in a dictionary
                                 fcomment=fcomment+'_i',
                                 store_img=store_img_intrmd,
                                 store_itr=store_itr,
-                                ret_sinos=ret_sinos)
+                                ret_sinos=ret_sinos,
+                                Sn=subs)
         # form dynamic numpy array
         dynim[ifrm,:,:,:] = recimg.im
         if ret_sinos and itr>1 and recmod>2:
