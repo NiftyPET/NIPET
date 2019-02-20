@@ -16,6 +16,7 @@ import nibabel as nib
 import pydicom as dcm
 import re
 import glob
+import logging
 
 from subprocess import call
 import time
@@ -52,14 +53,15 @@ def convert2e7(img, Cnt):
 
 def convert2dev(im, Cnt):
     '''Reshape Siemens/E7 (default) image for optimal GPU execution.'''
+    log = logging.getLogger(__name__)
 
     if im.shape[1]!=Cnt['SO_IMY'] or im.shape[2]!=Cnt['SO_IMX']:
         raise ValueError('e> input image array is not of the correct Siemens shape.')
 
     if 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['rSZ_IMZ']:
-        print 'w> the axial number of voxels does not match the reduced rings.'
+        log.warning('the axial number of voxels does not match the reduced rings.')
     elif not 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
-        print 'w> the axial number of voxels does not match the rings.'
+        log.warning('the axial number of voxels does not match the rings.')
 
     im_sqzd = np.zeros((im.shape[0], Cnt['SZ_IMY'], Cnt['SZ_IMX']), dtype=np.float32)
     margin = (Cnt['SO_IMX']-Cnt['SZ_IMX'])/2
@@ -76,8 +78,9 @@ def cropxy(im, imsize, datain, Cnt, store_pth=''):
     '''Crop image transaxially to the size in tuple <imsize>.
     Return the image and the affine matrix.
     '''
+    log = logging.getLogger(__name__)
     if not imsize[0]%2==0 and not imsize[1]%2==0:
-        print 'e> image size has to be an even number!'
+        log.error('image size has to be an even number!')
         return None
 
     # cropping indexes
@@ -271,6 +274,7 @@ def hu2mu(im):
 # better use dcm2niix
 def mudcm2nii(datain, Cnt):
     '''DICOM mu-map to NIfTI'''
+    log = logging.getLogger(__name__)
 
     mu, pos, ornt = nimpa.dcm2im(datain['mumapDCM'])
     mu *= 0.0001
@@ -305,7 +309,7 @@ def mudcm2nii(datain, Cnt):
                     '-res', fmu,
                     '-pad', '0'] )
     else:
-        print 'e> path to resampling executable is incorrect!'
+        log.error('path to resampling executable is incorrect!')
         raise IOError('Error launching NiftyReg for image resampling.')
 
     return fmu
@@ -313,7 +317,7 @@ def mudcm2nii(datain, Cnt):
 # =====================================================================================
 def obj_mumap(
         datain,
-        params={},
+        params=None,
         outpath='',
         comment='',
         store=False,
@@ -322,7 +326,9 @@ def obj_mumap(
         del_auxilary=True,
         ):
     '''Get the object mu-map from DICOM images'''
-
+    log = logging.getLogger(__name__)
+    if params is None:
+        params = {}
 
     # three ways of passing scanner constants <Cnt> are here decoded
     if 'Cnt' in params:
@@ -331,7 +337,6 @@ def obj_mumap(
         Cnt = params
     else:
         Cnt = rs.get_mmr_constants()
-
 
     # output folder
     if outpath=='':
@@ -350,7 +355,7 @@ def obj_mumap(
 
     # check if the object dicom files for MR-based mu-map exists
     if not 'mumapDCM' in datain or not os.path.isdir(datain['mumapDCM']):
-        print 'e> DICOM forlder for the mu-map does not exist.'
+        log.error('DICOM forlder for the mu-map does not exist.')
         return None
 
     fnii = 'converted-from-object-DICOM_'
@@ -376,10 +381,11 @@ def obj_mumap(
                     '-flo', fmunii,
                     '-res', fmu,
                     '-pad', '0']
-        if not Cnt['VERBOSE']: cmd.append('-voff')
+        if log.level > logging.DEBUG:
+            cmd.append('-voff')
         call(cmd)
     else:
-        print 'e> path to resampling executable is incorrect!'
+        log.error('path to resampling executable is incorrect!')
         sys.exit()
 
     nim = nib.load(fmu)
@@ -392,9 +398,9 @@ def obj_mumap(
     mu[mu<0] = 0
 
     #> return image dictionary with the image itself and some other stats
-    mu_dct = {  'im':mu,
-                'affine':A}
-    if not del_auxilary: mu_dct['fmuref'] = fmuref
+    mu_dct = dict(im=mu, affine=A)
+    if not del_auxilary:
+        mu_dct['fmuref'] = fmuref
 
     # store the mu-map if requested
     if store_npy:
@@ -421,10 +427,10 @@ def obj_mumap(
 #---------------------------------------------------------------------------------
 def align_mumap(
         datain,
-        scanner_params={},
+        scanner_params=None,
         outpath='',
         use_stored=False,
-        hst=[],
+        hst=None,
         t0=0, t1=0,
         itr=2,
         faff='',
@@ -444,6 +450,11 @@ def align_mumap(
 
     use_sotred only works if hst or t0/t1 given but not when faff.
     '''
+    log = logging.getLogger(__name__)
+    if scanner_params is None:
+        scanner_params = {}
+    if hst is None:
+        hst = []
 
 
     #> output folder
@@ -508,7 +519,7 @@ def align_mumap(
     #-get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
         muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
-        if verbose: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+        log.debug('loaded hardware mu-map from file: %s' % datain['hmumap'])
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
@@ -517,13 +528,13 @@ def align_mumap(
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
-        print 'e> obtain the hardware mu-map first.'
+        log.error('obtain the hardware mu-map first.')
         raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
     #=========================================================
     #-check if T1w image is available
     if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain \
     and not 'T1N4' in datain:
-        print 'e> no MR T1w images required for co-registration!'
+        log.error('no MR T1w images required for co-registration!')
         raise IOError('T1w image could not be obtained')
     #=========================================================
 
@@ -569,7 +580,6 @@ def align_mumap(
                     Cnt,
                     del_auxilary=del_auxilary)
             muo = mudic['im']
-
             recout = mmrrec.osemone(
                 datain, [muh, muo],
                 hst, scanner_params,
@@ -590,7 +600,6 @@ def align_mumap(
                 fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
-
             # get the affine transformation
             try:
                 regdct = nimpa.coreg_spm(
@@ -618,7 +627,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=verbose
+                    verbose=log.level < logging.INFO
                 )
 
             faff_mrpet = regdct['faff']
@@ -652,7 +661,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=verbose
+                    verbose=log.level < logging.INFO
                 )
 
             faff_mrpet = regdct['faff']
@@ -670,7 +679,6 @@ def align_mumap(
     if musrc=='pct':
         freg = os.path.join(opth, 'pCT-res-tmp'+fcomment+'.nii.gz')
         fflo = datain['pCT']
-
     elif musrc=='ute':
         freg = os.path.join(opth, 'UTE-res-tmp'+fcomment+'.nii.gz')
         if 'UTE' not in datain:
@@ -705,9 +713,9 @@ def align_mumap(
             fpet,
             fflo,
             faff_mrpet,
-            fimout = freg,
-            executable = Cnt['RESPATH'],
-            verbose = True)
+            fimout=freg,
+            executable=Cnt['RESPATH'],
+            verbose=log.level < logging.INFO)
 
 
     #-get the NIfTI of registered image
@@ -743,20 +751,16 @@ def align_mumap(
                     + fcomment
         else:
             fname = fnm + '-aligned-to-given-affine' + fcomment
-
     if store_npy:
         #> Numpy
         if store_to_npy:
             fnp = os.path.join(opth, fname + '.npy')
             np.save(fnp, (mu, A, fnp))
-
-
     if store:
         #> NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
         mu_dct['fim'] = fmu
-
     if del_auxilary:
         os.remove(freg)
         if not os.path.isfile(faff):
@@ -770,24 +774,20 @@ def align_mumap(
 #---------------------------------------------------------------------------------
 def pct_mumap(
         datain, scanner_params,
-        hst=[], t0=0, t1=0,
-        itr=2,
-        petopt='ac',
-        faff='',
-        fpet='',
-        fcomment='',
-        outpath='',
-        store_npy = False,
-        store = False,
-        verbose=True
+        hst=None, t0=0, t1=0, itr=2,
+        petopt='ac', faff='', fpet='',
+        fcomment='', outpath='',
+        store_npy=False, store=False
     ):
-
     '''
     GET THE MU-MAP from pCT IMAGE (which is in T1w space)
     * the mu-map will be registered to PET which will be reconstructed for time frame t0-t1
     * it f0 and t1 are not given the whole LM dataset will be reconstructed
     * the reconstructed PET can be attenuation and scatter corrected or NOT using petopt
     '''
+    log = logging.getLogger(__name__)
+    if hst is None:
+        hst = []
 
     if not os.path.isfile(faff):
         from niftypet.nipet.prj import mmrrec
@@ -804,8 +804,7 @@ def pct_mumap(
     # get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
         muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
-        if verbose:
-            print 'i> loaded hardware mu-map from file:', datain['hmumap']
+        log.debug('loaded hardware mu-map from file:', datain['hmumap'])
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
@@ -814,11 +813,11 @@ def pct_mumap(
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
-        print 'e> obtain the hardware mu-map first.'
+        log.error('obtain the hardware mu-map first.')
         raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
 
     if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain:
-        print 'e> no MR T1w images required for co-registration!'
+        log.error('no MR T1w images required for co-registration!')
         raise IOError('Missing MR data')
     # ----------------------------------
 
@@ -868,7 +867,6 @@ def pct_mumap(
 
         fpet = recout.fpet
         mu_dct['fpet'] = fpet
-
         #------------------------------
         # get the affine transformation
 
@@ -899,7 +897,7 @@ def pct_mumap(
                 rthrsh=0.05,
                 ffwhm = 15., #millilitres
                 fthrsh=0.05,
-                verbose=verbose
+                verbose=log.level < logging.INFO
             )
 
         faff = regdct['faff']
@@ -921,10 +919,11 @@ def pct_mumap(
             '-trans', faff,
             '-res', fpct,
             '-pad', '0']
-        if not verbose: cmd.append('-voff')
+        if log.level > logging.DEBUG:
+            cmd.append('-voff')
         call(cmd)
     else:
-        print 'e> path to resampling executable is incorrect!'
+        log.error('path to resampling executable is incorrect!')
         sys.exit()
 
 
@@ -951,15 +950,10 @@ def pct_mumap(
         else:
             pctumapdir = os.path.join(outpath, 'mumap-obj')
         mmraux.create_dir(pctumapdir)
-
         #> Numpy
         if store_npy:
             fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
             np.save(fnp, (mu, A, fnp))
-
-
-        # numpy
-
         # NIfTI
         fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
@@ -974,6 +968,7 @@ def pct_mumap(
 #---------------------------------------------------------------------------------
 def hdr_mu(datain, Cnt):
     '''Get the headers from DICOM data file'''
+    log = logging.getLogger(__name__)
     #get one of the DICOM files of the mu-map
     if 'mumapDCM' in datain:
         files = glob.glob(os.path.join(datain['mumapDCM'],'*.dcm'))
@@ -982,17 +977,17 @@ def hdr_mu(datain, Cnt):
         files.extend(glob.glob(os.path.join(datain['mumapDCM'],'*.IMA')))
         dcmf = files[0]
     else:
-        print 'e> path to the DICOM mu-map is not given but it is required.'
+        log.error('path to the DICOM mu-map is not given but it is required.')
         raise NameError('No DICOM mu-map')
     if os.path.isfile( dcmf ):
         dhdr = dcm.read_file( dcmf )
     else:
-        print 'e> DICOM mMR mu-maps are not valid files!'
+        log.error('DICOM mMR mu-maps are not valid files!')
         return None
     # CSA Series Header Info
     if [0x29,0x1020] in dhdr:
         csahdr = dhdr[0x29,0x1020].value
-        if Cnt['VERBOSE']: print 'i> got CSA mu-map info.'
+        log.debug('got CSA mu-map info.')
     return csahdr, dhdr
 
 def hmu_shape(hdr):
@@ -1086,10 +1081,11 @@ def rd_hmu(fh):
 
 
 def get_hmupos(datain, parts, Cnt, outpath=''):
+    log = logging.getLogger(__name__)
 
     # check if registration executable exists
     if not os.path.isfile(Cnt['RESPATH']):
-        print 'e> no registration executable found!'
+        log.error('no registration executable found!')
         sys.exit()
 
     #----- get positions from the DICOM list-mode file -----
@@ -1241,7 +1237,8 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
                 '-flo', hmupos[i]['niipath'],
                 '-res', fout,
                 '-pad', '0']
-        if not Cnt['VERBOSE']: cmd.append('-voff')
+        if log.level > logging.DEBUG:
+            cmd.append('-voff')
         call(cmd)
 
     return hmupos
@@ -1255,8 +1252,8 @@ def hdw_mumap(
         outpath='',
         use_stored=False,
         del_interm=True):
-    ''' Get hardware mu-map components, including bed, coils etc.
-    '''
+    '''Get hardware mu-map components, including bed, coils etc.'''
+    log = logging.getLogger(__name__)
 
     # two ways of passing Cnt are here decoded
     if 'Cnt' in params:
@@ -1338,6 +1335,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
     '''
     get the mu-maps for hardware and object and trim it axially for reduced rings case
     '''
+    log = logging.getLogger(__name__)
 
     from niftypet.nipet.lm  import mmrhist
     from niftypet.nipet.prj import mmrrec
@@ -1392,7 +1390,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
             ft1nii = glob.glob( os.path.join(datain['T1nii'], '*converted*.nii*') )
             ft1w = ft1nii[0]
         else:
-            print 'e> disaster: no T1w image!'
+            log.error('disaster: no T1w image!')
             sys.exit()
 
         #output for the T1w in register with PET
@@ -1407,10 +1405,11 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
                  '-rigOnly', '-speeeeed',
                  '-aff', faff,
                  '-res', ft1out]
-            if not Cnt['VERBOSE']: cmd.append('-voff')
+            if log.level > logging.DEBUG:
+                cmd.append('-voff')
             call(cmd)
         else:
-            print 'e> path to registration executable is incorrect!'
+            log.error('path to registration executable is incorrect!')
             sys.exit()
 
         #get the pCT mu-map with the above faff

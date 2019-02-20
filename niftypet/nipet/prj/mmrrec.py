@@ -38,7 +38,7 @@ def fwhm2sig(fwhm, Cnt):
 # OSEM RECON
 #-------------------------------------------------------------------------
 def get_subsets14(n, params):
-    ''' Define the n-th subset out of 14 in the transaxial projection space
+    '''Define the n-th subset out of 14 in the transaxial projection space
     '''
     Cnt = params['Cnt']
     txLUT = params['txLUT']
@@ -100,25 +100,18 @@ def get_subsets14(n, params):
 
 #---------------------------------------------------------------------------------------------------------#
 #=== OSEM image reconstruction with several modes (with/without scatter and/or attenuation correction) ===#
-def osemone(
-        datain,
-        mumaps,
-        hst,
-        scanner_params,
-        recmod=3,
-        itr=4, 
-        fwhm=0.,
-        mask_radius=29.,
-        sctsino=np.array([]),
-        outpath='',
-        store_img=False, frmno='', fcomment='',
-        store_itr=[],
-        emmskS=False,
-        ret_sinos=False,
-        attnsino = None,
-        randsino = None,
-        normcomp = None):
-
+def osemone(datain, mumaps, hst, scanner_params,
+            recmod=3, itr=4, fwhm=0., mask_radius=29.,
+            sctsino=np.array([]),
+            outpath='',
+            store_img=False, frmno='', fcomment='',
+            store_itr=[],
+            emmskS=False,
+            ret_sinos=False,
+            attnsino = None,
+            randsino = None,
+            normcomp = None):
+    log = logging.getLogger(__name__)
 
     #---------- sort out OUTPUT ------------
     #-output file name for the reconstructed image, initially assume n/a
@@ -141,7 +134,7 @@ def osemone(
     # from niftypet.nipet.sct import mmrsct
     # from niftypet.nipet.prj import mmrhist
 
-    if Cnt['VERBOSE']: print 'i> reconstruction in mode', recmod
+    log.debug('reconstruction in mode:%d' % recmod)
 
     # get object and hardware mu-maps
     muh, muo = mumaps
@@ -164,7 +157,7 @@ def osemone(
         ncmp, _ = mmrnorm.get_components(datain, Cnt)
     else:
         ncmp = normcomp
-        print 'w> using user-defined normalisation components'
+        log.warning('using user-defined normalisation components')
     nsng = mmrnorm.get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=ncmp)
     #=========================================================================
 
@@ -179,11 +172,11 @@ def osemone(
         if isinstance(attnsino, np.ndarray) \
                 and attnsino.shape==(Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
             asng = mmraux.remgaps(attnsino, txLUT, Cnt)
-            print 'i> using provided attenuation factor sinogram'
+            log.info('using provided attenuation factor sinogram')
         elif isinstance(attnsino, np.ndarray) \
                 and attnsino.shape==(Cnt['Naw'], Cnt['NSN11']):
             asng = attnsino
-            print 'i> using provided attenuation factor sinogram'
+            log.info('using provided attenuation factor sinogram')
         else:
             asng = np.zeros(psng.shape, dtype=np.float32)
             petprj.fprj(asng, mus, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
@@ -217,18 +210,18 @@ def osemone(
                 hst,
                 rsino,
                 scanner_params,
-                prcnt_scl = 0.1,
+                prcnt_scl=0.1,
                 emmsk=False)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
         else:
-            print 'e> no emission image available for scatter estimation!  check if it''s present or the path is correct.'
-            sys.exit()
+            raise ValueError(
+                "No emission image available for scatter estimation! " +
+                " Check if it's present or the path is correct.")
     else:
         ssng = np.zeros(rsng.shape, dtype=rsng.dtype)
     #=========================================================================
 
-    if Cnt['VERBOSE']:
-        print '\n>------ OSEM (', itr,  ') -------\n'
+    log.debug('------ OSEM (%d) -------' % itr)
     #------------------------------------
     Sn = 14 # number of subsets
     #-get one subset to get number of projection bins in a subset
@@ -279,12 +272,10 @@ def osemone(
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
-    for k in trange(itr, disable=not Cnt['VERBOSE'], desc="OSEM"):
+    for k in trange(itr, disable=log.level > logging.INFO, desc="OSEM"):
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
-            print '---------------------------------------------------------------------'
-            print 'w> it seems there is not enough true data to render reasonable image.'
-            print '---------------------------------------------------------------------'
+            log.warning('it seems there is not enough true data to render reasonable image')
             #img[:]=0
             itr = k
             break
@@ -300,9 +291,7 @@ def osemone(
                 scanner_params,
                 emmsk=emmskS)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
-
-            if Cnt['VERBOSE']: print 'i> scatter time:', (time.time() - sct_time)
-
+            log.debug('scatter time:%.3g' % (time.time() - sct_time))
         # save images during reconstruction if requested
         if store_itr and k in store_itr:
             im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
@@ -311,14 +300,13 @@ def osemone(
                 +'_itr'+str(k)+fcomment+'_inrecon.nii.gz')
             nimpa.array2nii( im[::-1,::-1,:], B, fout)
 
-
-    if Cnt['VERBOSE']: print 'i> recon time:', (time.time() - stime)
+    log.debug('recon time:%.3g' % (time.time() - stime))
     #=========================================================================
 
 
-    if Cnt['VERBOSE']:
-        print 'i> applying decay correction of', dcycrr
-        print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
+    log.debug('applying decay correction of %r' % dcycrr)
+    log.debug('applying quantification factor:%r to the whole image' % qf)
+    log.debug('for the frame duration of :%r' % hst['dur'])
 
     img *= dcycrr * qf * qf_loc #additional factor for making it quantitative in absolute terms (derived from measurements)
 
@@ -347,7 +335,7 @@ def osemone(
         fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
                 + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
                 +'_itr'+str(itr)+fcomment+'.nii.gz')
-        if Cnt['VERBOSE']: print 'i> saving image to: ', fout
+        log.debug('saving image to: ' + fout)
         nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
 
 

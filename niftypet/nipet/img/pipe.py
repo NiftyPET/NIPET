@@ -8,6 +8,7 @@ import sys
 import os
 import scipy.ndimage as ndi
 from subprocess import call
+import logging
 
 from niftypet import nimpa
 
@@ -65,7 +66,7 @@ def mmrchain(datain,        # all input data in a dictionary
             store_itr=[],   # store any reconstruction iteration in
                             # the list.  ignored if the list is empty.
             del_img_intrmd=False):
-
+    log = logging.getLogger(__name__)
 
     # decompose all the scanner parameters and constants
     Cnt   = scanner_params['Cnt']
@@ -106,9 +107,9 @@ def mmrchain(datain,        # all input data in a dictionary
             t_frms = dfrms['timings'][1:]
 
         else:
-            print 'e> osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]'
+            log.error('osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')
     else:
-        print 'e> osemdyn: provided dynamic frames definitions are not in either Python list or nympy array.'
+        log.error('osemdyn: provided dynamic frames definitions are not in either Python list or nympy array.')
         raise TypeError('Wrong data type for dynamic frames')
     # number of dynamic time frames
     nfrm = len(t_frms)
@@ -140,7 +141,7 @@ def mmrchain(datain,        # all input data in a dictionary
         petimg = os.path.join(petdir, 'single-frame')
         pvcdir = os.path.join(pvcdir, 'single-frame')
     else:
-        print 'e> confused!'
+        log.error('confused!')
         raise TypeError('Unrecognised time frames!')
     # create now the folder
     nimpa.create_dir(petimg)
@@ -153,7 +154,7 @@ def mmrchain(datain,        # all input data in a dictionary
     # MU-MAPS
     # get the mu-maps, if given;  otherwise will use blank mu-maps.
     if tAffine:
-        muod = obtain_image(mu_o, imtype='object mu-map', verbose=Cnt['VERBOSE'])
+        muod = obtain_image(mu_o, imtype='object mu-map')
     else:
         muod = obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
 
@@ -165,11 +166,11 @@ def mmrchain(datain,        # all input data in a dictionary
         recmod = 3
     elif  (muod['exists'] or muhd['exists']) and recmod==-1:
         recmod = 1
-        print 'w> partial mu-map:  scatter correction is switched off.'
+        log.warning('partial mu-map:  scatter correction is switched off.')
     else:
         if recmod==-1:
             recmod = 0
-            print 'w> no mu-map provided: scatter and attenuation corrections are switched off.'
+            log.warning('no mu-map provided: scatter and attenuation corrections are switched off.')
     # -------------------------------------------------------------------------
 
     #import pdb; pdb.set_trace()
@@ -182,16 +183,16 @@ def mmrchain(datain,        # all input data in a dictionary
 
     # if affine transformation is given the baseline mu-map in NIfTI file or dictionary has to be given
     if not tAffine:
-        if Cnt['VERBOSE']: print 'i> using the provided mu-map the same way for all frames.'
+        log.debug('using the provided mu-map the same way for all frames.')
     else:
         if len(tAffine)!=nfrm:
-            print 'e> the number of affine transformations in the list has to be the same as the number of dynamic frames!'
+            log.error('the number of affine transformations in the list has to be the same as the number of dynamic frames!')
             raise IndexError('Inconsistent number of frames.')
         elif not isinstance(tAffine, list):
-            print 'e> tAffine has to be a list of either 4x4 numpy arrays of affine transformations or a list of file path strings!'
+            log.error('tAffine has to be a list of either 4x4 numpy arrays of affine transformations or a list of file path strings!')
             raise IndexError('Expecting a list.')
         elif not 'fim' in muod:
-            print 'e> when tAffine is given, the object mu-map has to be provided either as a dictionary or NIfTI file!'
+            log.error('when tAffine is given, the object mu-map has to be provided either as a dictionary or NIfTI file!')
             raise NameError('No path to object mu-map.')
 
         # check if all are file path strings to the existing files
@@ -199,9 +200,9 @@ def mmrchain(datain,        # all input data in a dictionary
             if all([os.path.isfile(t) for t in tAffine]):
                 # the internal list of affine transformations
                 faff_frms = tAffine
-                if Cnt['VERBOSE']: print 'i> using provided paths to affine transformations for each dynamic frame.'
+                log.debug('using provided paths to affine transformations for each dynamic frame.')
             else:
-                print 'e> not all provided paths are valid!'
+                log.error('not all provided paths are valid!')
                 raise IOError('Wrong paths.')
         # check if all are numpy arrays
         elif all([isinstance(t, (np.ndarray, np.generic)) for t in tAffine]):
@@ -212,7 +213,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 fout = os.path.join(petaff, 'affine_frame('+str(i)+').txt')
                 np.savetxt(fout, tAffine[i], fmt='%3.9f')
                 faff_frms.append(fout)
-            if Cnt['VERBOSE']: print 'i> using provided numpy arrays affine transformations for each dynamic frame.'
+            log.debug('using provided numpy arrays affine transformations for each dynamic frame.')
         else:
             raise StandardError('Affine transformations for each dynamic frame could not be established.')
 
@@ -221,7 +222,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # -------------------------------------------------------------------------------------
         if 'fmuref' in muod:
             fmuref = muod['fmuref']
-            if Cnt['VERBOSE']: print 'i> reusing the reference mu-map from the object mu-map dictionary.'
+            log.debug('reusing the reference mu-map from the object mu-map dictionary.')
         else:
             # create folder if doesn't exists
             nimpa.create_dir(fmudir)
@@ -270,13 +271,9 @@ def mmrchain(datain,        # all input data in a dictionary
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
-            print ''
-            print 'i> using provided histogram'
-            print ''
+            log.info('using provided histogram')
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
-            print '==============================================================================================='
-            print 'w> the amount of random events is the greatest part of prompt events => omitting reconstruction'
-            print '==============================================================================================='
+            log.warning('the amount of random events is the greatest part of prompt events => omitting reconstruction')
             ifrmP = ifrm+1
             continue
         # --------------------
@@ -294,10 +291,11 @@ def mmrchain(datain,        # all input data in a dictionary
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
-                if not Cnt['VERBOSE']: cmd.append('-voff')
+                if log.level > log.DEBUG:
+                    cmd.append('-voff')
                 call(cmd)
             else:
-                print 'e> path to the executable for resampling is incorrect!'
+                log.error('path to the executable for resampling is incorrect!')
                 raise IOError('Incorrect NiftyReg (resampling) executable.')
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
@@ -360,7 +358,7 @@ def mmrchain(datain,        # all input data in a dictionary
             fcomment=fcomment,
             store_img_intrmd=store_img_intrmd,
             memlim=trim_memlim,
-            verbose=Cnt['VERBOSE']
+            verbose=log.level < logging.INFO
         )
 
         output.update({'trimmed': { 'im':petu['im'],
@@ -374,7 +372,7 @@ def mmrchain(datain,        # all input data in a dictionary
     #run PVC if requested and required input given
     if pvcroi:
         if not os.path.isfile(datain['T1lbl']):
-            print 'e> no label image from T1 parcellations and/or ROI definitions!'
+            log.error('no label image from T1 parcellations and/or ROI definitions!')
             raise StandardError('No ROIs')
         else:
             # get the PSF kernel for PVC
@@ -382,7 +380,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 psfkernel = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
             else:
                 if isinstance(psfkernel, (np.ndarray, np.generic)) and psfkernel.shape!=(3, 17):
-                    print 'e> the PSF kernel has to be an numpy array with the shape of (3, 17)!'
+                    log.error('the PSF kernel has to be an numpy array with the shape of (3, 17)!')
                     raise IndexError('PSF: wrong shape or not a matrix')
         
         #> file names for NIfTI images of PVC ROIs and PVC corrected PET
@@ -394,7 +392,7 @@ def mmrchain(datain,        # all input data in a dictionary
         for i in range(ifrmP,nfrm):
             # transform the parcellations (ROIs) if given the affine transformation for each frame
             if not tAffine:
-                print 'w> affine transformation are not provided: will generate for the time frame.'
+                log.warning('affine transformation are not provided: will generate for the time frame.')
                 faffpvc = ''
                 #raise StandardError('No affine transformation')
             else:

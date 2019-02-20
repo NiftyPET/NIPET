@@ -12,12 +12,16 @@ import os
 import sys
 import platform
 from subprocess import call, Popen, PIPE
+import logging
 
 if 'DISPLAY' in os.environ:
     from Tkinter import Tk
     from tkFileDialog import askdirectory
 
 import cudasetup_hdr as cs
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger()
 
 #-------------------------------------------------------------------------
 # The below function is a copy of the same function in install_tools.py
@@ -61,14 +65,12 @@ def update_resources(Cnt):
 #-------------------------------------------------------------------------
 
 if not 'Windows' in platform.system() and not 'Linux' in platform.system():
-    print 'e> the current operating system is not supported.'
+    log.error('the current operating system is not supported.')
     raise SystemError('OS: Unknown Sysytem.')
 
 #----------------------------------------------------
 # select the supported GPU device and install resources.py
-print ' '
-print '---------------------------------------------'
-print 'i> setting up CUDA ...'
+log.info('setting up CUDA...')
 gpuarch = cs.resources_setup()
 #----------------------------------------------------
 
@@ -76,9 +78,7 @@ gpuarch = cs.resources_setup()
 
 #===============================================================
 # Hardware mu-maps
-print ' '
-print '---------------------------------------------'
-print 'i> indicate the location of hardware mu-maps:'
+log.info('indicate the location of hardware mu-maps:')
 
 #---------------------------------------------------------------
 # get the local path to NiftyPET resources.py
@@ -88,11 +88,9 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
     sys.path.append(path_resources)
     try:
         import resources
-    except ImportError as ie:
-        print '---------------------------------------------------------------------------------'
-        print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.'
-        print '---------------------------------------------------------------------------------'
-        raise SystemError('Missing resources file')
+    except ImportError:
+        log.error("NiftyPET's resources file <resources.py> could not be imported")
+        raise
     # get the current setup, if any
     Cnt = resources.get_setup()
 
@@ -121,17 +119,13 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
 else:
     raise SystemError('Missing file: resources.py')
 
-print '--------------------------------------'
-print 'i> hardware mu-maps have been located.'
-print '--------------------------------------'
+log.info('hardware mu-maps have been located')
 #===============================================================
 
 
 
 #===============================================================
-print '---------------------------------'
-print 'i> CUDA compilation for NIPET ...'
-print '---------------------------------'
+log.info('CUDA compilation for NIPET')
 
 path_current = os.path.dirname( os.path.realpath(__file__) )
 path_build = os.path.join(path_current, 'build')
@@ -173,20 +167,18 @@ for ci in range(len(cmd)):
         errstr.append('_')
 
     if stderr:
-        print 'c>-------- reports -----------'
-        print stderr+'c>------------ end ---------------'
+        log.warning('-------- reports -----------')
+        log.warning(stderr)
+        log.warning('------------ end ---------------')
 
-    print ' '
-    print stdout
+    log.info(stdout)
 
 
-print ' '
-print '--- error report ---'
+log.info('--- error report ---')
 for ci in range(len(cmd)):
     if errstr[ci] != '_':
-        print 'e> found error(s) in ', ' '.join(cmd[ci]), '>>', errstr[ci]
-        print ' '
-print '--- end ---'
+        log.error('found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+log.info('--- end ---')
 
 # come back from build folder
 os.chdir(path_current)
@@ -200,8 +192,8 @@ os.chdir(path_current)
 # PYTHON SETUP
 #===============================================================
 
-print 'i> found those packages:'
-print find_packages(exclude=['docs'])
+log.info('found those packages:')
+log.info(find_packages(exclude=['docs']))
 
 with open('README.rst') as file:
     long_description = file.read()
