@@ -581,8 +581,7 @@ def align_mumap(
                 raise IOError('DICOM with the UTE mu-map are not given.')
             call( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', mudir, datain['mumapDCM'] ] )
             #files for the T1w, pick one:
-            fflo = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
-            fflo = fflo[0]
+            fflo = glob.glob( os.path.join(mudir, '*'+fnii+tstmp+'*.nii*') )[0]
         else:
             if os.path.isfile(datain['UTE']):
                 fflo = datain['UTE']
