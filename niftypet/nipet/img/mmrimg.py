@@ -309,7 +309,14 @@ def mudcm2nii(datain, Cnt):
     return fmu
 
 # =====================================================================================
-def obj_mumap(datain, params, outpath='', store=False, comment='', gantry_offset=True):
+def obj_mumap(
+        datain,
+        params,
+        outpath='',
+        comment='',
+        del_auxilary=True,
+        store=False,
+        gantry_offset=True):
     '''Get the object mu-map from DICOM images'''
 
     # two ways of passing Cnt are here decoded
@@ -567,11 +574,12 @@ def align_mumap(
     elif musrc=='ute':
         freg = os.path.join(mudir, 'UTE-r-tmp'+fcomment+'.nii.gz')
         if 'UTE' not in datain:
-            fnii = 'converted'
+            fnii = 'converted-from-DICOM_'
+            tstmp = nimpa.time_stamp(simple_ascii=True)
             # convert the DICOM mu-map images to nii
             if 'mumapDCM' not in datain: 
                 raise IOError('DICOM with the UTE mu-map are not given.')
-            call( [ Cnt['DCM2NIIX'], '-f', fnii, datain['mumapDCM'] ] )
+            call( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', mudir, datain['mumapDCM'] ] )
             #files for the T1w, pick one:
             fflo = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
             fflo = fflo[0]
@@ -738,12 +746,13 @@ def pct_mumap(
         mu_dct['fpet'] = fpet
         #------------------------------
         # get the affine transformation
-        faff, _ = nimpa.reg_mr2pet(  
+        regdct = nimpa.reg_mr2pet(  
                 fpet, datain, Cnt,
                 rigOnly = True,
                 outpath=outpath,
                 #fcomment=fcomment
         )
+        faff = regdct['faff']
         #------------------------------
 
     # pCT file name
