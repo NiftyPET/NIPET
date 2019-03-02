@@ -701,9 +701,9 @@ def get_npfiles(dfile, datain, v):
         datain['mumapCT'] = dfile
         if v: print 'mu-map for the object.'
 
-    # UTE/Dixon mu-map
-    if os.path.basename(dfile)=='mumap_UTE.npy':
-        datain['mumapUTE'] = dfile
+    # DICOM UTE/Dixon mu-map
+    if os.path.basename(dfile)=='mumap-from-DICOM.npy':
+        datain['mumapNPY'] = dfile
         if v: print 'mu-map for the object.'
 
     if os.path.basename(dfile)=='hmumap.npy':
@@ -724,11 +724,19 @@ def get_niifiles(dfile, datain, v):
         print '--------------------------------------------------------------------------'
         print 'i> file:', dfile
 
-    #NIfTI file of pseudo CT
+
+    #> NIfTI file of converted MR-based mu-map from DICOMs
+    if os.path.basename(dfile).split('.nii')[0]=='mumap-from-DICOM':
+        datain['mumapNII'] = dfile
+        if v: print 'mu-map for the object.'
+
+
+    #> NIfTI file of pseudo CT
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_synth.nii*') )
     if len(fpct)>0:
         datain['pCT'] = fpct[0]
         if v: print 'i> pseudoCT of the object.'
+
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*') )
     if len(fpct)>0:
         datain['pCT'] = fpct[0]
