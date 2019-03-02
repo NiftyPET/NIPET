@@ -354,7 +354,9 @@ def draw_frames(hst, tfrms, plot_diff=True):
     plt.plot(hst['dhc'], label='randoms')
     if plot_diff:
         plt.plot(diff, label='difference')
-    for k in tfrms:
+
+    K = [f[0] for f in tfrms if isinstance(f,list)]
+    for k in K:
         yval = hst['phc'][k]
         if yval<0.2*np.max(hst['phc']):
             yval = 0.2*np.max(hst['phc'])
@@ -375,31 +377,42 @@ def get_time_offset(hst):
     # return index, which will constitute time in seconds, for this offset
     return  len(s)-np.argmax(s[::-1])-1
 
-def split_frames(hst, Tref=60):
+def split_frames(hst, Tref=0, t0=0, t1=0):
     '''
-    Splits the whole acquisition data into approximately statistically equivalent frames
-    relative to the first frame whose duration is Tref.  The next frames will have a similar
-    count level.
+    Splits the whole acquisition data into approximately statistically 
+    equivalent frames relative to the reference frame whose duration is 
+    Tref or t1-t0.  The next frames will have a similar count level.
     hst: histogram dictionary
     Tref: reference duration in seconds
+    t0: start time of the reference frame
+    t1: end time of the reference frame
     '''
     # get the offset
-    ioff = get_time_offset(hst)
+    toff = get_time_offset(hst)
     # difference between prompts and randoms
     diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
+
     # follow up index
-    i = ioff
-    j = i+Tref
+    i = t0 + (toff)*(t0<=0)
+    if Tref>0:
+        j = i+Tref
+    elif t1>0:
+        j = t1 + (toff)*(t0<=0)
+    else:
+        raise ValueError('e> could not figure out the reference frame.')
+
     # reference count level
     cref = np.sum(diff[i:j])
     # cumulative sum of the difference
     csum = np.cumsum(diff)
 
+    i = 0
+    j = toff
     # threshold to be achieved
     thrsh = csum[j-1] + cref
-    fdur = [j-i]
-    frms = [[i,j]]
-    clvl = [cref]
+    fdur = [toff]
+    frms = ['timings', [0, toff]]
+    clvl = [0]
     print 'counts t(%d,%d) = %d. diff=%d' % ( i,j,clvl[-1] , np.sum(diff[i:j])-cref )
     while thrsh<csum[-1]:
         i = j
@@ -423,7 +436,7 @@ def split_frames(hst, Tref=60):
         clvl[-1] += np.sum(diff[i:])
         i = frms[-1][0]
     print 'counts t(%d,%d) = %d. diff=%d' % ( i,j,clvl[-1] , np.sum(diff[i:j])-cref )
-    return {'timings':frms, 'fdur':fdur, 'fcnts':clvl, 'offset':ioff}
+    return {'timings':frms, 'fdur':fdur, 'fcnts':clvl, 'offset':toff, 'csum':csum}
 
 
 #-------------------------------------------------------------------------------------------------
