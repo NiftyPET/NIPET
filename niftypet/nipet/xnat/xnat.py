@@ -112,7 +112,7 @@ def get_xnatFile(xnaturi, fname, cookie='', usrpwd=''):
         print 'e> pycurl error:', pe
         print '=============================================================='
         print ' '
-        print 'w> no data:', sbjid, sbjlb
+        print 'w> no data.'
         return -1
     else:
         print '--------'
@@ -215,7 +215,10 @@ def put_xnatPetMrRes(usrpwd, xnatsbj, sbjix, lbl, frmt, fpth):
 
 
 #====================================================================================================
-def download(xc, sbjid, sbjno,
+def download(
+    xc,
+    sbjix,
+    fcomment='',
     tpoint=0,
     expmts=[],
     expid=[],
@@ -238,7 +241,7 @@ def download(xc, sbjid, sbjno,
     '''
 
     # subject index in XNAT server
-    sbjix = xc['prjf']+ '_' + sbjno
+    # sbjix = xc['prjf']+ '_' + sbjno
 
     # get the experiment ID
     if not expmts:
@@ -278,12 +281,12 @@ def download(xc, sbjid, sbjno,
     # get the right experiment
     expt = expmts[expid[0]]
     if not expt:
-        print 'w> no data for:', sbjid, sbjno
+        print 'w> no data for:', fcomment
         return None
         
 
     # core subject output path
-    spth = os.path.join( xc['opth'], os.path.join(sbjno+'_'+sbjid, tpstr ) )
+    spth = os.path.join( xc['opth'], os.path.join(fcomment, tpstr ) )
 
     # norm path
     npth = os.path.join(spth, 'norm')
@@ -300,6 +303,8 @@ def download(xc, sbjid, sbjno,
     utepth = os.path.join(spth, 'UTE')
     # regional parcellations
     parpth = os.path.join(spth, 'prcl')
+
+    
 
     # output dictionary
     out = {}
@@ -338,17 +343,17 @@ def download(xc, sbjid, sbjno,
                 create_dir(opth)
                 for i in range(len(t1files)):
                     # add 't1_' for the file to be recognised as T1w
-                    fname = 't1_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+sbjno+'_'+sbjid+'.'+t1files[i]['Name'].split('.',1)[-1]
+                    fname = 't1_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+fcomment+'.'+t1files[i]['Name'].split('.',1)[-1]
                     status = get_xnatFile(
                         xc['url']+t1files[i]['URI'],
                         os.path.join(opth, fname),
                         cookie=cookie)
                     if status<0:
-                        print 'e> no T1w image data:', sbjid, sbjno
+                        print 'e> no T1w image data:', fcomment
                     else:
                         out['T1nii'].append(os.path.join(opth, fname))
                 if len(t1files)<1: 
-                    print 'e> no T1w image data:', sbjid, sbjno
+                    print 'e> no T1w image data:', fcomment
             else:
                 out['T1nii'] += len(t1files)
     # --------------------------------------------------------------------------------
@@ -377,17 +382,17 @@ def download(xc, sbjid, sbjno,
                 create_dir(opth)
                 for i in range(len(files)):
                     # add 't2_' for the file to be recognised as T1w
-                    fname = 't2_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+sbjno+'_'+sbjid+'.'+files[i]['Name'].split('.',1)[-1]
+                    fname = 't2_scan-'+ID+'_'+QLTY+'_'+TYPE+'_'+fcomment+'.'+files[i]['Name'].split('.',1)[-1]
                     status = get_xnatFile(
                         xc['url']+files[i]['URI'],
                         os.path.join(opth, fname),
                         cookie=cookie)
                     if status<0:
-                        print 'e> no T1w image data:', sbjid, sbjno
+                        print 'e> no T1w image data:', fcomment
                     else:
                         out['T1nii'].append(os.path.join(opth, fname))
                 if len(files)<1: 
-                    print 'e> no T1w image data:', sbjid, sbjno
+                    print 'e> no T1w image data:', fcomment
             else:
                 out['T2nii'] += len(files)
     # --------------------------------------------------------------------------------
@@ -422,7 +427,7 @@ def download(xc, sbjid, sbjno,
                         cookie=cookie
                     )
                     if status<0:
-                        print 'e> no UTE data:', sbjid, sbjno
+                        print 'e> no UTE data:', fcomment
                         raise IOError('Could not cownload the UTE data')
                         
                 if len(files)<192 and [n['Name'] for n in files if '.zip' in n['Name']]:
@@ -469,7 +474,7 @@ def download(xc, sbjid, sbjno,
                     cookie=cookie
                 )
                 if status<0:
-                    print 'e> no UTE/Dixon mu-map data:', sbjid, sbjno
+                    print 'e> no UTE/Dixon mu-map data:', fcomment
                 else:
                     out['UTE'].append(os.path.join(umpth, umfiles[i]['Name']))
             if len(umfiles)<192:
@@ -479,7 +484,7 @@ def download(xc, sbjid, sbjno,
                     fzip.close()
                     out['#UTE'] = len(os.listdir(os.path.dirname(out['UTE'][0])))
                 else:
-                    print 'e> UTE image data too small (<10):', sbjid, sbjno
+                    print 'e> UTE image data too small (<10):', fcomment
                     out['UTE'] = 'missing'
             elif len(umfiles)==192:
                 out['#UTE'] = 192
@@ -501,11 +506,11 @@ def download(xc, sbjid, sbjno,
                     xc['url']+parfiles[i]['URI'], os.path.join(parpth, parfiles[i]['Name']),
                     cookie=cookie)
                 if status<0:
-                    print 'e> no parcellation image data:', sbjid, sbjno
+                    print 'e> no parcellation image data:', fcomment
                 else:
                     out['prcl'].append( os.path.join(parpth,parfiles[i]['Name']) )
             if len(parfiles)<5: 
-                print 'e> it seems there is not enough parcellation data for:', sbjid, sbjno
+                print 'e> it seems there is not enough parcellation data for:', fcomment
         else:
             out['prcl'] = str(len(parfiles))
 
@@ -523,11 +528,11 @@ def download(xc, sbjid, sbjno,
                     xc['url']+pctfiles[i]['URI'], os.path.join(pctpth, pctfiles[i]['Name']),
                     cookie=cookie)
                 if status<0:
-                    print 'e> no pCT image data:', sbjid, sbjno
+                    print 'e> no pCT image data:', fcomment
                 else:
                     out['pCT'] = os.path.join(pctpth, pctfiles[i]['Name'])
             if len(pctfiles)<1: 
-                print 'e> missing pCT file for', sbjid, sbjno
+                print 'e> missing pCT file for', fcomment
         else:
             out['pCT'] = str(len(pctfiles))
 
@@ -548,7 +553,7 @@ def download(xc, sbjid, sbjno,
                 )
                 if status<0:
                     if ip>=0: del plist[ip]
-                    print 'e> no NORM data:', sbjid, sbjno
+                    print 'e> no NORM data:', fcomment
                 else:
                     if '.dcm' in nrmfiles[i]['Name'].lower():
                         out['nrm_dcm'] = os.path.join(npth, nrmfiles[i]['Name'])
@@ -587,7 +592,7 @@ def download(xc, sbjid, sbjno,
                         cookie=cookie
                     )
                     if status<0:
-                        print 'w> no LM data:', sbjid, sbjno
+                        print 'w> no LM data:', fcomment
                     else:
                         if '.dcm' in lmfiles[i]['Name'].lower():
                             out['lm_dcm'] = os.path.join(lmpth, lmfiles[i]['Name'])
