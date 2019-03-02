@@ -224,6 +224,8 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
 	PyObject* pd_btp = PyDict_GetItemString(o_mmrcnst, "BTP");
 	Cnt.BTP = (char)PyInt_AS_LONG(pd_btp);
+	PyObject* pd_btprt = PyDict_GetItemString(o_mmrcnst, "BTPRT");
+	Cnt.BTPRT = (float)PyFloat_AsDouble(pd_btprt);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
 	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
 	//axial LUTs:

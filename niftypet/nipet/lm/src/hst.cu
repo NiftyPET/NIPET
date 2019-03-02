@@ -68,6 +68,7 @@ __global__ void hst(int *lm,
 	const int span,
 	const int nfrm,
 	const int btp,
+	const float btprt,
 	const int tstart,
 	const int tstop,
 	const short *t2dfrm,
@@ -373,12 +374,18 @@ void gpu_hst(unsigned int *d_ssrb,
 
 	//--- bootstrap  and init the GPU randoms
 	if (Cnt.BTP>0) {
-		if (Cnt.VERBOSE == 1) printf("\ni> using GPU bootstrap mode: %d\n", Cnt.BTP);
+		if (Cnt.VERBOSE == 1) {
+			printf("\ni> using GPU bootstrap mode: %d\n", Cnt.BTP);
+			printf("   > bootstrap with output ratio of: %f\n", Cnt.BTPRT);
+		}
 	}
+
 	curandStatePhilox4_32_10_t *d_prng_states = setup_curand();
 	//for parametric bootstrap find the histogram
 	curandDiscreteDistribution_t poisson_hst;
-	curandCreatePoissonDistribution(1.0, &poisson_hst);
+	// normally instead of Cnt.BTPRT I would have 1.0 if expecting the same
+	// number of resampled events as in the original file (or close to)
+	curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
 	//---
 
 	//single slice rebinning LUT to constant memory
@@ -493,10 +500,10 @@ void gpu_hst(unsigned int *d_ssrb,
 		HANDLE_ERROR(cudaMemcpyAsync(&d_lmbuff[si*ELECHNK], &lmbuff[si*ELECHNK], //lmprop.atag[n]
 			lmprop.ele4chnk[n] * sizeof(int), cudaMemcpyHostToDevice, stream[si]));
 
-		hst << <BTHREADS, NTHREADS, 0, stream[si] >> >
+		hst<<<BTHREADS, NTHREADS, 0, stream[si]>>>
 			(d_lmbuff, d_ssrb, d_sino, d_rdlyd, d_rprmt, d_mass, d_snview, d_sn2crs, d_sn1_rno, d_fansums, d_bucks,
 				lmprop.ele4thrd[n], lmprop.ele4chnk[n], si*ELECHNK,
-				lmprop.toff, lmprop.frmoff, lmprop.nitag, lmprop.span, lmprop.nfrm, Cnt.BTP,
+				lmprop.toff, lmprop.frmoff, lmprop.nitag, lmprop.span, lmprop.nfrm, Cnt.BTP, Cnt.BTPRT,
 				tstart, tstop, d_t2dfrm, d_prng_states, poisson_hst);
 		gpuErrchk(cudaPeekAtLastError());
 

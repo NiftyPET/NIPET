@@ -48,7 +48,9 @@ struct Cnst {
 	float TOFBIND;
 	float ITOFBIND;
 
-	char BTP; //0: no bootstrapping, 1: no-parametric, 2: parametric (recommended)
+	char BTP; 	//0: no bootstrapping, 1: no-parametric, 2: parametric (recommended)
+	float BTPRT; // ratio of bootstrapped/original events in the target sinogram (1.0 default)
+
 	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations 
 	bool VERBOSE;
 

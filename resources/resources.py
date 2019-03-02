@@ -267,6 +267,7 @@ def get_setup(Cnt = {}):
     if 'DCM2NIIX'   in globals() and DCM2NIIX!='':      Cnt['DCM2NIIX'] = DCM2NIIX
     # hardware mu-maps
     if 'HMUDIR'     in globals() and HMUDIR!='':        Cnt['HMUDIR']   = HMUDIR
+    if 'VINCIPATH'  in globals() and VINCIPATH!='':     Cnt['VINCIPATH'] = VINCIPATH
 
     Cnt['ENBLXNAT'] = ENBLXNAT
     Cnt['ENBLAGG'] = ENBLAGG
@@ -358,6 +359,7 @@ def get_mmr_constants():
 
 
         'BTP':0, #1:non parametric bootstrap, 2: parametric bootstrap (recommended)
+        'BTPRT':1.0, # Ratio of bootstrapped/original events (enables downsampling) 
 
         'VERBOSE':False,
 
