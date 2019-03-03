@@ -919,11 +919,11 @@ def get_dicoms(dfile, datain, Cnt):
             datain['#T1DCM'] += 1
 
     elif 'mr' in dcmtype and 't2' in dcmtype:
-        datain['T2dcm'] = os.path.dirname(dfile)
-        if '#T2dcm' not in datain:
-            datain['#T2dcm'] = 1
+        datain['T2DCM'] = os.path.dirname(dfile)
+        if '#T2DCM' not in datain:
+            datain['#T2DCM'] = 1
         else:
-            datain['#T2dcm'] += 1
+            datain['#T2DCM'] += 1
 
     # UTE's two sequences:
     elif 'mr' in dcmtype and 'ute2' in dcmtype:
