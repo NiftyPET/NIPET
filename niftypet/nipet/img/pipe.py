@@ -45,8 +45,12 @@ def mmrchain(datain,        # all input data in a dictionary
             trim_interp=1,  # interpolation for upsampling used in PVC
             trim_memlim=True,   # reduced use of memory for machines
                                 # with limited memory (slow though)
+
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
-                            # is performed. 
+                            # is performed.
+            pvcreg_tool = 'nifyreg', # the registration tool used in PVC
+            store_rois = False, # stores the image of PVC ROIs 
+                                # as defined in pvcroi.
             psfkernel=[],
             pvcitr=5, 
             
@@ -378,12 +382,15 @@ def mmrchain(datain,        # all input data in a dictionary
                 if isinstance(psfkernel, (np.ndarray, np.generic)) and psfkernel.shape!=(3, 17):
                     print 'e> the PSF kernel has to be an numpy array with the shape of (3, 17)!'
                     raise IndexError('PSF: wrong shape or not a matrix')
-        # perform PVC for each time frame
-        froi2 = []
+        
+        #> file names for NIfTI images of PVC ROIs and PVC corrected PET
+        froi = []
         fpvc = []
+
+        #> perform PVC for each time frame
         dynpvc = np.zeros(petu['im'].shape, dtype=np.float32)
         for i in range(ifrmP,nfrm):
-            # transform the parcelations (ROIs) if given the affine transformation for each frame
+            # transform the parcellations (ROIs) if given the affine transformation for each frame
             if not tAffine:
                 print 'w> affine transformation are not provided: will generate for the time frame.'
                 faffpvc = ''
@@ -403,21 +410,27 @@ def mmrchain(datain,        # all input data in a dictionary
                 Cnt,
                 pvcroi,
                 psfkernel,
-                itr=pvcitr,
-                faff=faffpvc,
-                fcomment=fcomment_pvc,
-                outpath=pvcdir,
-                store_img=store_img_intrmd)
+                tool = pvcreg_tool,
+                itr = pvcitr,
+                faff = faffpvc,
+                fcomment = fcomment_pvc,
+                outpath = pvcdir,
+                store_rois = store_rois,
+                store_img = store_img_intrmd)
             #============================
             if nfrm>1: 
                 dynpvc[i,:,:,:] = petpvc_dic['im']
             else:
                 dynpvc = petpvc_dic['im']
-
-            froi2.append(petpvc_dic['froi'])
+            
             fpvc.append(petpvc_dic['fpet'])
-        # update output dictionary
-        output.update({'impvc':dynpvc, 'froi':froi2, 'fpvc':fpvc})
+
+            if store_rois: froi.append(petpvc_dic['froi'])
+        
+        #> update output dictionary
+        output.update({'impvc':dynpvc})
+        if store_img_intrmd: output.update({'fpvc':fpvc})
+        if store_rois: output.update({'froi':froi})
     # ----------------------------------------------------------------------
 
     if store_img:

@@ -794,7 +794,7 @@ def get_niifiles(dfile, datain, v):
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
         if v: print 'i> NIfTI for regional parcellations of the object:', flbl[0]
-    flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*Parcellation.nii*') )
+    flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*') )
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
         if v: print 'i> NIfTI for regional parcellations of the object:', flbl[0]
