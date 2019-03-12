@@ -1,0 +1,14 @@
+*.py[co]
+*.so
+*.png
+*.pdf
+*.eps
+*.log
+/docs/
+/build/
+/dist/
+/nipet.egg*/
+.ipynb_checkpoints/
+Makefile
+.DS_Store
+.gitignore

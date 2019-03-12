@@ -9,6 +9,7 @@ import sys
 import os
 import scipy.ndimage as ndi
 from collections import namedtuple
+from tqdm.auto import trange
 
 import petprj
 
@@ -261,10 +262,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
-    for k in range(itr):
-        if Cnt['VERBOSE']:
-            print ''
-            print '--------------- itr-{}/{} ---------------'.format(k,itr)
+    for k in trange(itr, disable=not Cnt['VERBOSE'], desc="OSEM"):
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
             print '---------------------------------------------------------------------'
@@ -298,11 +296,11 @@ def osemone(datain, mumaps, hst, scanner_params,
     if Cnt['VERBOSE']: print 'i> recon time:', (time.time() - stime)
     #=========================================================================
 
-    
-    if Cnt['VERBOSE']: 
+
+    if Cnt['VERBOSE']:
         print 'i> applying decay correction of', dcycrr
         print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
-    
+
     img *= dcycrr * qf * qf_loc #additional factor for making it quantitative in absolute terms (derived from measurements)
 
     #---- save images -----
@@ -359,7 +357,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     else:
         RecOut = namedtuple('RecOut', 'im, fpet, affine')
         recout = RecOut(im, fout, B)
-        
+
     return recout
 
 
@@ -373,7 +371,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 
 #===============================================================================
 # EMML
-# def emml(   datain, mumaps, hst, txLUT, axLUT, Cnt, 
+# def emml(   datain, mumaps, hst, txLUT, axLUT, Cnt,
 #             recmod=3, itr=10, fwhm=0., mask_radious=29., store_img=True, ret_sinos=False, sctsino = None, randsino = None, normcomp = None):
 
 #     #subsets (when not used)
@@ -399,7 +397,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #     nrmsng = mmrnorm.get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=ncmp)
 #     #=========================================================================
 
-    
+
 #     #=========================================================================
 #     # Randoms
 #     #-------------------------------------------------------------------------
@@ -424,7 +422,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #     attnrmsng = asng*nrmsng
 #     #=========================================================================
 
-    
+
 #     #=========================================================================
 #     # SCATTER and the additive term
 #     #-------------------------------------------------------------------------
@@ -514,14 +512,14 @@ def osemone(datain, mumaps, hst, scanner_params,
 #                     ';qf='+str(qf)
 #         fout =  os.path.join(datain['corepath'], os.path.basename(datain['lm_dcm'])[:8]+'_emml_'+str(itr)+'.nii.gz')
 #         nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
-            
+
 #     if ret_sinos and recmod>=3 and itr>1:
 #         RecOut = namedtuple('RecOut', 'im, fpet, affine, ssn, sssr, amsk, rsn')
 #         recout = RecOut(im, fout, B, ssn, sssr, amsk, rsn)
 #     else:
 #         RecOut = namedtuple('RecOut', 'im, fpet, affine')
 #         recout = RecOut(im, fout, B)
-    
+
 #     return recout
 
 
@@ -536,7 +534,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 
 #     muh, muo = mumaps
 #     mus = mmrimg.convert2dev(muo+muh, Cnt)
-    
+
 #     if Cnt['SPN']==1:
 #         snno = Cnt['NSN1']
 #     elif Cnt['SPN']==11:
