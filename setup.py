@@ -209,7 +209,7 @@ with open('README.rst') as file:
 #---- for setup logging -----
 stdout = sys.stdout
 stderr = sys.stderr
-log_file = open('setup_nimpa.log', 'w')
+log_file = open('setup_nipet.log', 'w')
 sys.stdout = log_file
 sys.stderr = log_file
 #----------------------------
