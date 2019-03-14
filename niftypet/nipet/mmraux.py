@@ -108,8 +108,9 @@ def hdr_lm(datain, Cnt):
             lmhdr = dhdr[0x29,0x1010].value
             if Cnt['VERBOSE']: print 'i> got LM interfile.'
         else:
-            print 'e> DICOM field [0x29,0x1010] not found!'
-            return None, None
+            print 'w> DICOM field [0x29,0x1010] not found!'
+            lmhdr = None
+
         #CSA Series Header Info
         if [0x29,0x1120] in dhdr:
             csahdr = dhdr[0x29,0x1120].value
@@ -117,8 +118,10 @@ def hdr_lm(datain, Cnt):
         else:
             print 'e> DICOM field [0x29,0x1120] not found!'
             return lmhdr, None
+    
     # for older scanner software
     elif dhdr[0x0018, 0x1020].value == 'syngo MR B18P':
+        
         # find interfile header
         found_lmhdr = False
         for loc in lmhdr_locations:
@@ -129,8 +132,9 @@ def hdr_lm(datain, Cnt):
                     found_lmhdr = True
                     break
         if not found_lmhdr:            
-            print 'e> DICOM field with LM interfile header has not been found!'
-            return None, None
+            print 'w> DICOM field with LM interfile header has not been found!'
+            lmhdr = None
+        
         #CSA Series Header Info
         if [0x29,0x1020] in dhdr:
             csahdr = dhdr[0x29,0x1020].value
@@ -875,8 +879,14 @@ def get_dicoms(dfile, datain, Cnt):
                 return None
         
         #> get info about the PET tracer being used
-        lmhdr, _ = hdr_lm(datain, Cnt)
-        f0 = lmhdr.find('isotope name')
+        lmhdr, csahdr = hdr_lm(datain, Cnt)
+
+        #> if there is interfile header get the info from there
+        if lmhdr!=None:
+            f0 = lmhdr.find('isotope name')
+        else:
+            f0 = -1
+        
         if f0>=0:
             f1 = f0+lmhdr[f0:].find('\n')
             #regular expression for the isotope symbol
@@ -885,8 +895,9 @@ def get_dicoms(dfile, datain, Cnt):
             istp = p.findall(lmhdr[f0:f1])[0]
             istp = istp.replace('-', '')
             Cnt['ISOTOPE'] = istp.strip()
+
+        #> if no info in interfile header than look in the CSA header
         else:
-            _, csahdr = hdr_lm(datain, Cnt)
             f0 = csahdr.find('RadionuclideCodeSequence')
             if f0<0: 
                 print 'w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']'
