@@ -11,6 +11,7 @@ import re
 import nibabel as nib
 from subprocess import call
 import glob
+import platform
 
 #--------------
 import pycurl
@@ -19,6 +20,8 @@ from StringIO import StringIO
 from urllib import urlencode
 from datetime import datetime
 #--------------
+
+from niftypet import nimpa
 
 # DICOM extensions
 dcm_ext = ('dcm', 'DCM', 'ima', 'IMA')
@@ -210,6 +213,188 @@ def put_xnatPetMrRes(usrpwd, xnatsbj, sbjix, lbl, frmt, fpth):
     xnaturi = xnatsbj+'/' +sbjix+ '/experiments/' + expt[0]['ID'] + '/resources/' +lbl+ '/files'
     xnat_upload(usrpwd, xnaturi, fpth)
 #----------------------------------------------------------------------------------------------------------
+
+
+
+
+def getscan(
+        sbjix,
+        expt,
+        xc,
+        scan_types = '',
+        scan_ids = '',
+        cookie = '',
+        outpath = '',
+        fcomment = '',
+        #close_session=True,
+        ):
+
+
+    if not cookie:
+        sessionID = nipet.xnat.post_xnat(xc['url']+'/data/JSESSIONID', '', usrpwd=xc['usrpwd'])
+        cookie = 'JSESSIONID='+sessionID
+
+    #> output dictionary
+    out = {}
+    out['cookie'] = cookie
+
+    if outpath=='':
+        if os.path.isdir(xc['opth']):
+            opth = xc['opth']
+        else:
+            if platform.system() in ['Linux', 'Darwin']:
+                opth = os.path.join(os.path.expanduser('~'), 'xnat_scans')
+            elif platform.system() == 'Windows' :
+                opth = os.path.join(os.getenv('LOCALAPPDATA'), 'xnat_scans')
+            else:
+                raise IOError('e> unknown system and no output folder provided!')
+    else:
+        opth = outpath
+
+
+    scans = get_xnatList(
+        xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans',
+        cookie=cookie
+    )
+
+    all_scan_types = [(s['type'],s['quality'],s['ID']) for s in scans]
+
+
+    picked_scans = []
+    if scan_types:
+        for st in scan_types:
+            picked_scans.extend([s for s in all_scan_types if st in s[0]])
+    
+    elif scan_ids:
+        for si in scan_ids:
+            picked_scans.extend([s for s in all_scan_types if si == s[2]])
+    else:
+        raise ValueError('e> unspecified scans to download!')
+
+
+    for scn in picked_scans:
+
+        stype   = str(scn[0])
+        quality = str(scn[1])
+        sid     = str(scn[2])
+
+        s_type_id = sid+'_'+stype
+
+        entries = get_xnatList(
+            xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] + '/scans/'+sid+'/resources',
+            cookie=cookie
+        )
+
+        for e in entries:
+
+            if e['format'] in ['DICOM', 'NIFTI']:
+
+                out[s_type_id] = []
+
+                files = get_xnatList(
+                        xc['sbjs']+'/' +sbjix+ '/experiments/' + expt['ID'] \
+                            + '/scans/'+sid+'/resources/'+ e['format']+ '/files',
+                        cookie=cookie
+                        )
+
+                #> scan path
+                spth = os.path.join( opth,  s_type_id+'__'+quality)
+                nimpa.create_dir(spth)
+
+                #> download all files
+                for i in range(len(files)):
+                    
+                    fname = 'scan-'+s_type_id+'__'+quality+fcomment\
+                            +'.'+files[i]['Name'].split('.',1)[-1]
+
+                    status = get_xnatFile(
+                        xc['url']+files[i]['URI'],
+                        os.path.join(spth, fname),
+                        cookie=cookie)
+
+                    if status<0:
+                        print 'e> no scan data for', scntype
+                    else:
+                        out[s_type_id].append(os.path.join(spth, fname))
+                
+                if len(files)<1: 
+                    print 'e> no scan data for', scntype
+
+
+def getresources(
+        rfiles,
+        xc,
+        outpath = '',
+        cookie = '',
+        ):
+
+
+    if not cookie:
+        sessionID = nipet.xnat.post_xnat(xc['url']+'/data/JSESSIONID', '', usrpwd=xc['usrpwd'])
+        cookie = 'JSESSIONID='+sessionID
+
+    #> output dictionary
+    out = {}
+    out['cookie'] = cookie
+
+    if outpath=='':
+        if os.path.isdir(xc['opth']):
+            opth = xc['opth']
+        else:
+            if platform.system() in ['Linux', 'Darwin']:
+                opth = os.path.join(os.path.expanduser('~'), 'xnat_scans')
+            elif platform.system() == 'Windows' :
+                opth = os.path.join(os.getenv('LOCALAPPDATA'), 'xnat_scans')
+            else:
+                raise IOError('e> unknown system and no output folder provided!')
+    else:
+        opth = outpath
+
+
+    for i in range(len(rfiles)):
+
+        #> check if the file is already downloaded:
+        if  os.path.isfile ( os.path.join(opth, rfiles[i]['Name']) ) and \
+            str(os.path.getsize(os.path.join(opth, rfiles[i]['Name'])))==rfiles[i]['Size']:
+            
+            print 'i> file of the same size,',rfiles[i]['Name'], 'already exists: skipping download.'
+            
+            if '.dcm' in rfiles[i]['Name'].lower():
+                if 'dcm' not in out: out['dcm'] = []
+                out['dcm'].append(os.path.join(opth, rfiles[i]['Name']))
+            elif '.bf' in rfiles[i]['Name'].lower():
+                if 'bf' not in out: out['bf'] = []
+                out['bf'].append(os.path.join(opth, rfiles[i]['Name']))
+            elif '.ima' in rfiles[i]['Name'].lower():
+                if 'ima' not in out: out['ima'] = []
+                out['ima'].append(os.path.join(opth, rfiles[i]['Name']))
+        
+        else:
+            status = get_xnatFile(
+                xc['url']+rfiles[i]['URI'], os.path.join(opth, rfiles[i]['Name']),
+                cookie = cookie
+            )
+            if status<0:
+                print 'e> error downloading:', fcomment
+            else:
+                if '.dcm' in rfiles[i]['Name'].lower():
+                    if 'dcm' not in out: out['dcm'] = []
+                    out['dcm'].append(os.path.join(opth, rfiles[i]['Name']))
+                    
+                elif '.bf' in rfiles[i]['Name'].lower():
+                    if 'bf' not in out: out['bf'] = []
+                    out['bf'].append(os.path.join(opth, rfiles[i]['Name']))
+                    
+                elif '.ima' in rfiles[i]['Name'].lower():
+                    if 'ima' not in out: out['ima'] = []
+                    out['ima'].append(os.path.join(opth, rfiles[i]['Name']))
+                
+    if len(rfiles)<1:
+        print 'e> requested resources data is missing.'
+
+
+    return out
+
 
 
 
