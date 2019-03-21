@@ -10,7 +10,12 @@ import mmrprj
 from niftypet.nipet import mmraux
 
 
-def simulate_sino(petim, ctim, scanner_params, slice_idx=-1):
+def simulate_sino(
+        petim,
+        ctim,
+        scanner_params,
+        slice_idx=-1,
+        mu_input = False):
     ''' Simulate the measured sinogram with photon attenuation.
         Arguments:
         petim -- the input PET image based on which the emission sinogram is found
@@ -20,6 +25,8 @@ def simulate_sino(petim, ctim, scanner_params, slice_idx=-1):
         slice_idx -- chosen 2D slice out of the 3D image for the fast simulation.
         scanner_params -- scanner parameters containing scanner constants and
             axial and transaxial look up tables (LUTs)
+        mu_input -- if True, the values are representative of a mu-map in [1/cm],
+            otherwise it represents the CT in [HU].
     '''
 
     #> decompose the scanner constants and LUTs for easier access
@@ -55,15 +62,23 @@ def simulate_sino(petim, ctim, scanner_params, slice_idx=-1):
         slice_idx = 0
 
 
+    # import pdb; pdb.set_trace()
 
     if not 'rSZ_IMZ' in Cnt:
         raise ValueError('Missing reduced axial FOV parameters.')
 
+
     #--------------------
-    #> get the mu-map from CT
-    mui = nimpa.ct2mu(ctim)
+    if mu_input:
+        mui = ctim
+    else:
+        #> get the mu-map [1/cm] from CT [HU] 
+        mui = nimpa.ct2mu(ctim)
+    
+    #> get rid of negative values
     mui[mui<0] = 0
     #--------------------
+
 
     #--------------------
     #> create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
@@ -96,7 +111,9 @@ def simulate_recon(
     scanner_params,
     nitr = 60,
     slice_idx = -1,
-    randoms=None):
+    randoms=None,
+    mu_input = False,
+    msk_radius = 29.):
 
     ''' Reconstruct PET image from simulated input data using the EM-ML algorithm.
         Arguments:
@@ -142,9 +159,15 @@ def simulate_recon(
     if not 'rSZ_IMZ' in Cnt:
         raise ValueError('Missing reduced axial FOV parameters.')
 
+
     #--------------------
-    #> get the mu-map from CT
-    mui = nimpa.ct2mu(ctim)
+    if mu_input:
+        mui = ctim
+    else:
+        #> get the mu-map [1/cm] from CT [HU] 
+        mui = nimpa.ct2mu(ctim)
+    
+    #> get rid of negative values
     mui[mui<0] = 0
     #--------------------
 
@@ -155,16 +178,7 @@ def simulate_recon(
     rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
     #--------------------
 
-
-    #--------------------
-    #> get the input mu-map from CT
-    mui = nimpa.ct2mu(ctim)
-    mui[mui<0] = 0
-    #> create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
-    rmu = mui[slice_idx,:,:]
-    rmu.shape = (1,) + rmu.shape
-    rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
-    #--------------------
+    # import pdb; pdb.set_trace()
 
 
     #> attenuation factor sinogram
@@ -182,6 +196,8 @@ def simulate_recon(
     #> estimated image, initialised to ones
     eim = np.ones(rmu.shape, dtype=np.float32)
 
+    msk = nipet.img.mmrimg.get_cylinder(Cnt, rad=msk_radius, xo=0, yo=0, unival=1, gpu_dim=False)>0.9
+
     for i in range(nitr):
         print '>---- EM iteration:', i
         #> remove gaps from the measured sinogram
@@ -194,12 +210,11 @@ def simulate_recon(
         bim = mmrprj.back_prj(crrsino, scanner_params) 
 
         #> divide the back-projected image by the sensitivity image
-        msk = sim>0
         bim[msk] /= sim[msk]
         bim[~msk] = 0
 
         #> update the estimated image and remove NaNs 
-        eim *= bim
+        eim *= msk*bim
         eim[np.isnan(eim)] = 0
 
     return eim
