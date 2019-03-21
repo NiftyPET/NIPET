@@ -8,6 +8,7 @@ from niftypet import nimpa
 
 import mmrprj
 from niftypet.nipet import mmraux
+from niftypet.nipet.img import mmrimg
 
 
 def simulate_sino(
@@ -196,7 +197,7 @@ def simulate_recon(
     #> estimated image, initialised to ones
     eim = np.ones(rmu.shape, dtype=np.float32)
 
-    msk = nipet.img.mmrimg.get_cylinder(Cnt, rad=msk_radius, xo=0, yo=0, unival=1, gpu_dim=False)>0.9
+    msk = mmrimg.get_cylinder(Cnt, rad=msk_radius, xo=0, yo=0, unival=1, gpu_dim=False)>0.9
 
     for i in range(nitr):
         print '>---- EM iteration:', i
