@@ -5,6 +5,8 @@ __copyright__   = "Copyright 2018"
 
 
 import numpy as np
+import os
+from niftypet import nimpa
 
 #==============================================================================
 
