@@ -770,11 +770,16 @@ def align_mumap(
 #---------------------------------------------------------------------------------
 def pct_mumap(
         datain, scanner_params,
-        hst=[], t0=0, t1=0, itr=2,
-        faff='', fpet='', fcomment='', outpath='',
-        store=False, petopt='ac',
-        #smor=0.0, smof=0.0, rthrsh=0.05, fthrsh=0.05
-        ):
+        hst=[], t0=0, t1=0,
+        itr=2,
+        petopt='ac',
+        faff='',
+        fpet='',
+        fcomment='',
+        outpath='',
+        store_npy = False,
+        store = False, 
+    ):
         
     '''
     GET THE MU-MAP from pCT IMAGE (which is in T1w space)
@@ -831,7 +836,7 @@ def pct_mumap(
                 hst, scanner_params,
                 recmod=3, itr=itr, fwhm=0.,
                 fcomment=fcomment+'_qntUTE',
-                outpath=os.path.join(outpath,'PET'),
+                outpath=os.path.join(outpath, 'PET', 'positioning'),
                 store_img=True)
         elif petopt=='nac':
             # ---------------------------------------------
@@ -843,7 +848,7 @@ def pct_mumap(
                 hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_NAC',
-                outpath=os.path.join(outpath,'PET'),
+                outpath=os.path.join(outpath, 'PET', 'positioning'),
                 store_img=True)
         elif petopt=='ac':
             # ---------------------------------------------
@@ -856,19 +861,45 @@ def pct_mumap(
                 hst, scanner_params, 
                 recmod=1, itr=itr, fwhm=0., 
                 fcomment=fcomment+'_AC',
-                outpath=os.path.join(outpath,'PET'),
+                outpath=os.path.join(outpath, 'PET', 'positioning'),
                 store_img=True)       
 
         fpet = recout.fpet
         mu_dct['fpet'] = fpet
+        
         #------------------------------
         # get the affine transformation
-        regdct = nimpa.reg_mr2pet(  
-                fpet, datain, Cnt,
+
+        ft1w = nimpa.pick_t1w(datain)
+        try:
+            regdct = nimpa.coreg_spm(
+                fpet,
+                ft1w,
+                outpath=os.path.join(outpath,'PET', 'positioning')
+            )
+        except:
+            regdct = nimpa.affine_niftyreg(
+                fpet,
+                ft1w,
+                outpath=os.path.join(outpath,'PET', 'positioning'),
+                #fcomment=fcomment,
+                executable = Cnt['REGPATH'],
+                omp = multiprocessing.cpu_count()/2,
                 rigOnly = True,
-                outpath=outpath,
-                #fcomment=fcomment
-        )
+                affDirect = False,
+                maxit=5,
+                speed=True,
+                pi=50, pv=50,
+                smof=0, smor=0,
+                rmsk=True,
+                fmsk=True,
+                rfwhm=15., #millilitres
+                rthrsh=0.05,
+                ffwhm = 15., #millilitres
+                fthrsh=0.05,
+                verbose=verbose
+            )
+
         faff = regdct['faff']
         #------------------------------
 
@@ -920,7 +951,7 @@ def pct_mumap(
         mmraux.create_dir(pctumapdir)
 
         #> Numpy
-        if store_to_npy:
+        if store_npy:
             fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
             np.save(fnp, (mu, A, fnp))
 
