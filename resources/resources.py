@@ -50,6 +50,8 @@ VINCIPATH = ''
 ENBLXNAT = False
 # enable Agg
 ENBLAGG = False
+# compile DCM2NIIX, otherwise download a compiled version for the system used
+CMPL_DCM2NIIX = False
 
 #============ SIEMENS mMR SCANNER C O N S T A N T S ===============
 # number of rings (axially) and crystals (transaxially)
@@ -271,6 +273,7 @@ def get_setup(Cnt = {}):
 
     Cnt['ENBLXNAT'] = ENBLXNAT
     Cnt['ENBLAGG'] = ENBLAGG
+    Cnt['CMPL_DCM2NIIX'] = CMPL_DCM2NIIX
 
     return Cnt
 
