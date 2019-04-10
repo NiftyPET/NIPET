@@ -154,3 +154,28 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     sino = np.transpose(sino, (2,0,1))
 
     return sino
+
+def get_norm_sino(datain, scanner_params, hst):
+
+    Cnt = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+    # if not hst:
+    #     hst = mmrhist.mmrhist(datain, scanner_params)
+        
+    #number of sino planes (2D sinos) depends on the span used
+    if Cnt['SPN']==1:
+        nsinos = Cnt['NSN1']
+    elif Cnt['SPN']==11:
+        nsinos = Cnt['NSN11']
+
+    #get sino with no gaps
+    s = get_sinog(datain, hst, axLUT, txLUT, Cnt)
+    #preallocate sino with gaps
+    sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
+    #fill the sino with gaps
+    mmr_auxe.pgaps(sino, s, txLUT, Cnt)
+    sino = np.transpose(sino, (2,0,1))
+
+    return sino
