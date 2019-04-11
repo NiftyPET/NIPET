@@ -203,7 +203,40 @@ def get_sctinterp(ssn2d, sct2AW, Cnt):
 #====================================================================================================
 
 
-def vsm(mumaps, em, datain, hst, rsinos, scanner_params, prcntScl=0.1, emmsk=False):
+def vsm(
+        datain,
+        mumaps,
+        em,
+        hst,
+        rsinos,
+        scanner_params,
+        prcnt_scl = 0.1,
+        emmsk=False
+    ):
+    '''
+        Voxel-driven scatter modelling (VSM).
+        Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
+        an estimate of emission image, the prompt measured sinogram, an 
+        estimate of the randoms sinogram and a normalisation sinogram.
+        Input:
+        - datain:       Contains the data used for scatter-specific detector
+                        normalisation.  May also include the non-corrected 
+                        emission image used for masking, when requested.
+        - mumaps:       A tuple of hardware and object mu-maps (in this order).
+        - em:           An estimate of the emission image.
+        - hst:          Dictionary containing the histogrammed measured data into
+                        sinograms.
+        - rsinos:       Randoms sinogram (3D).  Needed for proper scaling of
+                        scatter to the prompt data.
+        - scanner_params: Scanner specific parameters.
+        - prcnt_scl:    Ratio of the maximum scatter intensities below which the
+                        scatter is not used for fitting it to the tails of prompt
+                        data.  Default is 10%.
+        - emmsk:        When 'True' it will use uncorrected emission image for 
+                        masking the sources (voxels) of photons to be used in the
+                        scatter modelling.
+
+    '''
 
     muh, muo = mumaps
 
@@ -279,7 +312,7 @@ def vsm(mumaps, em, datain, hst, rsinos, scanner_params, prcntScl=0.1, emmsk=Fal
         sssr   = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         return sss, sssr, amsksn
 
-    #get SSR for randoms from span-1 or span-11
+    #> get SSR for randoms from span-1 or span-11
     rssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
     for i in range(snno):
         rssr[ssrlut[i],:,:] += rsinos[i,:,:]
@@ -379,7 +412,7 @@ def vsm(mumaps, em, datain, hst, rsinos, scanner_params, prcntScl=0.1, emmsk=Fal
     scl_ssr = np.zeros( (Cnt['NSEG0']), dtype=np.float32)
     for sni in range(Cnt['NSEG0']):
         # region of choice for scaling
-        thrshld = prcntScl * np.max(sssr[sni,:,:])
+        thrshld = prcnt_scl * np.max(sssr[sni,:,:])
         amsksn[sni,:,:] *= (sssr[sni,:,:]>thrshld)
         amsk = amsksn[sni,:,:]
         #normalised estimated scatter

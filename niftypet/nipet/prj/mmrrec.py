@@ -198,7 +198,7 @@ def osemone(
         rsino = randsino
         rsng = mmraux.remgaps(randsino, txLUT, Cnt)
     else:
-        rsino, snglmap = nipet.lm.mmrhist.rand(hst['fansums'], txLUT, axLUT, Cnt)
+        rsino, snglmap = nipet.randoms(hst, scanner_params)
         rsng = mmraux.remgaps(rsino, txLUT, Cnt)
     #=========================================================================
 
@@ -210,7 +210,15 @@ def osemone(
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
         elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
-            ssn, sssr, amsk = nipet.sct.mmrsct.vsm(mumaps, emd['im'], datain, hst, rsino, 0.1, txLUT, axLUT, Cnt)
+            ssn, sssr, amsk = nipet.vsm(
+                datain,
+                mumaps,
+                emd['im'],
+                hst,
+                rsino,
+                scanner_params,
+                prcnt_scl = 0.1,
+                emmsk=False)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
         else:
             print 'e> no emission image available for scatter estimation!  check if it''s present or the path is correct.'
@@ -282,17 +290,19 @@ def osemone(
             break
         if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
             sct_time = time.time()
-            ssn, sssr, amsk = nipet.sct.mmrsct.vsm(
+
+            ssn, sssr, amsk = nipet.vsm(
+                datain,
                 mumaps,
                 mmrimg.convert2e7(img, Cnt),
-                datain,
                 hst,
                 rsino,
                 scanner_params,
-                prcntScl=0.1,
                 emmsk=emmskS)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
+
             if Cnt['VERBOSE']: print 'i> scatter time:', (time.time() - sct_time)
+
         # save images during reconstruction if requested
         if store_itr and k in store_itr:
             im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)

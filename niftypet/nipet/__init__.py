@@ -55,10 +55,13 @@ from img.mmrimg import align_mumap
 from img.mmrimg import convert2e7 as im_dev2e7
 from img.mmrimg import convert2dev as im_e72dev
 
-from lm.mmrhist import dynamic_timings
-
-from lm.mmrhist import mmrhist
 from img.pipe import mmrchain
+
+from lm.mmrhist import dynamic_timings
+from lm.mmrhist import mmrhist
+from lm.mmrhist import randoms
+
+from sct.mmrsct import vsm
 
 from prj.mmrprj import frwd_prj
 from prj.mmrprj import back_prj

@@ -201,9 +201,31 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
 
     return pdata
 
-#================================================================================
+#===============================================================================
 # GET REDUCED VARIANCE RANDOMS
-#--------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
+def randoms(hst, scanner_params, gpu_dim=False):
+    '''
+        Get the estimated sinogram of random events using the delayed event
+        measurement.  The delayed sinogram is in the histogram dictionary
+        obtained from the processing of the list-mode data.
+    '''
+
+    # constants, transaxial and axial LUTs are extracted
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+    rndsino, singles = rand(hst['fansums'], txLUT, axLUT, Cnt)
+
+    if gpu_dim:
+        rsng = mmraux.remgaps(rndsino, txLUT, Cnt)
+        return rsng, singles
+    else:
+        return rndsino, singles
+
+
 def rand(fansums, txLUT, axLUT, Cnt):
 
     if    Cnt['SPN']==1:  nsinos=Cnt['NSN1']
