@@ -100,17 +100,24 @@ def get_subsets14(n, params):
 
 #---------------------------------------------------------------------------------------------------------#
 #=== OSEM image reconstruction with several modes (with/without scatter and/or attenuation correction) ===#
-def osemone(datain, mumaps, hst, scanner_params,
-            recmod=3, itr=4, fwhm=0., mask_radious=29.,
-            sctsino=np.array([]),
-            outpath='',
-            store_img=False, frmno='', fcomment='',
-            store_itr=[],
-            emmskS=False,
-            ret_sinos=False,
-            attnsino = None,
-            randsino = None,
-            normcomp = None):
+def osemone(
+        datain,
+        mumaps,
+        hst,
+        scanner_params,
+        recmod=3,
+        itr=4, 
+        fwhm=0.,
+        mask_radius=29.,
+        sctsino=np.array([]),
+        outpath='',
+        store_img=False, frmno='', fcomment='',
+        store_itr=[],
+        emmskS=False,
+        ret_sinos=False,
+        attnsino = None,
+        randsino = None,
+        normcomp = None):
 
 
     #---------- sort out OUTPUT ------------
@@ -213,8 +220,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
 
     if Cnt['VERBOSE']:
-        print ''
-        print '>------ OSEM (', itr,  ') -------'
+        print '\n>------ OSEM (', itr,  ') -------\n'
     #------------------------------------
     Sn = 14 # number of subsets
     #-get one subset to get number of projection bins in a subset
@@ -232,7 +238,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-------------------------------------
 
     #-mask for reconstructed image.  anything outside it is set to zero
-    msk = mmrimg.get_cylinder(Cnt, rad=mask_radious, xo=0, yo=0, unival=1, gpu_dim=True)>0.9
+    msk = mmrimg.get_cylinder(Cnt, rad=mask_radius, xo=0, yo=0, unival=1, gpu_dim=True)>0.9
 
     #-init image
     img = np.ones((Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
@@ -259,6 +265,9 @@ def osemone(datain, mumaps, hst, scanner_params,
 
     #-time it
     stime = time.time()
+
+    # import pdb; pdb.set_trace()
+
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
@@ -372,7 +381,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #===============================================================================
 # EMML
 # def emml(   datain, mumaps, hst, txLUT, axLUT, Cnt,
-#             recmod=3, itr=10, fwhm=0., mask_radious=29., store_img=True, ret_sinos=False, sctsino = None, randsino = None, normcomp = None):
+#             recmod=3, itr=10, fwhm=0., mask_radius=29., store_img=True, ret_sinos=False, sctsino = None, randsino = None, normcomp = None):
 
 #     #subsets (when not used)
 #     sbs = np.array([-1], dtype=np.int32)
@@ -445,7 +454,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #     #=========================================================================
 
 #     #mask for reconstructed image
-#     msk = mmrimg.get_cylinder(Cnt, rad=mask_radious, xo=0, yo=0, unival=1, gpu_dim=True)>0.9
+#     msk = mmrimg.get_cylinder(Cnt, rad=mask_radius, xo=0, yo=0, unival=1, gpu_dim=True)>0.9
 #     # estimated image
 #     imrec = np.ones((Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
 #     # backprj image
@@ -530,7 +539,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 # OSEM
 
 # def osem14(datain, mumaps, hst, txLUT, axLUT, Cnt,
-#             recmod=3, itr=4, fwhm=0., mask_radious=29.):
+#             recmod=3, itr=4, fwhm=0., mask_radius=29.):
 
 #     muh, muo = mumaps
 #     mus = mmrimg.convert2dev(muo+muh, Cnt)
@@ -587,7 +596,7 @@ def osemone(datain, mumaps, hst, scanner_params,
 #     #=========================================================================
 
 #     #mask for reconstructed image
-#     rcnmsk = mmrimg.get_cylinder(Cnt, rad=mask_radious, xo=0, yo=0, unival=1, gpu_dim=True)
+#     rcnmsk = mmrimg.get_cylinder(Cnt, rad=mask_radius, xo=0, yo=0, unival=1, gpu_dim=True)
 #     #-------------------------------------------------------------------------
 #     # number of subsets
 #     Sn = 14
