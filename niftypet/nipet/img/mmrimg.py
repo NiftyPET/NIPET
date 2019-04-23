@@ -618,7 +618,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=Cnt['VERBOSE']
+                    verbose=verbose
                 )
 
             faff_mrpet = regdct['faff']
@@ -652,7 +652,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=Cnt['VERBOSE']
+                    verbose=verbose
                 )
 
             faff_mrpet = regdct['faff']
@@ -779,6 +779,7 @@ def pct_mumap(
         outpath='',
         store_npy = False,
         store = False,
+        verbose=True
     ):
 
     '''
@@ -803,7 +804,8 @@ def pct_mumap(
     # get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
         muh, _, _ = np.load(datain['hmumap'])
-        if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
+        if verbose:
+            print 'i> loaded hardware mu-map from file:', datain['hmumap']
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
@@ -897,7 +899,7 @@ def pct_mumap(
                 rthrsh=0.05,
                 ffwhm = 15., #millilitres
                 fthrsh=0.05,
-                verbose=Cnt['VERBOSE']
+                verbose=verbose
             )
 
         faff = regdct['faff']
@@ -919,7 +921,7 @@ def pct_mumap(
             '-trans', faff,
             '-res', fpct,
             '-pad', '0']
-        if not Cnt['VERBOSE']: cmd.append('-voff')
+        if not verbose: cmd.append('-voff')
         call(cmd)
     else:
         print 'e> path to resampling executable is incorrect!'
