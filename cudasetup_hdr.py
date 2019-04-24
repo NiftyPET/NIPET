@@ -24,7 +24,7 @@ pyhdr = get_python_inc()
 # get numpy header path:
 nphdr = np.get_include()
 
-# minimum required CUDA compute capability 
+# minimum required CUDA compute capability
 mincc = 35
 
 # ---------------------------------------------------------------------------------
@@ -52,12 +52,12 @@ def find_cuda():
     '''Locate the CUDA environment on the system.'''
     # search the PATH for NVCC
     for fldr in os.environ['PATH'].split(os.pathsep):
-        cuda_path = join(fldr, 'nvcc')
+        cuda_path = os.path.join(fldr, 'nvcc')
         if os.path.exists(cuda_path):
             cuda_path = os.path.dirname(os.path.dirname(cuda_path))
             break
         cuda_path = None
-    
+
     if cuda_path is None:
         print 'w> nvcc compiler could not be found from the PATH!'
         return None
@@ -119,7 +119,7 @@ def dev_setup():
         path_tmp_build = os.path.join(path_tmp_dinf, 'build')
     elif platform.system()=='Linux':
         path_tmp_build = os.path.join(path_tmp_dinf, 'build')
-        
+
     os.makedirs(path_tmp_build)
     os.chdir(path_tmp_build)
     if platform.system()=='Windows':
@@ -132,7 +132,7 @@ def dev_setup():
     else:
         print 'e> only Linux and Windows operating systems are supported!'
         return None
-    
+
     # import the new module for device properties
     sys.path.insert(0, path_tmp_build)
     import dinf
@@ -140,7 +140,7 @@ def dev_setup():
     Ldev = dinf.dev_info(0)
     if len(Ldev)==0:
         raise IOError('No CUDA devices have been detected')
-    # extract the compute capability as a single number 
+    # extract the compute capability as a single number
     cclist = [int(str(e[2])+str(e[3])) for e in Ldev]
     # get the list of supported CUDA devices (with minimum compute capability)
     spprtd = [str(cc) for cc in cclist if cc>=mincc]
@@ -178,7 +178,7 @@ def dev_setup():
     strNew = '### start GPU properties ###\n'
     for i in range(len(cnt_list)):
         strNew += cnt_list[i]+' = '+val_list[i] + '\n'
-    rsrcNew = rsrc[:i0] + strNew + rsrc[i1:] 
+    rsrcNew = rsrc[:i0] + strNew + rsrc[i1:]
     f = open(fpth, 'w')
     f.write(rsrcNew)
     f.close()
@@ -214,7 +214,7 @@ def chck_vox_h(Cnt):
                 break
         else:
             #print s, int(m.group(0)), Cnt[s]
-            if Cnt[s]!=int(m.group(0)): 
+            if Cnt[s]!=int(m.group(0)):
                 flg = True
                 break
     # if flag is set then redefine the constants in the sct.h file
@@ -227,11 +227,11 @@ def chck_vox_h(Cnt):
         for s in cnt_list:
             strNew += strDef+s+' '+str(Cnt[s])+(s[3]=='V')*'f' + '\n'
 
-        scthNew = def_h[:i0] + strNew + def_h[i1:] 
+        scthNew = def_h[:i0] + strNew + def_h[i1:]
         f = open(fpth, 'w')
         f.write(scthNew)
         f.close()
-        rflg = True 
+        rflg = True
 
     return rflg
 #=================================================================================================
@@ -262,7 +262,7 @@ def chck_sct_h(Cnt):
                 break
         else:
             #print s, int(m.group(0)), Cnt[s]
-            if Cnt[s]!=int(m.group(0)): 
+            if Cnt[s]!=int(m.group(0)):
                 flg = True
                 break
     # if flag is set then redefine the constants in the sct.h file
@@ -275,12 +275,12 @@ def chck_sct_h(Cnt):
         for s in cnt_list:
             strNew += strDef+s+' '+str(Cnt[s])+(s[-3]=='V')*'f' + '\n'
 
-        scthNew = sct_h[:i0] + strNew + sct_h[i1:] 
+        scthNew = sct_h[:i0] + strNew + sct_h[i1:]
         f = open(fpth, 'w')
         f.write(scthNew)
         f.close()
         #sys.path.append(pthcmpl)
-        rflg = True 
+        rflg = True
 
     return rflg
 #=================================================================================================
@@ -331,7 +331,7 @@ def resources_setup():
 
     # flag for the resources file if already installed (initially assumed not)
     flg_resources = False
-    # does the local folder for niftypet exists? if not create one. 
+    # does the local folder for niftypet exists? if not create one.
     if not os.path.exists(path_resources):
         os.makedirs(path_resources)
     # is resources.py in the folder?

@@ -178,6 +178,8 @@ def getinterfile_off(fmu, Cnt, Offst=np.array([0., 0., 0.])):
     mur = getmu_off(mu, Cnt)
     #create GPU version of the mu-map
     murs = convert2dev(mur, Cnt)
+    #number of voxels
+    nvx = im.shape[0]
     #get the basic stats
     mumax = np.max(mur)
     mumin = np.min(mur)

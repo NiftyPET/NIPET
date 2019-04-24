@@ -49,7 +49,6 @@ def mmrchain(datain,        # all input data in a dictionary
 
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
                             # is performed.
-
             pvcreg_tool = 'nifyreg', # the registration tool used in PVC
             store_rois = False, # stores the image of PVC ROIs 
                                 # as defined in pvcroi.
@@ -83,7 +82,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # * a more concise 2D list--repetition and duration lists in
         #   each entry.  Must start with the 'def' entry.
         # * a 2D list with fluid timings: must start with the string
-        #   'fluid' or 'timings.  a 2D list with consecutive lists
+        #   'fluid' or 'timings'.  a 2D list with consecutive lists
         #   describing start and end of the time frame, [t0, t1];
         #   The number of time frames for this option is unlimited,
         #   provided the t0 and t1 are within the acquisition times.
@@ -410,23 +409,23 @@ def mmrchain(datain,        # all input data in a dictionary
                 Cnt,
                 pvcroi,
                 psfkernel,
-                tool = pvcreg_tool,
-                itr = pvcitr,
-                faff = faffpvc,
-                fcomment = fcomment_pvc,
-                outpath = pvcdir,
-                store_rois = store_rois,
-                store_img = store_img_intrmd)
+                tool=pvcreg_tool,
+                itr=pvcitr,
+                faff=faffpvc,
+                fcomment=fcomment_pvc,
+                outpath=pvcdir,
+                store_rois=store_rois,
+                store_img=store_img_intrmd)
             #============================
             if nfrm>1:
                 dynpvc[i,:,:,:] = petpvc_dic['im']
             else:
                 dynpvc = petpvc_dic['im']
-            
+
             fpvc.append(petpvc_dic['fpet'])
 
             if store_rois: froi.append(petpvc_dic['froi'])
-        
+
         #> update output dictionary
         output.update({'impvc':dynpvc})
         if store_img_intrmd: output.update({'fpvc':fpvc})
