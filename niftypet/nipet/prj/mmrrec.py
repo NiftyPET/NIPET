@@ -272,7 +272,8 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
-    for k in trange(itr, disable=log.level > logging.INFO, desc="OSEM"):
+    for k in trange(itr, desc="OSEM",
+        disable=log.level > logging.INFO, leave=log.level < logging.INFO):
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
             log.warning('it seems there is not enough true data to render reasonable image')
@@ -482,14 +483,14 @@ def osemone(datain, mumaps, hst, scanner_params,
 #             sct_time = time.time()
 #             ssn, sssr, amsk = mmrsct.vsm(mumaps, mmrimg.convert2e7(img, Cnt), datain, hst, rsn, scanner_params, prcntScl=0.1, emmsk=emmskS)
 #             ssng = mmraux.remgaps(ssn, txLUT, Cnt) / attnrmsng
-#             if Cnt['VERBOSE']: print 'i> scatter time:', (time.time() - sct_time)
+#             log.debug('scatter time:%.3g' % (time.time() - sct_time))
 
 #     # decay correction
 #     lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
 #     dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
 #     # apply quantitative correction to the image
 #     qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
-#     if Cnt['VERBOSE']: print 'i> applying quantification factor', qf, 'to the whole image for the frame duration of :', hst['dur']
+#     log.debug('applying quantification factor:%r to the whole image for the frame duration of:%r' % (qf, hst['dur']))
 #     imrec *= dcycrr * qf * 0.205 #additional factor for making it quantitative in absolute terms (derived from measurements)
 
 #     # convert to standard mMR image size

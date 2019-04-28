@@ -157,14 +157,13 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     return sino
 
 def get_norm_sino(datain, scanner_params, hst):
-
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
     # if not hst:
     #     hst = mmrhist.mmrhist(datain, scanner_params)
-        
+
     #number of sino planes (2D sinos) depends on the span used
     if Cnt['SPN']==1:
         nsinos = Cnt['NSN1']
