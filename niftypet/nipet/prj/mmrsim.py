@@ -245,7 +245,7 @@ def simulate_recon(
 
     log = logging.getLogger(__name__)
     if simulate_3d:
-        if log.debug('------ OSEM (%d) -------' % nitr)
+        log.debug('------ OSEM (%d) -------' % nitr)
 
         # measured sinogram in GPU-enabled shape
         psng = mmraux.remgaps(measured_sino.astype(np.uint16), txLUT, Cnt)
@@ -308,7 +308,7 @@ def simulate_recon(
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
 
-        for i in trange(nitr, desc="OSEM"
+        for i in trange(nitr, desc="OSEM",
               disable=log.level > logging.INFO,
               leave=log.level < logging.INFO):
             #> remove gaps from the measured sinogram
