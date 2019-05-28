@@ -233,16 +233,19 @@ setup(
         'niftypet.nipet' : [fex],
     },
     zip_safe=False,
-    # classifiers=[
-    #     'Development Status :: 5 - Production/Stable',
-    #     'Intended Audience :: Science/Research',
-    #     'Intended Audience :: Healthcare Industry'
-    #     'Programming Language :: Python :: 2.7',
-    #     'License :: OSI Approved :: Apache Software License',
-    #     'Operating System :: POSIX :: Linux',
-    #     'Programming Language :: C',
-    #     'Topic :: Scientific/Engineering :: Medical Science Apps.'
-    # ],
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Education',
+        'Intended Audience :: Healthcare Industry',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: Microsoft :: Windows',
+        'Programming Language :: C',
+        'Programming Language :: C++',
+        'Programming Language :: Python :: 2.7',
+        'Topic :: Scientific/Engineering :: Medical Science Apps.',
+    ],
     # namespace_packages=['niftypet'],
 )
 #===============================================================
