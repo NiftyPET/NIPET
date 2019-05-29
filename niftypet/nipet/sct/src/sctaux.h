@@ -57,7 +57,7 @@ snLUT get_scrs2sn(int nscrs, float *scrs, Cnst Cnt);
 iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt);
 iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt);
 
-//raw scatter resuts to sino 
+//raw scatter results to sino 
 float * srslt2sino(float *d_srslt,
 	int *d_sct2sn,
 	scrsDEF d_scrsdef,
