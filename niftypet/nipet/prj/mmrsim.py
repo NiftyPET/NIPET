@@ -268,7 +268,7 @@ def simulate_recon(
         #> init sensitivity images for each subset
         sim = np.zeros((Sn, Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
 
-        for n in range(Sn):
+        for n in trange(Sn, desc="sensitivity", leave=log.getEffectiveLevel() < logging.INFO):
             sinoTIdx[n,0] = Nprj #first number of projection for the given subset
             sinoTIdx[n,1:], s = mmrrec.get_subsets14(n,scanner_params)
             #> sensitivity image
@@ -282,8 +282,8 @@ def simulate_recon(
         #-------------------------------------
 
         for k in trange(nitr, desc="OSEM",
-              disable=log.level > logging.INFO,
-              leave=log.level < logging.INFO):
+              disable=log.getEffectiveLevel() > logging.INFO,
+              leave=log.getEffectiveLevel() < logging.INFO):
             petprj.osem(
                 eimg,
                 msk,
@@ -309,8 +309,8 @@ def simulate_recon(
         sim = mmrprj.back_prj(attsino, scanner_params)
 
         for i in trange(nitr, desc="OSEM",
-              disable=log.level > logging.INFO,
-              leave=log.level < logging.INFO):
+              disable=log.getEffectiveLevel() > logging.INFO,
+              leave=log.getEffectiveLevel() < logging.INFO):
             #> remove gaps from the measured sinogram
             #> then forward project the estimated image
             #> after which divide the measured sinogram by the estimated sinogram (forward projected)

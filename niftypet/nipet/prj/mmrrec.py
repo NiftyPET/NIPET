@@ -273,7 +273,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
     for k in trange(itr, desc="OSEM",
-        disable=log.level > logging.INFO, leave=log.level < logging.INFO):
+        disable=log.getEffectiveLevel() > logging.INFO, leave=log.getEffectiveLevel() < logging.INFO):
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
         if np.nansum(img)<0.1:
             log.warning('it seems there is not enough true data to render reasonable image')

@@ -290,7 +290,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
-                if log.level > log.DEBUG:
+                if log.getEffectiveLevel() > log.DEBUG:
                     cmd.append('-voff')
                 call(cmd)
             else:
@@ -357,7 +357,7 @@ def mmrchain(datain,        # all input data in a dictionary
             fcomment=fcomment,
             store_img_intrmd=store_img_intrmd,
             memlim=trim_memlim,
-            verbose=log.level < logging.INFO
+            verbose=log.getEffectiveLevel() < logging.INFO
         )
 
         output.update({'trimmed': { 'im':petu['im'],

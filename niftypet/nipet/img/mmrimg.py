@@ -383,7 +383,7 @@ def obj_mumap(
                     '-flo', fmunii,
                     '-res', fmu,
                     '-pad', '0']
-        if log.level > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.DEBUG:
             cmd.append('-voff')
         call(cmd)
     else:
@@ -629,7 +629,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=log.level < logging.INFO
+                    verbose=log.getEffectiveLevel() < logging.INFO
                 )
 
             faff_mrpet = regdct['faff']
@@ -663,7 +663,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=log.level < logging.INFO
+                    verbose=log.getEffectiveLevel() < logging.INFO
                 )
 
             faff_mrpet = regdct['faff']
@@ -717,7 +717,7 @@ def align_mumap(
             faff_mrpet,
             fimout=freg,
             executable=Cnt['RESPATH'],
-            verbose=log.level < logging.INFO)
+            verbose=log.getEffectiveLevel() < logging.INFO)
 
 
     #-get the NIfTI of registered image
@@ -899,7 +899,7 @@ def pct_mumap(
                 rthrsh=0.05,
                 ffwhm = 15., #millilitres
                 fthrsh=0.05,
-                verbose=log.level < logging.INFO
+                verbose=log.getEffectiveLevel() < logging.INFO
             )
 
         faff = regdct['faff']
@@ -921,7 +921,7 @@ def pct_mumap(
             '-trans', faff,
             '-res', fpct,
             '-pad', '0']
-        if log.level > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.DEBUG:
             cmd.append('-voff')
         call(cmd)
     else:
@@ -1239,7 +1239,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
                 '-flo', hmupos[i]['niipath'],
                 '-res', fout,
                 '-pad', '0']
-        if log.level > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.DEBUG:
             cmd.append('-voff')
         call(cmd)
 
@@ -1407,7 +1407,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
                  '-rigOnly', '-speeeeed',
                  '-aff', faff,
                  '-res', ft1out]
-            if log.level > logging.DEBUG:
+            if log.getEffectiveLevel() > logging.DEBUG:
                 cmd.append('-voff')
             call(cmd)
         else:

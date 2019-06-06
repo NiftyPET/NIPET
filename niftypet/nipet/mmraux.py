@@ -821,7 +821,7 @@ def get_dicoms(dfile, datain, Cnt):
     log.debug('file:' + dfile)
 
     d = dcm.dcmread(dfile)
-    dcmtype = nimpa.dcminfo(d, verbose=log.level < logging.INFO)
+    dcmtype = nimpa.dcminfo(d, verbose=log.getEffectiveLevel() < logging.INFO)
 
     #> check if it is norm file
     if 'mmr' in dcmtype and 'norm' in dcmtype:
