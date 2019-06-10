@@ -9,6 +9,7 @@ import sys
 import os
 import scipy.ndimage as ndi
 from collections import namedtuple
+import logging
 from tqdm.auto import trange
 
 import petprj
