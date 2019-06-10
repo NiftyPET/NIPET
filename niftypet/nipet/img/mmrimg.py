@@ -507,12 +507,12 @@ def align_mumap(
     #=========================================================
     #-get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'])
+        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
         if verbose: print 'i> loaded hardware mu-map from file:', datain['hmumap']
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath)
+            muh, _, _ = np.load(hmupath, allow_pickle=True)
             datain['hmumap'] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
@@ -803,13 +803,13 @@ def pct_mumap(
 
     # get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'])
+        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
         if verbose:
             print 'i> loaded hardware mu-map from file:', datain['hmumap']
     elif outpath!='':
         hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
         if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath)
+            muh, _, _ = np.load(hmupath, allow_pickle=True)
             datain['hmumap'] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
@@ -1278,13 +1278,13 @@ def hdw_mumap(
             A = dct['affine']
             fmu = datain['hmumap']
         elif datain['hmumap'].endswith(('.npy')):
-            hmu, A, fmu = np.load(datain['hmumap'])
+            hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
             if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
             fnp = datain['hmumap']
 
     elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
         fnp = os.path.join(fmudir, 'hmumap.npy')
-        hmu, A, fmu = np.load(fnp)
+        hmu, A, fmu = np.load(fnp, allow_pickle=True)
         datain['hmumap'] = fnp
     # otherwise generate it from the parts through resampling the high resolution CT images
     else:
@@ -1346,7 +1346,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get hardware mu-map
     if os.path.isfile(datain['hmumap']) and use_stored:
-        muh, _ = np.load(datain['hmumap'])
+        muh, _ = np.load(datain['hmumap'], allow_pickle=True)
         if Cnt['VERBOSE']: print 'i> loaded hardware mu-map from file:', datain['hmumap']
     else:
         hmudic = hdw_mumap(datain, [1,2,4], Cnt)
@@ -1354,14 +1354,14 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get pCT mu-map if stored in numpy file and then exit, otherwise do all the processing
     if os.path.isfile(datain['mumapCT']) and use_stored:
-        mup, _ = np.load(datain['mumapCT'])
+        mup, _ = np.load(datain['mumapCT'], allow_pickle=True)
         muh = muh[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         mup = mup[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         return [muh, mup]
 
     # get UTE object mu-map (may be not in register with the PET data)
     if os.path.isfile(datain['mumapUTE']) and use_stored:
-        muo, _ = np.load(datain['mumapUTE'])
+        muo, _ = np.load(datain['mumapUTE'], allow_pickle=True)
     else:
         mudic = obj_mumap(datain, Cnt, store=True)
         muo = mudic['im']
