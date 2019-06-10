@@ -70,7 +70,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
         hstout = {}
         (hstout['phc'], hstout['dhc'], hstout['mss'], hstout['pvs'],
          hstout['bck'], hstout['fan'], hstout['psn'], hstout['dsn'],
-         hstout['ssr']) =   np.load( datain['sinos'] )
+         hstout['ssr']) =   np.load(datain['sinos'], allow_pickle=True)
 
         nitag = len(hstout['phc'])
         log.debug('duration by integrating time tags [s]:%d' % nitag)
@@ -416,8 +416,8 @@ def get_time_offset(hst):
 
 def split_frames(hst, Tref=0, t0=0, t1=0):
     '''
-    Splits the whole acquisition data into approximately statistically 
-    equivalent frames relative to the reference frame whose duration is 
+    Splits the whole acquisition data into approximately statistically
+    equivalent frames relative to the reference frame whose duration is
     Tref or t1-t0.  The next frames will have a similar count level.
     hst: histogram dictionary
     Tref: reference duration in seconds

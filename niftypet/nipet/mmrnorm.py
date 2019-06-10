@@ -61,7 +61,7 @@ def get_components(datain, Cnt):
     # axial effects for span-1
     fnm = 'AxialFactorForSpan1.npy'
     fpth = os.path.join(resource_filename('niftypet', 'auxdata'), fnm)
-    ax_f1 = np.load(fpth)
+    ax_f1 = np.load(fpth, allow_pickle=True)
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
     fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'
     fpth = os.path.join(resource_filename('niftypet', 'auxdata'), fnm)
