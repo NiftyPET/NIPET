@@ -273,17 +273,18 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # OSEM RECONSTRUCTION
     #-------------------------------------------------------------------------
-    for k in trange(itr, desc="OSEM",
-        disable=log.getEffectiveLevel() > logging.INFO, leave=log.getEffectiveLevel() < logging.INFO):
+    with trange(itr, desc="OSEM",
+        disable=log.getEffectiveLevel() > logging.INFO,
+        leave=log.getEffectiveLevel() <= logging.INFO) as pbar:
+      for k in pbar:
         petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
-        if np.nansum(img)<0.1:
+        if np.nansum(img) < 0.1:
             log.warning('it seems there is not enough true data to render reasonable image')
             #img[:]=0
             itr = k
             break
         if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
             sct_time = time.time()
-
             ssn, sssr, amsk = nipet.vsm(
                 datain,
                 mumaps,
@@ -293,7 +294,7 @@ def osemone(datain, mumaps, hst, scanner_params,
                 scanner_params,
                 emmsk=emmskS)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
-            log.debug('scatter time:%.3g' % (time.time() - sct_time))
+            pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
         # save images during reconstruction if requested
         if store_itr and k in store_itr:
             im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)

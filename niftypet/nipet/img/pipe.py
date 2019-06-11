@@ -50,7 +50,7 @@ def mmrchain(datain,        # all input data in a dictionary
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
                             # is performed.
             pvcreg_tool = 'nifyreg', # the registration tool used in PVC
-            store_rois = False, # stores the image of PVC ROIs 
+            store_rois = False, # stores the image of PVC ROIs
                                 # as defined in pvcroi.
 
             psfkernel=[],
@@ -161,13 +161,13 @@ def mmrchain(datain,        # all input data in a dictionary
     muhd = obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
-    if muod['exists'] and muhd['exists'] and recmod==-1:
-        recmod = 3
-    elif  (muod['exists'] or muhd['exists']) and recmod==-1:
-        recmod = 1
-        log.warning('partial mu-map:  scatter correction is switched off.')
-    else:
-        if recmod==-1:
+    if recmod == -1:
+        if muod['exists'] and muhd['exists']:
+            recmod = 3
+        elif muod['exists'] or muhd['exists']:
+            recmod = 1
+            log.warning('partial mu-map:  scatter correction is switched off.')
+        else:
             recmod = 0
             log.warning('no mu-map provided: scatter and attenuation corrections are switched off.')
     # -------------------------------------------------------------------------
