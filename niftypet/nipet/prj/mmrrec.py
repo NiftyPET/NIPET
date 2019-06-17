@@ -210,7 +210,7 @@ def osemone(
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
         elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
-            ssn, sssr, amsk = nipet.vsm(
+            ssn = nipet.vsm(
                 datain,
                 mumaps,
                 emd['im'],
@@ -291,7 +291,7 @@ def osemone(
         if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
             sct_time = time.time()
 
-            ssn, sssr, amsk = nipet.vsm(
+            ssn = nipet.vsm(
                 datain,
                 mumaps,
                 mmrimg.convert2e7(img, Cnt),

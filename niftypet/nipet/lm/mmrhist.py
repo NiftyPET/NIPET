@@ -442,8 +442,8 @@ def split_frames(hst, Tref=0, t0=0, t1=0):
     j = toff
     # threshold to be achieved
     thrsh = csum[j-1] + cref
-    fdur = [toff]
-    frms = ['timings', [0, toff]]
+    fdur = []
+    frms = ['timings']
     clvl = [0]
     print 'counts t(%d,%d) = %d. diff=%d' % ( i,j,clvl[-1] , np.sum(diff[i:j])-cref )
     while thrsh<csum[-1]:
