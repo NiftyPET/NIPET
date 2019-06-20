@@ -218,11 +218,11 @@ def vsm(
     '''
     Voxel-driven scatter modelling (VSM).
     Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
-    an estimate of emission image, the prompt measured sinogram, an 
+    an estimate of emission image, the prompt measured sinogram, an
     estimate of the randoms sinogram and a normalisation sinogram.
     Input:
     - datain:       Contains the data used for scatter-specific detector
-                    normalisation.  May also include the non-corrected 
+                    normalisation.  May also include the non-corrected
                     emission image used for masking, when requested.
     - mumaps:       A tuple of hardware and object mu-maps (in this order).
     - em:           An estimate of the emission image.
@@ -234,7 +234,7 @@ def vsm(
     - prcnt_scl:    Ratio of the maximum scatter intensities below which the
                     scatter is not used for fitting it to the tails of prompt
                     data.  Default is 10%.
-    - emmsk:        When 'True' it will use uncorrected emission image for 
+    - emmsk:        When 'True' it will use uncorrected emission image for
                     masking the sources (voxels) of photons to be used in the
                     scatter modelling.
     '''

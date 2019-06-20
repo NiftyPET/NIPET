@@ -25,69 +25,56 @@ def simulate_sino(
         simulate_3d = False,
         slice_idx=-1,
         mu_input = False):
-    ''' Simulate the measured sinogram with photon attenuation.
-        Arguments:
-        petim -- the input PET image based on which the emission sinogram is found
-        ctim -- CT image, in register with PET and the same dimensions, is used
-            for estimating the attenuation factors, which are then applied to
-            simulate emission sinogram with realistic photon attenuation.
-        slice_idx -- chosen 2D slice out of the 3D image for the fast simulation.
-        scanner_params -- scanner parameters containing scanner constants and
-            axial and transaxial look up tables (LUTs)
-        mu_input -- if True, the values are representative of a mu-map in [1/cm],
-            otherwise it represents the CT in [HU].
     '''
+    Simulate the measured sinogram with photon attenuation.
+
+    petim  : the input PET image based on which the emission sinogram is found
+    ctim  : CT image, in register with PET and the same dimensions, is used
+        for estimating the attenuation factors, which are then applied to
+        simulate emission sinogram with realistic photon attenuation.
+    slice_idx  : chosen 2D slice out of the 3D image for the fast simulation.
+    scanner_params  : scanner parameters containing scanner constants and
+        axial and transaxial look up tables (LUTs)
+    mu_input  : if True, the values are representative of a mu-map in [1/cm],
+        otherwise it represents the CT in [HU].
+    '''
+    log = logging.getLogger(__name__)
 
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
-    txLUT = scanner_params['txLUT']
-    axLUT = scanner_params['axLUT']
 
     if petim.shape != ctim.shape:
         raise ValueError('The shapes of the PET and CT images are inconsistent.')
 
-
     if simulate_3d:
-
-        if petim.ndim!=3 \
-                or petim.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if petim.ndim != 3 \
+                or petim.shape != (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             raise ValueError(
                 'The input image shape does not match the scanner image size.')
-
         if petim.max()>200:
-            print 'w> the PET image may have too large intensities for robust simulation.'
-
+            log.warning('the PET image may have too large intensities for robust simulation.')
     else:
-
         #> 2D case with reduced rings
-        if len(petim.shape)==3:
-
+        if len(petim.shape) == 3:
             # make sure that the shape of the input image matches the image size of the scanner
-            if petim.shape[1:]!=(Cnt['SO_IMY'], Cnt['SO_IMX']):
+            if petim.shape[1:] != (Cnt['SO_IMY'], Cnt['SO_IMX']):
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
-
             # pick the right slice index (slice_idx) if not given or mistaken
-            if slice_idx<0:
-                print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
+            if slice_idx < 0:
+                log.warning('the axial index <slice_idx> is chosen to be in the middle of axial FOV.')
                 slice_idx = petim.shape[0]/2
-            if slice_idx>=petim.shape[0]:
+            if slice_idx >= petim.shape[0]:
                 raise ValueError('The axial index for 2D slice selection is outside the image.')
-
         elif len(petim.shape)==2:
-
             # make sure that the shape of the input image matches the image size of the scanner
             if petim.shape != (Cnt['SO_IMY'], Cnt['SO_IMX']):
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
-
             petim.shape = (1,) + petim.shape
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
         if not 'rSZ_IMZ' in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
-
-
-
 
     # import pdb; pdb.set_trace()
 
@@ -103,12 +90,9 @@ def simulate_sino(
     #--------------------
 
     if simulate_3d:
-
         rmu = mui
         rpet = petim
-
     else:
-
         #> 2D case with reduced rings
         #--------------------
         #> create a number of slices of the same chosen image slice for reduced (fast) 3D simulation
@@ -134,7 +118,6 @@ def simulate_sino(
     return attsino*emisino
 
 
-
 def simulate_recon(
         measured_sino,
         ctim,
@@ -147,16 +130,19 @@ def simulate_recon(
         msk_radius = 29.
     ):
 
-    ''' Reconstruct PET image from simulated input data using the EM-ML algorithm.
-        Arguments:
-        measured_sino -- simulated emission data with photon attenuation
-        ctim -- either a 2D CT image or a 3D CT image from which a 2D slice is chosen (slice_idx) for estimation
-            of the attenuation factors
-        slice_idx -- index to extract one 2D slice for this simulation if input image is 3D
-        nitr -- number of iterations used for the EM-ML reconstruction algorithm
-        scanner_params -- scanner parameters containing scanner constants and
-            axial and transaxial look up tables (LUTs)
-        randoms[=None] -- possibility of using randoms and scatter events in the simulation
+    '''
+    Reconstruct PET image from simulated input data
+    using the EM-ML (2D) or OSEM (3D) algorithm.
+
+    measured_sino  : simulated emission data with photon attenuation
+    ctim  : either a 2D CT image or a 3D CT image from which a 2D slice
+        is chosen (slice_idx) for estimation of the attenuation factors
+    slice_idx  : index to extract one 2D slice for this simulation
+        if input image is 3D
+    nitr  : number of iterations used for the EM-ML reconstruction algorithm
+    scanner_params  : scanner parameters containing scanner constants and
+        axial and transaxial look up tables (LUTs)
+    randoms  : randoms and scatter events (optional)
     '''
 
     #> decompose the scanner constants and LUTs for easier access
@@ -166,39 +152,31 @@ def simulate_recon(
 
 
     if simulate_3d:
-
         if ctim.ndim!=3 \
                 or ctim.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             raise ValueError(
                 'The CT/mu-map image does not match the scanner image shape.')
     else:
-
         #> 2D case with reduced rings
         if len(ctim.shape)==3:
-
             # make sure that the shape of the input image matches the image size of the scanner
             if ctim.shape[1:]!=(Cnt['SO_IMY'], Cnt['SO_IMX']):
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
-
             # pick the right slice index (slice_idx) if not given or mistaken
             if slice_idx<0:
                 print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
                 slice_idx = ctim.shape[0]/2
             if slice_idx>=ctim.shape[0]:
                 raise ValueError('The axial index for 2D slice selection is outside the image.')
-
         elif len(ctim.shape)==2:
-
             # make sure that the shape of the input image matches the image size of the scanner
             if ctim.shape != (Cnt['SO_IMY'], Cnt['SO_IMX']):
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
-
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
         if not 'rSZ_IMZ' in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
-
 
     #--------------------
     if mu_input:
@@ -211,13 +189,10 @@ def simulate_recon(
     mui[mui<0] = 0
     #--------------------
 
-
     if simulate_3d:
         rmu = mui
-
         #> number of axial sinograms
         nsinos = Cnt['NSN11']
-
     else:
         #--------------------
         #> create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
@@ -225,12 +200,10 @@ def simulate_recon(
         rmu.shape = (1,) + rmu.shape
         rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
         #--------------------
-
         #> number of axial sinograms
         nsinos = Cnt['rNSN1']
 
     # import pdb; pdb.set_trace()
-
 
     #> attenuation factor sinogram
     attsino = mmrprj.frwd_prj(rmu,  scanner_params, attenuation=True, dev_out=True)
@@ -238,7 +211,7 @@ def simulate_recon(
     nrmsino = np.ones(attsino.shape, dtype=np.float32)
 
     #> randoms and scatter put together
-    if randoms==None:
+    if not isinstance(randoms, np.ndarray):
         rndsct = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
     else:
         rndsct = randoms
@@ -327,7 +300,5 @@ def simulate_recon(
             #> update the estimated image and remove NaNs
             eim *= msk*bim
             eim[np.isnan(eim)] = 0
-
-
 
     return eim
