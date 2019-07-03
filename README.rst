@@ -31,6 +31,7 @@ Quick install
       nibabel pydicom ipykernel matplotlib tqdm ipywidgets
     git clone https://github.com/pjmark/NIMPA.git nimpa
     git clone https://github.com/pjmark/NIPET.git nipet
+    conda activate niftypet
     pip install --no-binary :all: --verbose ./nimpa
     pip install --no-binary :all: --verbose ./nipet
 

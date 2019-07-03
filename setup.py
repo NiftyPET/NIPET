@@ -17,6 +17,18 @@ import logging
 if 'DISPLAY' in os.environ:
     from Tkinter import Tk
     from tkFileDialog import askdirectory
+else:
+    def askdirectory(title='Folder: ', initialdir=os.path.expanduser('~'), name=''):
+        """
+        decreasing precedence: os.environ[name], raw_input, initialdir
+        """
+        path = os.environ.get(name, None)
+        if path is None:
+            path = raw_input(title)
+        if path == '':
+            return initialdir
+        return path
+
 
 import cudasetup_hdr as cs
 
@@ -106,12 +118,14 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
                 break
     # if not installed ask for the folder through GUI
     # otherwise the path will have to be filled manually
-    if not hmu_flg and 'DISPLAY' in os.environ:
-        Tk().withdraw()
-        Cnt['HMUDIR'] = askdirectory(
-            title='Folder for hardware mu-maps',
-            initialdir=os.path.expanduser('~')
-        )
+    if not hmu_flg:
+        prompt = dict(title='Folder for hardware mu-maps',
+                      initialdir=os.path.expanduser('~'))
+        if 'DISPLAY' in os.environ:
+            Tk().withdraw()
+        else:
+            prompt['name'] = 'HMUDIR'
+        Cnt['HMUDIR'] = askdirectory(**prompt)
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # update the path in resources.py
     update_resources(Cnt)

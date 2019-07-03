@@ -281,7 +281,7 @@ def simulate_recon(
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
 
-        for i in trange(nitr, desc="OSEM",
+        for i in trange(nitr, desc="MLEM",
               disable=log.getEffectiveLevel() > logging.INFO,
               leave=log.getEffectiveLevel() < logging.INFO):
             #> remove gaps from the measured sinogram
