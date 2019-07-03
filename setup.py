@@ -151,7 +151,7 @@ cmd = []
 cmd.append([
     'cmake',
     os.path.join('..','niftypet'),
-    '-DPYTHON_INCLUDE_DIRS='+cs.pyhdr,
+    '-DPYTHON_INCLUDE_DIRS=' + cs.pyhdr,
     '-DPYTHON_PREFIX_PATH='+cs.prefix,
     '-DCUDA_NVCC_FLAGS='+gpuarch
 ])
