@@ -22,18 +22,26 @@ In order to facilitate all the functionality, *NiftyPET* relies on third-party s
 
 **Documentation with installation manual and tutorials**: https://niftypet.readthedocs.io/
 
-Quick install
+Quick Install
 ~~~~~~~~~~~~~
+
+Note that installation prompts for setting the path to `NiftyPET_tools` and
+hardware attenuation maps. This can be avoided by setting the environment
+variables `PATHTOOLS` and `HMUDIR`, respectively.
 
 .. code:: sh
 
+    # optional (Linux syntax) to avoid prompts
+    export PATHTOOLS=$HOME/NiftyPET_tools
+    export HMUDIR=$HOME/mmr_hardwaremumaps
+    # cross-platform install
     conda create -n niftypet -c conda-forge python=2.7 \
-      nibabel pydicom ipykernel matplotlib tqdm ipywidgets
+      ipykernel matplotlib ipywidgets
     git clone https://github.com/pjmark/NIMPA.git nimpa
     git clone https://github.com/pjmark/NIPET.git nipet
     conda activate niftypet
-    pip install --no-binary :all: --verbose ./nimpa
-    pip install --no-binary :all: --verbose ./nipet
+    pip install --no-binary :all: --verbose -e ./nimpa
+    pip install --no-binary :all: --verbose -e ./nipet
 
 Licence
 ~~~~~~~
