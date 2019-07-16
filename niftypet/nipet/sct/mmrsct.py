@@ -439,8 +439,7 @@ def vsm(
 
     if return_uninterp:
         out['uninterp'] = sct3d
-        out['indexes'] = sctind
-        out['sino'] = sss
+        out['indexes'] = sctind     
 
     if return_ssrb:
         out['ssrb'] = sssr
@@ -452,6 +451,7 @@ def vsm(
     if not out:
         return sss
     else:
+        out['sino'] = sss
         return out
 
 
