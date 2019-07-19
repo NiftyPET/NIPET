@@ -133,6 +133,10 @@ def osemone(
     if ret_sinos:
         return_ssrb = True
         return_mask = True
+    else:
+        return_ssrb = False
+        return_mask = False
+
     #----------
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
@@ -313,7 +317,7 @@ def osemone(
             else:
                 ssn = sct
 
-            ssng = mmraux.remgaps(sct['sino'], txLUT, Cnt)
+            ssng = mmraux.remgaps(ssn, txLUT, Cnt)
 
             if Cnt['VERBOSE']: print 'i> scatter time:', (time.time() - sct_time)
 
