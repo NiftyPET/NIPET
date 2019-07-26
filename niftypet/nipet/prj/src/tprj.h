@@ -3,6 +3,8 @@
 #ifndef FWD_BCK_TX_H
 #define FWD_BCK_TX_H
 
+#include <driver_types.h>
+
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
 void HandleError(cudaError_t err, const char *file, int line);
 
