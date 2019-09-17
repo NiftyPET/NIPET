@@ -6,24 +6,26 @@ __copyright__   = "Copyright 2018"
 
 import numpy as np
 import os
+import logging
 from niftypet import nimpa
 
 #==============================================================================
 
-def obtain_image(img, Cnt=[], imtype='', verbose=False):
-    ''' 
+def obtain_image(img, Cnt=[], imtype=''):
+    '''
     Obtain the image (hardware or object mu-map) from file,
     numpy array, dictionary or empty list (assuming blank then).
     The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
+    from os import path
+    log = logging.getLogger(__name__)
 
-    if Cnt: verbose = Cnt['VERBOSE']
     # establishing what and if the image object has been provided
     # all findings go to the output dictionary
     output = {}
     if isinstance(img, dict):
         if Cnt and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-            print 'e> provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.'
+            log.error('provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.')
             raise ValueError('Wrong dimensions of the mu-map')
         else:
             output['im'] = img['im']
@@ -32,36 +34,37 @@ def obtain_image(img, Cnt=[], imtype='', verbose=False):
             if 'faff' in img: output['faff'] = img['faff']
             if 'fmuref' in img: output['fmuref'] = img['fmuref']
             if 'affine' in img: output['affine'] = img['affine']
-            if verbose: print 'i> using '+imtype+' from dictionary.'
+            log.debug('using '+imtype+' from dictionary')
 
     elif isinstance(img, (np.ndarray, np.generic) ):
         if Cnt and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-            print 'e> provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.'
+            log.error('provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.')
             raise ValueError('Wrong dimensions of the mu-map')
         else:
             output['im'] = img
             output['exists'] = True
             output['fim'] = ''
-            if verbose: print 'i> using hardware mu-map from numpy array.'
+            log.debug('using hardware mu-map from numpy array.')
 
     elif isinstance(img, basestring):
-        if os.path.isfile(img):
+        if path.isfile(img):
+            from niftypet import nimpa
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']
             if Cnt and output['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
-                print 'e> provided '+imtype+' via file has inconsistent dimensions compared to Cnt.'
+                log.error('provided '+imtype+' via file has inconsistent dimensions compared to Cnt.')
                 raise ValueError('Wrong dimensions of the mu-map')
             else:
                 output['exists'] = True
                 output['fim'] = img
-                if verbose: print 'i> using '+imtype+' from NIfTI file.'
+                log.debug('using '+imtype+' from NIfTI file.')
         else:
-            print 'e> provided '+imtype+' path is invalid.'
+            log.error('provided '+imtype+' path is invalid.')
             return None
     elif isinstance(img, list):
         output['im'] = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-        if verbose: print 'w> '+imtype+' has not been provided -> using blank.'
+        log.info(imtype+' has not been provided -> using blank.')
         output['fim'] = ''
         output['exists'] = False
     #------------------------------------------------------------------------

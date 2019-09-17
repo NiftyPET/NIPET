@@ -2,10 +2,7 @@
 NIPET: high-throughput Neuro-Image PET reconstruction
 ===========================================================
 
-.. image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
-  :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
-  :alt: Documentation Status
-
+|Docs| |PyPI-Status| |PyPI-Downloads|
 
 NIPET is a Python sub-package of NiftyPET_, offering high-throughput PET image reconstruction as well as image processing and analysis (``nimpa``: https://github.com/pjmark/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
 
@@ -25,21 +22,44 @@ In order to facilitate all the functionality, *NiftyPET* relies on third-party s
 
 **Documentation with installation manual and tutorials**: https://niftypet.readthedocs.io/
 
-Quick install
+Quick Install
 ~~~~~~~~~~~~~
+
+Note that installation prompts for setting the path to `NiftyPET_tools` and
+hardware attenuation maps. This can be avoided by setting the environment
+variables `PATHTOOLS` and `HMUDIR`, respectively.
 
 .. code:: sh
 
-    conda create -n niftypet python=2.7 \
-      conda-forge::nibabel conda-forge::pydicom ipykernel matplotlib \
-      conda-forge::tqdm conda-forge::ipywidgets
+    # optional (Linux syntax) to avoid prompts
+    export PATHTOOLS=$HOME/NiftyPET_tools
+    export HMUDIR=$HOME/mmr_hardwareumaps
+    # cross-platform install
+    conda create -n niftypet -c conda-forge python=2.7 \
+      ipykernel matplotlib numpy scikit-image ipywidgets
     git clone https://github.com/pjmark/NIMPA.git nimpa
     git clone https://github.com/pjmark/NIPET.git nipet
-    cd nimpa
-    pip install --no-binary :all: --verbose .
-    cd ../nipet
-    pip install --no-binary :all: --verbose .
+    conda activate niftypet
+    pip install --no-binary :all: --verbose -e ./nimpa
+    pip install --no-binary :all: --verbose -e ./nipet
 
-Author: Pawel J. Markiewicz @ University College London
+Licence
+~~~~~~~
 
-Copyright 2018
+|Licence|
+
+- Author: `Pawel J. Markiewicz <https://github.com/pjmark>`__ @ University College London
+- `Contributors <https://github.com/pjmark/NIPET/graphs/contributors>`__:
+
+  - `Casper O. da Costa-Luis <https://github.com/casperdcl>`__ @ King's College London
+
+Copyright 2018-19
+
+.. |Docs| image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
+   :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
+.. |Licence| image:: https://img.shields.io/pypi/l/nipet.svg?label=licence
+   :target: https://github.com/pjmark/NIPET/blob/master/LICENCE
+.. |PyPI-Downloads| image:: https://img.shields.io/pypi/dm/nipet.svg?label=PyPI%20downloads
+   :target: https://pypi.org/project/nipet
+.. |PyPI-Status| image:: https://img.shields.io/pypi/v/nipet.svg?label=latest
+   :target: https://pypi.org/project/nipet

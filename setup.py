@@ -12,12 +12,28 @@ import os
 import sys
 import platform
 from subprocess import call, Popen, PIPE
+import logging
 
 if 'DISPLAY' in os.environ:
     from Tkinter import Tk
     from tkFileDialog import askdirectory
+else:
+    def askdirectory(title='Folder: ', initialdir=os.path.expanduser('~'), name=''):
+        """
+        decreasing precedence: os.environ[name], raw_input, initialdir
+        """
+        path = os.environ.get(name, None)
+        if path is None:
+            path = raw_input(title)
+        if path == '':
+            return initialdir
+        return path
+
 
 import cudasetup_hdr as cs
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger()
 
 #-------------------------------------------------------------------------
 # The below function is a copy of the same function in install_tools.py
@@ -61,14 +77,12 @@ def update_resources(Cnt):
 #-------------------------------------------------------------------------
 
 if not 'Windows' in platform.system() and not 'Linux' in platform.system():
-    print 'e> the current operating system is not supported.'
+    log.error('the current operating system is not supported.')
     raise SystemError('OS: Unknown Sysytem.')
 
 #----------------------------------------------------
 # select the supported GPU device and install resources.py
-print ' '
-print '---------------------------------------------'
-print 'i> setting up CUDA ...'
+log.info('setting up CUDA...')
 gpuarch = cs.resources_setup()
 #----------------------------------------------------
 
@@ -76,9 +90,7 @@ gpuarch = cs.resources_setup()
 
 #===============================================================
 # Hardware mu-maps
-print ' '
-print '---------------------------------------------'
-print 'i> indicate the location of hardware mu-maps:'
+log.info('indicate the location of hardware mu-maps:')
 
 #---------------------------------------------------------------
 # get the local path to NiftyPET resources.py
@@ -88,11 +100,9 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
     sys.path.append(path_resources)
     try:
         import resources
-    except ImportError as ie:
-        print '---------------------------------------------------------------------------------'
-        print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.'
-        print '---------------------------------------------------------------------------------'
-        raise SystemError('Missing resources file')
+    except ImportError:
+        log.error("NiftyPET's resources file <resources.py> could not be imported")
+        raise
     # get the current setup, if any
     Cnt = resources.get_setup()
 
@@ -108,12 +118,14 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
                 break
     # if not installed ask for the folder through GUI
     # otherwise the path will have to be filled manually
-    if not hmu_flg and 'DISPLAY' in os.environ:
-        Tk().withdraw()
-        Cnt['HMUDIR'] = askdirectory(
-            title='Folder for hardware mu-maps',
-            initialdir=os.path.expanduser('~')
-        )
+    if not hmu_flg:
+        prompt = dict(title='Folder for hardware mu-maps',
+                      initialdir=os.path.expanduser('~'))
+        if 'DISPLAY' in os.environ:
+            Tk().withdraw()
+        else:
+            prompt['name'] = 'HMUDIR'
+        Cnt['HMUDIR'] = askdirectory(**prompt)
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # update the path in resources.py
     update_resources(Cnt)
@@ -121,17 +133,13 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
 else:
     raise SystemError('Missing file: resources.py')
 
-print '--------------------------------------'
-print 'i> hardware mu-maps have been located.'
-print '--------------------------------------'
+log.info('hardware mu-maps have been located')
 #===============================================================
 
 
 
 #===============================================================
-print '---------------------------------'
-print 'i> CUDA compilation for NIPET ...'
-print '---------------------------------'
+log.info('CUDA compilation for NIPET')
 
 path_current = os.path.dirname( os.path.realpath(__file__) )
 path_build = os.path.join(path_current, 'build')
@@ -143,7 +151,7 @@ cmd = []
 cmd.append([
     'cmake',
     os.path.join('..','niftypet'),
-    '-DPYTHON_INCLUDE_DIRS='+cs.pyhdr,
+    '-DPYTHON_INCLUDE_DIRS=' + cs.pyhdr,
     '-DPYTHON_PREFIX_PATH='+cs.prefix,
     '-DCUDA_NVCC_FLAGS='+gpuarch
 ])
@@ -173,20 +181,18 @@ for ci in range(len(cmd)):
         errstr.append('_')
 
     if stderr:
-        print 'c>-------- reports -----------'
-        print stderr+'c>------------ end ---------------'
+        log.warning('-------- reports -----------')
+        log.warning(stderr)
+        log.warning('------------ end ---------------')
 
-    print ' '
-    print stdout
+    log.info(stdout)
 
 
-print ' '
-print '--- error report ---'
+log.info('--- error report ---')
 for ci in range(len(cmd)):
     if errstr[ci] != '_':
-        print 'e> found error(s) in ', ' '.join(cmd[ci]), '>>', errstr[ci]
-        print ' '
-print '--- end ---'
+        log.error('found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+log.info('--- end ---')
 
 # come back from build folder
 os.chdir(path_current)
@@ -200,8 +206,8 @@ os.chdir(path_current)
 # PYTHON SETUP
 #===============================================================
 
-print 'i> found those packages:'
-print find_packages(exclude=['docs'])
+log.info('found those packages:')
+log.info(find_packages(exclude=['docs']))
 
 with open('README.rst') as file:
     long_description = file.read()
@@ -230,7 +236,7 @@ setup(
     url='https://github.com/pjmark/NiftyPET',
     keywords='PET image reconstruction and analysis',
     install_requires=['nimpa>=1.1.0', 'pydicom>=1.0.2,<=1.2.2',
-      'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27'],
+      'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27', 'brainweb>=0.3.2'],
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],
@@ -241,16 +247,19 @@ setup(
         'niftypet.nipet' : [fex],
     },
     zip_safe=False,
-    # classifiers=[
-    #     'Development Status :: 5 - Production/Stable',
-    #     'Intended Audience :: Science/Research',
-    #     'Intended Audience :: Healthcare Industry'
-    #     'Programming Language :: Python :: 2.7',
-    #     'License :: OSI Approved :: Apache Software License',
-    #     'Operating System :: POSIX :: Linux',
-    #     'Programming Language :: C',
-    #     'Topic :: Scientific/Engineering :: Medical Science Apps.'
-    # ],
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Intended Audience :: Education',
+        'Intended Audience :: Healthcare Industry',
+        'Intended Audience :: Science/Research',
+        'License :: OSI Approved :: Apache Software License',
+        'Operating System :: POSIX :: Linux',
+        'Operating System :: Microsoft :: Windows',
+        'Programming Language :: C',
+        'Programming Language :: C++',
+        'Programming Language :: Python :: 2.7',
+        'Topic :: Scientific/Engineering :: Medical Science Apps.',
+    ],
     # namespace_packages=['niftypet'],
 )
 #===============================================================

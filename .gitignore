@@ -8,6 +8,8 @@
 /build/
 /dist/
 /nipet.egg*/
+/output/
+/niftyout/
 .ipynb_checkpoints/
 Makefile
 .DS_Store

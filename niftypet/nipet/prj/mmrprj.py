@@ -5,6 +5,7 @@ __copyright__   = "Copyright 2018"
 import numpy as np
 import sys
 import os
+import logging
 
 import petprj
 
@@ -29,6 +30,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
     '''
+    log = logging.getLogger(__name__)
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
@@ -62,16 +64,16 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     elif im.shape[0]==Cnt['SZ_IMX'] and im.shape[1]==Cnt['SZ_IMY'] and im.shape[2]==Cnt['rSZ_IMZ']:
         ims = im
     else:
-        print 'e> wrong image size;  it has to be one of these: (z,y,x) = (127,344,344) or (y,x,z) = (320,320,128)'
+        log.error('wrong image size;  it has to be one of these: (z,y,x) = (127,344,344) or (y,x,z) = (320,320,128)')
 
-    if Cnt['VERBOSE']: print 'i> number of sinos:', nsinos
-    
+    log.debug('number of sinos:%d' % nsinos)
+
     #predefine the sinogram.  if subsets are used then only preallocate those bins which will be used.
     if isub[0]<0:
         sinog = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
     else:
         sinog = np.zeros((len(isub), nsinos), dtype=np.float32)
-    
+
     # --------------------
     petprj.fprj(sinog, ims, txLUT, axLUT, isub, Cnt, att)
     # --------------------
@@ -83,7 +85,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     # put the gaps back to form displayable sinogram
     if not dev_out:
         sino = mmraux.putgaps(sino, txLUT, Cnt)
-    
+
     return sino
 
 #=========================================================================
