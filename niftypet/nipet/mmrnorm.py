@@ -60,17 +60,17 @@ def get_components(datain, Cnt):
     #the files below are found based on a 24hr scan of germanium-68 phantom
     # axial effects for span-1
     fnm = 'AxialFactorForSpan1.npy'
-    fpth = os.path.join(resource_filename('niftypet', 'auxdata'), fnm)
+    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)#'niftypet'
     ax_f1 = np.load(fpth, allow_pickle=True)
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
     fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'
-    fpth = os.path.join(resource_filename('niftypet', 'auxdata'), fnm)
+    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
     f = open(fpth, 'rb')
     sax_f11 = np.fromfile(f, np.float32, Cnt['NSN11'])
     f.close()
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
     fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan1.f32'
-    fpth = os.path.join(resource_filename('niftypet', 'auxdata'), fnm)
+    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
     f = open(fpth, 'rb')
     sax_f1 = np.fromfile(f, np.float32, Cnt['NSN1'])
     f.close()

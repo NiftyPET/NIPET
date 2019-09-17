@@ -213,7 +213,10 @@ def vsm(
         rsinos,
         scanner_params,
         prcnt_scl = 0.1,
-        emmsk=False
+        emmsk=False,
+        return_uninterp=False,
+        return_ssrb=False,
+        return_mask=False,
     ):
     '''
     Voxel-driven scatter modelling (VSM).
@@ -433,4 +436,23 @@ def vsm(
     for i in range(snno):
         sss[i,:,:] = ssn[i,:,:]*scl_ssr[ssrlut[i]]*saxnrm[i] * nrm[i,:,:]
 
-    return sss, sssr, amsksn
+    out = {}
+
+    if return_uninterp:
+        out['uninterp'] = sct3d
+        out['indexes'] = sctind     
+
+    if return_ssrb:
+        out['ssrb'] = sssr
+
+    if return_mask:
+        out['mask'] = amsk
+
+
+    if not out:
+        return sss
+    else:
+        out['sino'] = sss
+        return out
+
+

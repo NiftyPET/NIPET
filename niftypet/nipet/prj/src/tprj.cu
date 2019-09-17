@@ -19,7 +19,8 @@ void HandleError(cudaError_t err, const char *file, int line) {
 
 
 /*************** TRANSAXIAL FWD/BCK *****************/
-__global__ void sddn_tx(const float * crs,
+__global__ void sddn_tx(
+	const float * crs,
 	const short2 * s2c,
 	float * tt,
 	unsigned char * tv,

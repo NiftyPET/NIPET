@@ -97,13 +97,13 @@ def mmrchain(datain,        # all input data in a dictionary
             and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
-            t_frms = dfrms['timings'][1:]
+            t_frms = dfrms[1:]
 
         # if 1D:
         elif all([isinstance(t, integers) for t in frames]):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
-            t_frms = dfrms['timings'][1:]
+            t_frms = dfrms[1:]
 
         else:
             log.error('osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')

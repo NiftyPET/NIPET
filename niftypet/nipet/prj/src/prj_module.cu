@@ -150,13 +150,15 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	/* If that didn't work, throw an exception. */
 	if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
 		p_aw2ali == NULL || p_s2c == NULL || p_im == NULL || p_crs == NULL ||
-		p_subs == NULL || p_prjout == NULL)
+		p_subs == NULL || p_prjout == NULL || p_li2rng == NULL)
 	{
 		//axLUTs
 		Py_XDECREF(p_li2rno);
 		Py_XDECREF(p_li2sn);
 		Py_XDECREF(p_li2sn1);
 		Py_XDECREF(p_li2nos);
+		Py_XDECREF(p_li2rng);
+
 		//2D sino LUT
 		Py_XDECREF(p_aw2ali);
 		//sino 2 crystals
@@ -328,13 +330,15 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	/* If that didn't work, throw an exception. */
 	if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
 		p_aw2ali == NULL || p_s2c == NULL || p_sino == NULL || p_crs == NULL ||
-		p_subs == NULL || p_bim == NULL)
+		p_subs == NULL || p_bim == NULL || p_li2rng == NULL)
 	{
 		//axLUTs
 		Py_XDECREF(p_li2rno);
 		Py_XDECREF(p_li2sn);
 		Py_XDECREF(p_li2sn1);
 		Py_XDECREF(p_li2nos);
+		Py_XDECREF(p_li2rng);
+
 		//2D sino LUT
 		Py_XDECREF(p_aw2ali);
 		//sino 2 crystals

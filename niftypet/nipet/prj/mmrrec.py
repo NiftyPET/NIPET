@@ -123,6 +123,14 @@ def osemone(datain, mumaps, hst, scanner_params,
         else:
             opth = outpath
         mmraux.create_dir(opth)
+
+    if ret_sinos:
+        return_ssrb = True
+        return_mask = True
+    else:
+        return_ssrb = False
+        return_mask = False
+
     #----------
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
@@ -204,7 +212,7 @@ def osemone(datain, mumaps, hst, scanner_params,
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
         elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
-            ssn, sssr, amsk = nipet.vsm(
+            ssn = nipet.vsm(
                 datain,
                 mumaps,
                 emd['im'],
@@ -285,14 +293,22 @@ def osemone(datain, mumaps, hst, scanner_params,
             break
         if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
             sct_time = time.time()
-            ssn, sssr, amsk = nipet.vsm(
+            sct = nipet.vsm(
                 datain,
                 mumaps,
                 mmrimg.convert2e7(img, Cnt),
                 hst,
                 rsino,
                 scanner_params,
-                emmsk=emmskS)
+                emmsk=emmskS,
+                return_ssrb=return_ssrb,
+                return_mask=return_mask)
+
+            if isinstance(sct, dict):
+                ssn = sct['sino']
+            else:
+                ssn = sct
+
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
             pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
         # save images during reconstruction if requested
@@ -363,7 +379,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #     recout.fpet = fout
     if ret_sinos and recmod>=3 and itr>1:
         RecOut = namedtuple('RecOut', 'im, fpet, affine, ssn, sssr, amsk, rsn')
-        recout = RecOut(im, fout, B, ssn, sssr, amsk, rsino)
+        recout = RecOut(im, fout, B, ssn, sct['ssrb'], sct['mask'], rsino)
     else:
         RecOut = namedtuple('RecOut', 'im, fpet, affine')
         recout = RecOut(im, fout, B)

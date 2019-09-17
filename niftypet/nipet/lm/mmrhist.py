@@ -156,8 +156,8 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
         return
 
     #short (interval) projection views
-    pvs_sgtl = np.right_shift(hstout['pvs'], 8).astype(np.float32)
-    pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
+    pvs_sgtl = np.float32( np.right_shift(hstout['pvs'], 8) ) #.astype(np.float32)
+    pvs_crnl = np.float32( np.bitwise_and(hstout['pvs'], 255) ) #.astype(np.float32)
 
     cmass = Cnt['SO_VXZ']*ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
     log.debug('centre of mass of axial radiodistribution (filtered with Gaussian of SD = %.3g):  COMPLETED.' % cmass_sig)
@@ -447,8 +447,8 @@ def split_frames(hst, Tref=0, t0=0, t1=0):
     j = toff
     # threshold to be achieved
     thrsh = csum[j-1] + cref
-    fdur = [toff]
-    frms = ['timings', [0, toff]]
+    fdur = []
+    frms = ['timings']
     clvl = [0]
     log.info('counts t(%d,%d) = %d. diff=%d' % (i, j, clvl[-1], np.sum(diff[i:j]) - cref))
     while thrsh<csum[-1]:

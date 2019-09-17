@@ -126,6 +126,7 @@ def simulate_recon(
         nitr = 60,
         slice_idx = -1,
         randoms=None,
+        scatter=None,
         mu_input = False,
         msk_radius = 29.
     ):
@@ -211,10 +212,16 @@ def simulate_recon(
     nrmsino = np.ones(attsino.shape, dtype=np.float32)
 
     #> randoms and scatter put together
-    if not isinstance(randoms, np.ndarray):
-        rndsct = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
+    if isinstance(randoms, np.ndarray) and measured_sino.shape==randoms.shape:
+        rsng = mmraux.remgaps(randoms, txLUT, Cnt)
     else:
-        rndsct = randoms
+        rsng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
+    
+    if isinstance(scatter, np.ndarray) and measured_sino.shape==scatter.shape:
+        ssng = mmraux.remgaps(scatter, txLUT, Cnt)
+    else:
+        ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
+    
 
     log = logging.getLogger(__name__)
     if simulate_3d:
@@ -261,8 +268,8 @@ def simulate_recon(
                 eimg,
                 msk,
                 psng,
-                rndsct,
-                rndsct,
+                rsng,
+                ssng,
                 nrmsino,
                 attsino,
                 sim,
