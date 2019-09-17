@@ -981,6 +981,7 @@ def hdr_mu(datain, Cnt):
     else:
         log.error('path to the DICOM mu-map is not given but it is required.')
         raise NameError('No DICOM mu-map')
+       
     if os.path.isfile( dcmf ):
         dhdr = dcm.read_file( dcmf )
     else:
