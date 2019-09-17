@@ -388,8 +388,8 @@ def draw_frames(hst, tfrms, plot_diff = True, tlim = []):
     K = [f[0] for f in tfrms if isinstance(f,list)]
     for k in K:
         yval = hst['phc'][k]
-        if yval<0.2*np.max(hst['phc']):
-            yval = 0.2*np.max(hst['phc'])
+        if yval<0.05*np.max(hst['phc']):
+            yval = 0.05*np.max(hst['phc'])
         plt.plot([k, k], [0, yval], 'k--', lw=.75)
     plt.legend()
     plt.xlabel('time [sec]')

@@ -247,6 +247,7 @@ def mmrchain(datain,        # all input data in a dictionary
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
     #if asked, output only scatter+randoms sinogram for each frame
     if ret_sinos and itr>1 and recmod>2:
+        dynmsk = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
@@ -331,13 +332,15 @@ def mmrchain(datain,        # all input data in a dictionary
             dynpsn[ifrm,:,:,:] = hst['psino']
             dynssn[ifrm,:,:,:] = recimg.ssn
             dynrsn[ifrm,:,:,:] = recimg.rsn
+            dynmsk[ifrm,:,:,:] = recimg.amsk
+
 
         if store_img_intrmd: output['fpeti'].append(recimg.fpet)
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
     if ret_sinos and itr>1 and recmod>2:
-        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn, 'rsino':dynrsn}
+        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn, 'rsino':dynrsn, 'amask':dynmsk}
 
     # ----------------------------------------------------------------------
     # trim the PET image

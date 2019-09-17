@@ -982,8 +982,9 @@ def hdr_mu(datain, Cnt):
         files.extend(glob.glob(os.path.join(datain['mumapDCM'],'*.IMA')))
         dcmf = files[0]
     else:
-        print 'e> path to the DICOM mu-map is not given but it is required.'
-        raise NameError('No DICOM mu-map')
+        print 'w> the DICOM mu-map folder not found.'
+        raise NameError('e> no DICOM or DICOM filed <CSA Series Header Info> found!')
+
     if os.path.isfile( dcmf ):
         dhdr = dcm.read_file( dcmf )
     else:
