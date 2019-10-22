@@ -629,7 +629,7 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=log.getEffectiveLevel() < logging.INFO
+                    verbose=log.getEffectiveLevel() <= logging.INFO
                 )
 
             faff_mrpet = regdct['faff']

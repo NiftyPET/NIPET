@@ -251,7 +251,7 @@ def vsm(
     axLUT = scanner_params['axLUT']
 
     if emmsk and not os.path.isfile(datain['em_nocrr']):
-        log.debug('reconstruction of emission data without scatter and attenuation correction for mask generation')
+        log.info('reconstruction of emission data without scatter and attenuation correction for mask generation')
         recnac = mmrrec.osemone(datain, mumaps, hst, scanner_params, recmod=0, itr=3, fwhm=2.0, store_img=True)
         datain['em_nocrr'] = recnac.fpet
 
@@ -380,9 +380,9 @@ def vsm(
         ssn = np.zeros((Cnt['TOFBINN'], snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float64);
         sssr = np.zeros((Cnt['TOFBINN'], Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float64)
-        log.debug('interpolate each scatter sino...')
+        log.info('interpolate each scatter sino...')
         for k in range(Cnt['TOFBINN']):
-            log.debug('doing TOF bin k = %d' % k)
+            log.info('doing TOF bin k = %d' % k)
             for i in range(snno):
                 tmp2d[:] = 0
                 for ti in range(len(sctind)):
@@ -390,12 +390,12 @@ def vsm(
                 #interpolate estimated scatter
                 ssn[k,i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
                 sssr[k, ssrlut[i], :, :] += ssn[k,i,:,:]
-            log.debug('TOF bin #%d' % k)
+            log.info('TOF bin #%d' % k)
     elif Cnt['TOFBINN']==1:
         ssn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
-        log.debug('scatter sinogram interpolation...')
+        log.info('scatter sinogram interpolation...')
         for i in range(snno):
             tmp2d[:] = 0
             for ti in range(len(sctind)):
@@ -404,7 +404,7 @@ def vsm(
             ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
             sssr[ssrlut[i],:,:] += ssn[i,:,:]
             if (i%100)==0:
-                log.debug('%d sinograms interpolated' % i)
+                log.info('%d sinograms interpolated' % i)
     #--------------------------------------------------------------------------------------------
 
     #=== scale scatter for ssr and non-TOF===
@@ -446,7 +446,7 @@ def vsm(
         out['ssrb'] = sssr
 
     if return_mask:
-        out['mask'] = amsk
+        out['mask'] = amsksn
 
 
     if not out:
