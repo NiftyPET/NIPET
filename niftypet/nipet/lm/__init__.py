@@ -9,4 +9,4 @@ from mmrhist import get_time_offset
 
 from mmrhist import randoms
 
-from pviews import video_frm, video_dyn
+#from pviews import video_frm, video_dyn
