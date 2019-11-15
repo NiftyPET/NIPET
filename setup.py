@@ -233,7 +233,7 @@ setup(
     long_description=long_description,
     author='Pawel J. Markiewicz',
     author_email='p.markiewicz@ucl.ac.uk',
-    url='https://github.com/pjmark/NiftyPET',
+    url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
     install_requires=['nimpa>=1.1.0', 'pydicom>=1.0.2,<=1.2.2',
       'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27'],

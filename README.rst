@@ -4,9 +4,9 @@ NIPET: high-throughput Neuro-Image PET reconstruction
 
 |Docs| |PyPI-Status| |PyPI-Downloads|
 
-NIPET is a Python sub-package of NiftyPET_, offering high-throughput PET image reconstruction as well as image processing and analysis (``nimpa``: https://github.com/pjmark/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
+NIPET is a Python sub-package of NiftyPET_, offering high-throughput PET image reconstruction as well as image processing and analysis (``nimpa``: https://github.com/NiftyPET/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
 
-.. _NiftyPET: https://github.com/pjmark/NiftyPET
+.. _NiftyPET: https://github.com/NiftyPET/NiftyPET
 
 The scientific aspects of this software are covered in two open-access publications:
 
@@ -37,8 +37,8 @@ variables `PATHTOOLS` and `HMUDIR`, respectively.
     # cross-platform install
     conda create -n niftypet -c conda-forge python=2.7 \
       ipykernel matplotlib numpy scikit-image ipywidgets
-    git clone https://github.com/pjmark/NIMPA.git nimpa
-    git clone https://github.com/pjmark/NIPET.git nipet
+    git clone https://github.com/NiftyPET/NIMPA.git nimpa
+    git clone https://github.com/NiftyPET/NIPET.git nipet
     conda activate niftypet
     pip install --no-binary :all: --verbose -e ./nimpa
     pip install --no-binary :all: --verbose -e ./nipet
@@ -49,7 +49,7 @@ Licence
 |Licence|
 
 - Author: `Pawel J. Markiewicz <https://github.com/pjmark>`__ @ University College London
-- `Contributors <https://github.com/pjmark/NIPET/graphs/contributors>`__:
+- `Contributors <https://github.com/NiftyPET/NIPET/graphs/contributors>`__:
 
   - `Casper O. da Costa-Luis <https://github.com/casperdcl>`__ @ King's College London
 
@@ -58,7 +58,7 @@ Copyright 2018-19
 .. |Docs| image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
    :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
 .. |Licence| image:: https://img.shields.io/pypi/l/nipet.svg?label=licence
-   :target: https://github.com/pjmark/NIPET/blob/master/LICENCE
+   :target: https://github.com/NiftyPET/NIPET/blob/master/LICENCE
 .. |PyPI-Downloads| image:: https://img.shields.io/pypi/dm/nipet.svg?label=PyPI%20downloads
    :target: https://pypi.org/project/nipet
 .. |PyPI-Status| image:: https://img.shields.io/pypi/v/nipet.svg?label=latest
