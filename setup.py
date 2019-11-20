@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 import os
 import sys
 import platform
-from subprocess import call, Popen, PIPE
+from subprocess import Popen, PIPE
 import logging
 
 if 'DISPLAY' in os.environ:
@@ -76,7 +76,7 @@ def update_resources(Cnt):
     return Cnt
 #-------------------------------------------------------------------------
 
-if not 'Windows' in platform.system() and not 'Linux' in platform.system():
+if 'Windows' not in platform.system() and 'Linux' not in platform.system():
     log.error('the current operating system is not supported.')
     raise SystemError('OS: Unknown Sysytem.')
 
