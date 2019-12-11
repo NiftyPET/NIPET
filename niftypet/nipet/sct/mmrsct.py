@@ -5,23 +5,24 @@ __copyright__   = "Copyright 2018"
 
 import numpy as np
 # import matplotlib.pyplot as plt
-from math import pi
-import random
-import sys
-import os
 import logging
-import scipy.ndimage as ndi
+from math import pi
+import os
+import random
+import re
+import sys
 
 import nibabel as nib
-import re
+import scipy.ndimage as ndi
+from tqdm.auto import trange
 
 import petsct
 
-from niftypet.nipet.prj import mmrprj, petprj, mmrrec
-from niftypet.nipet.img import mmrimg
-from niftypet.nipet import mmrnorm
 from niftypet.nipet import mmraux
 from niftypet.nipet import mmr_auxe
+from niftypet.nipet import mmrnorm
+from niftypet.nipet.img import mmrimg
+from niftypet.nipet.prj import mmrprj, petprj, mmrrec
 
 
 # ------------------------------------
@@ -396,15 +397,14 @@ def vsm(
         sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
         log.info('scatter sinogram interpolation...')
-        for i in range(snno):
+        for i in trange(snno, desc="interpolating", unit="sinogram",
+                        leave=log.getEffectiveLevel() < logging.INFO):
             tmp2d[:] = 0
             for ti in range(len(sctind)):
                 tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
             #interpolate estimated scatter
             ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
             sssr[ssrlut[i],:,:] += ssn[i,:,:]
-            if (i%100)==0:
-                log.info('%d sinograms interpolated' % i)
     #--------------------------------------------------------------------------------------------
 
     #=== scale scatter for ssr and non-TOF===
