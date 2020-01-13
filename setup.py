@@ -3,7 +3,7 @@
     for namespace package 'niftypet'.
 """
 __author__      = "Pawel J. Markiewicz"
-__copyright__   = "Copyright 2018"
+__copyright__   = "Copyright 2019"
 # ---------------------------------------------------------------------------------
 
 from setuptools import setup, find_packages
@@ -11,12 +11,12 @@ from setuptools import setup, find_packages
 import os
 import sys
 import platform
-from subprocess import Popen, PIPE
+from subprocess import run, PIPE
 import logging
 
 if 'DISPLAY' in os.environ:
-    from Tkinter import Tk
-    from tkFileDialog import askdirectory
+    from tkinter import Tk
+    from tkinter.filedialog import askdirectory
 else:
     def askdirectory(title='Folder: ', initialdir=os.path.expanduser('~'), name=''):
         """
@@ -24,7 +24,7 @@ else:
         """
         path = os.environ.get(name, None)
         if path is None:
-            path = raw_input(title)
+            path = input(title)
         if path == '':
             return initialdir
         return path
@@ -32,8 +32,19 @@ else:
 
 import cudasetup_hdr as cs
 
-logging.basicConfig(level=logging.INFO)
-log = logging.getLogger()
+#-------------------------------------------------------------------------------
+import logging
+log = logging.getLogger('NIPET')
+log.setLevel(logging.INFO)
+
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter('\n%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+ch.setFormatter(formatter)
+# ch.setLevel(logging.ERROR)
+log.addHandler(ch)
+#-------------------------------------------------------------------------------
+
 
 #-------------------------------------------------------------------------
 # The below function is a copy of the same function in install_tools.py
@@ -76,7 +87,7 @@ def update_resources(Cnt):
     return Cnt
 #-------------------------------------------------------------------------
 
-if 'Windows' not in platform.system() and 'Linux' not in platform.system():
+if not 'Windows' in platform.system() and not 'Linux' in platform.system():
     log.error('the current operating system is not supported.')
     raise SystemError('OS: Unknown Sysytem.')
 
@@ -90,7 +101,7 @@ gpuarch = cs.resources_setup()
 
 #===============================================================
 # Hardware mu-maps
-log.info('indicate the location of hardware mu-maps:')
+log.info('indicate the location of hardware mu-maps...')
 
 #---------------------------------------------------------------
 # get the local path to NiftyPET resources.py
@@ -101,7 +112,7 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
     try:
         import resources
     except ImportError:
-        log.error("NiftyPET's resources file <resources.py> could not be imported")
+        log.error('NiftyPET resources file <resources.py> could not be imported')
         raise
     # get the current setup, if any
     Cnt = resources.get_setup()
@@ -139,7 +150,7 @@ log.info('hardware mu-maps have been located')
 
 
 #===============================================================
-log.info('CUDA compilation for NIPET')
+log.info('CUDA compilation for NIPET ...')
 
 path_current = os.path.dirname( os.path.realpath(__file__) )
 path_build = os.path.join(path_current, 'build')
@@ -164,35 +175,45 @@ if platform.system()=='Windows':
 # error string for later reporting
 errstr = []
 # the log files the cmake results are written
-cmakelog = ['py_cmake_config.log', 'py_cmake_build.log']
+cmakelog = ['nipet_cmake_config.log', 'nipet_cmake_build.log']
 # run commands with logging
 for ci in range(len(cmd)):
+
+    p = run(cmd[ci], stdout=PIPE, stderr=PIPE)
+
+    stdout = p.stdout.decode('utf-8')
+    stderr = p.stderr.decode('utf-8')
+
     with open(cmakelog[ci], 'w') as f:
-        p = Popen(cmd[ci], stdout=PIPE, stderr=PIPE)
-        for c in iter(lambda: p.stdout.read(1), ''):
-            sys.stdout.write(c)
-            f.write(c)
-    # get the pipes outputs
-    stdout, stderr = p.communicate()
+        f.write(stdout)
+
+    
+
     ei = stderr.find('error')
     if ei>=0:
         errstr.append(stderr[ei:ei+60]+'...')
     else:
         errstr.append('_')
 
-    if stderr:
-        log.warning('-------- reports -----------')
-        log.warning(stderr)
-        log.warning('------------ end ---------------')
+    if p.stderr:
+        log.warning('''\
+        \r---------- process warnings/errors ------------
+        \r{}
+        \r--------------------- end ---------------------
+        '''.format(stderr))
 
-    log.info(stdout)
+    log.info('''\
+    \r---------- compilation output ------------
+    \r{}
+    \r------------------- end ------------------
+    '''.format(stdout))
 
 
-log.info('--- error report ---')
+log.info('---------- error report ----------')
 for ci in range(len(cmd)):
     if errstr[ci] != '_':
-        log.error('found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
-log.info('--- end ---')
+        log.error(' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+log.info('--------------- end ---------------')
 
 # come back from build folder
 os.chdir(path_current)
@@ -205,11 +226,15 @@ os.chdir(path_current)
 #===============================================================
 # PYTHON SETUP
 #===============================================================
+log.info('''found those packages:\n{}'''.format(find_packages(exclude=['docs'])))
 
-log.info('found those packages:')
-log.info(find_packages(exclude=['docs']))
+freadme = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'README.rst')
+log.info('''\
+    \rUsing this README file:
+    {}
+    '''.format(freadme))
 
-with open('README.rst') as file:
+with open(freadme) as file:
     long_description = file.read()
 
 #---- for setup logging -----
@@ -228,16 +253,15 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license = 'Apache 2.0',
-    version='1.1.19',
+    version='1.1.17',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author='Pawel J. Markiewicz',
     author_email='p.markiewicz@ucl.ac.uk',
-    url='https://github.com/NiftyPET/NiftyPET',
+    url='https://github.com/pjmark/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=['nimpa>=1.1.0', 'pydicom>=1.0.2,<=1.2.2',
+    install_requires=['nimpa>=1.2.0', 'pydicom>=1.0.2,<=1.2.2',
       'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27'],
-    python_requires='<3.0.0',
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],

@@ -89,9 +89,14 @@ def lm_pos(datain, Cnt):
     p = re.compile(b'-?\d.\d{4,10}')
     xyz = p.findall(csainfo[fi:fi+200])
     #offset in cm
-    xoff = float(xyz[0])/10
-    yoff = float(xyz[1])/10
-    zoff = float(xyz[2])/10
+    # xoff = float(xyz[0])/10
+    # yoff = float(xyz[1])/10
+    # zoff = float(xyz[2])/10
+    #> hack to avoid other numbers (counting from the back)
+    xoff = float(xyz[-3])/10
+    yoff = float(xyz[-2])/10
+    zoff = float(xyz[-1])/10
+
     goff = flip * np.array([xoff, yoff, zoff])
     log.info('gantry offset from DICOM:\n{}'.format(goff))
 

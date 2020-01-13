@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""ccompile.py: tools for CUDA compilation and set-up for Python."""
+"""ccompile.py: tools for CUDA compilation and set-up for Python 3."""
 
 __author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
+__copyright__   = "Copyright 2019"
 # ---------------------------------------------------------------------------------
 
 from distutils.sysconfig import get_python_inc
@@ -15,6 +15,20 @@ import numpy as np
 import platform
 import shutil
 
+#-------------------------------------------------------------------------------
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+ch.setFormatter(formatter)
+# ch.setLevel(logging.ERROR)
+log.addHandler(ch)
+#-------------------------------------------------------------------------------
+
+
 # get Python prefix
 prefix = sys.prefix
 
@@ -24,7 +38,7 @@ pyhdr = get_python_inc()
 # get numpy header path:
 nphdr = np.get_include()
 
-# minimum required CUDA compute capability
+# minimum required CUDA compute capability 
 mincc = 35
 
 # ---------------------------------------------------------------------------------
@@ -33,7 +47,7 @@ def path_niftypet_local():
     # if using conda put the resources in the folder with the environment name
     if 'CONDA_DEFAULT_ENV' in os.environ:
         env = os.environ['CONDA_DEFAULT_ENV']
-        print 'i> conda environment found:', env
+        log.info('install> conda environment found: {}'.format(env))
     else:
         env = ''
     # create the path for the resources files according to the OS platform
@@ -42,7 +56,7 @@ def path_niftypet_local():
     elif platform.system() == 'Windows' :
         path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
     else:
-        print 'e> only Linux and Windows operating systems are supported!'
+        log.info('only Linux and Windows operating systems are supported!')
         return None
 
     return path_resources
@@ -52,26 +66,25 @@ def find_cuda():
     '''Locate the CUDA environment on the system.'''
     # search the PATH for NVCC
     for fldr in os.environ['PATH'].split(os.pathsep):
-        cuda_path = os.path.join(fldr, 'nvcc')
+        cuda_path = join(fldr, 'nvcc')
         if os.path.exists(cuda_path):
             cuda_path = os.path.dirname(os.path.dirname(cuda_path))
             break
         cuda_path = None
-
+    
     if cuda_path is None:
-        print 'w> nvcc compiler could not be found from the PATH!'
+        log.info('w> nvcc compiler could not be found from the PATH!')
         return None
 
     # serach for the CUDA library path
     lcuda_path = os.path.join(cuda_path, 'lib64')
-    if 'LD_LIBRARY_PATH' in os.environ.keys():
+    if 'LD_LIBRARY_PATH' in list(os.environ.keys()):
         if lcuda_path in os.environ['LD_LIBRARY_PATH'].split(os.pathsep):
-            print 'i> found CUDA lib64 in LD_LIBRARY_PATH:   ', lcuda_path
+            log.info('found CUDA lib64 in LD_LIBRARY_PATH:\n{}'.format(lcuda_path))
     elif os.path.isdir(lcuda_path):
-        print 'i> found CUDA lib64 in :   ', lcuda_path
+        log.info('found CUDA lib64 in:\n{}'.format(lcuda_path))
     else:
-        print 'w> folder for CUDA library (64-bit) could not be found!'
-
+        log.warning('folder for CUDA library (64-bit) could not be found!')
 
     return cuda_path, lcuda_path
 # ---------------------------------------------------------------------------------
@@ -88,17 +101,22 @@ def dev_setup():
         try:
             import resources
         except ImportError as ie:
-            print '----------------------------'
-            print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.  It should be in ''~/.niftypet/resources.py'' but likely it does not exists.'
-            print '----------------------------'
+            log.error('''\
+                \r--------------------------------------------------------------------------
+                \rNiftyPET resources file <resources.py> could not be imported.
+                \rIt should be in ~/.niftypet/resources.py (Linux) or 
+                \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+                \rbut likely it does not exists.
+                \r--------------------------------------------------------------------------
+            ''')
     else:
-        print 'e> resources file not found/installed.'
+        log.error('resources file not found/installed.')
         return None
 
     # get all constants and check if device is already chosen
     Cnt = resources.get_setup()
     if 'CCARCH' in Cnt and 'DEVID' in Cnt:
-        print 'i> using this CUDA architecture(s):', Cnt['CCARCH']
+        log.info('using this CUDA architecture(s): {}'.format(Cnt['CCARCH']))
         return Cnt['CCARCH']
 
     # get the current locations
@@ -119,7 +137,7 @@ def dev_setup():
         path_tmp_build = os.path.join(path_tmp_dinf, 'build')
     elif platform.system()=='Linux':
         path_tmp_build = os.path.join(path_tmp_dinf, 'build')
-
+        
     os.makedirs(path_tmp_build)
     os.chdir(path_tmp_build)
     if platform.system()=='Windows':
@@ -130,9 +148,9 @@ def dev_setup():
         subprocess.call(['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr, '-DPYTHON_PREFIX_PATH='+prefix])
         subprocess.call(['cmake', '--build', './'])
     else:
-        print 'e> only Linux and Windows operating systems are supported!'
+        log.error('the operating system {} is not supported for GPU'.format(platform.system()))
         return None
-
+    
     # import the new module for device properties
     sys.path.insert(0, path_tmp_build)
     import dinf
@@ -140,12 +158,12 @@ def dev_setup():
     Ldev = dinf.dev_info(0)
     if len(Ldev)==0:
         raise IOError('No CUDA devices have been detected')
-    # extract the compute capability as a single number
+    # extract the compute capability as a single number 
     cclist = [int(str(e[2])+str(e[3])) for e in Ldev]
     # get the list of supported CUDA devices (with minimum compute capability)
     spprtd = [str(cc) for cc in cclist if cc>=mincc]
     if len(spprtd)==0:
-        print 'w> installed devices have the compute capability of:', spprtd
+        log.error('installed devices have the compute capability of: {}'.format(spprtd))
         raise IOError('No supported CUDA devices have been found.')
     # best for the default CUDA device
     i = [int(s) for s in spprtd]
@@ -178,7 +196,7 @@ def dev_setup():
     strNew = '### start GPU properties ###\n'
     for i in range(len(cnt_list)):
         strNew += cnt_list[i]+' = '+val_list[i] + '\n'
-    rsrcNew = rsrc[:i0] + strNew + rsrc[i1:]
+    rsrcNew = rsrc[:i0] + strNew + rsrc[i1:] 
     f = open(fpth, 'w')
     f.write(rsrcNew)
     f.close()
@@ -208,13 +226,13 @@ def chck_vox_h(Cnt):
     for s in cnt_list:
         m = re.search('(?<=#define '+s+')\s*\d*\.*\d*', defh)
         if s[3]=='V':
-            #print s, float(m.group(0)), Cnt[s]
+            #print(s, float(m.group(0)), Cnt[s])
             if Cnt[s]!=float(m.group(0)):
                 flg = True
                 break
         else:
-            #print s, int(m.group(0)), Cnt[s]
-            if Cnt[s]!=int(m.group(0)):
+            #print(s, int(m.group(0)), Cnt[s])
+            if Cnt[s]!=int(m.group(0)): 
                 flg = True
                 break
     # if flag is set then redefine the constants in the sct.h file
@@ -227,11 +245,11 @@ def chck_vox_h(Cnt):
         for s in cnt_list:
             strNew += strDef+s+' '+str(Cnt[s])+(s[3]=='V')*'f' + '\n'
 
-        scthNew = def_h[:i0] + strNew + def_h[i1:]
+        scthNew = def_h[:i0] + strNew + def_h[i1:] 
         f = open(fpth, 'w')
         f.write(scthNew)
         f.close()
-        rflg = True
+        rflg = True 
 
     return rflg
 #=================================================================================================
@@ -256,13 +274,13 @@ def chck_sct_h(Cnt):
     for s in cnt_list:
         m = re.search('(?<=#define '+s+')\s*\d*\.*\d*', scth)
         if s[-3]=='V':
-            #print s, float(m.group(0)), Cnt[s]
+            #print(s, float(m.group(0)), Cnt[s])
             if Cnt[s]!=float(m.group(0)):
                 flg = True
                 break
         else:
-            #print s, int(m.group(0)), Cnt[s]
-            if Cnt[s]!=int(m.group(0)):
+            #print(s, int(m.group(0)), Cnt[s])
+            if Cnt[s]!=int(m.group(0)): 
                 flg = True
                 break
     # if flag is set then redefine the constants in the sct.h file
@@ -275,12 +293,12 @@ def chck_sct_h(Cnt):
         for s in cnt_list:
             strNew += strDef+s+' '+str(Cnt[s])+(s[-3]=='V')*'f' + '\n'
 
-        scthNew = sct_h[:i0] + strNew + sct_h[i1:]
+        scthNew = sct_h[:i0] + strNew + sct_h[i1:] 
         f = open(fpth, 'w')
         f.write(scthNew)
         f.close()
         #sys.path.append(pthcmpl)
-        rflg = True
+        rflg = True 
 
     return rflg
 #=================================================================================================
@@ -296,21 +314,37 @@ def check_constants():
     try:
         import resources
     except ImportError as ie:
-        print '----------------------------'
-        print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.  It should be in ''~/.niftypet/resources.py'' but likely it does not exists.'
-        print '----------------------------'
+        log.error('''\
+            \r--------------------------------------------------------------------------
+            \rNiftyPET resources file <resources.py> could not be imported.
+            \rIt should be in ~/.niftypet/resources.py (Linux) or 
+            \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+            \rbut likely it does not exists.
+            \r--------------------------------------------------------------------------
+        ''')
         raise ImportError('Could not find resources.py')
     #===========================
     Cnt = resources.get_mmr_constants()
 
-    sct_compile = chck_sct_h(Cnt)
-    def_compile = chck_vox_h(Cnt)
-    print '----------------------------'
-    print 'changed sct.h:', sct_compile
-    print 'changed def.h:', def_compile
-    print '----------------------------'
+    # sct_compile = chck_sct_h(Cnt)
+    # def_compile = chck_vox_h(Cnt)
+    sct_compile = False
+    def_compile = False
+
     if sct_compile or def_compile:
-        print 'i> NiftyPET constants were changed: needs CUDA compilation.'
+        txt = 'NiftyPET constants were changed: needs CUDA compilation.'
+    else:
+        txt = '- - . - -'
+
+    log.info('''\
+        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        \rchanged sct.h: {}
+        \rchanged def.h: {}
+        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        \r{}
+        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        '''.format(sct_compile, def_compile, txt))
+    
 #=================================================================================================
 
 
@@ -321,17 +355,17 @@ def resources_setup():
     '''
     This function checks CUDA devices, selects some and installs resources.py
     '''
-    print 'i> installing file <resources.py> into home directory if it does not exist.'
+    log.info('installing file <resources.py> into home directory if it does not exist.')
     path_current = os.path.dirname( os.path.realpath(__file__) )
     # path to the install version of resources.py.
     path_install = os.path.join(path_current, 'resources')
     # get the path to the local resources.py (on Linux machines it is in ~/.niftypet)
     path_resources = path_niftypet_local()
-    print path_current
+    log.info('current path: {}'.format(path_current))
 
     # flag for the resources file if already installed (initially assumed not)
     flg_resources = False
-    # does the local folder for niftypet exists? if not create one.
+    # does the local folder for niftypet exists? if not create one. 
     if not os.path.exists(path_resources):
         os.makedirs(path_resources)
     # is resources.py in the folder?
@@ -339,19 +373,23 @@ def resources_setup():
         if os.path.isfile(os.path.join(path_install,'resources.py')):
             shutil.copyfile( os.path.join(path_install,'resources.py'), os.path.join(path_resources,'resources.py') )
         else:
-            print 'e> could not fine file <resources.py> to be installed!'
             raise IOError('could not find <resources.py')
     else:
-        print 'i> <resources.py> should be already in the local NiftyPET folder.', path_resources
+        log.info('<resources.py> should be already in the local NiftyPET folder:\n  {}'.format(path_resources))
         # set the flag that the resources file is already there
         flg_resources = True
         sys.path.append(path_resources)
         try:
             import resources
         except ImportError as ie:
-            print '----------------------------'
-            print 'e> Import Error: NiftyPET''s resources file <resources.py> could not be imported.  It should be in ''~/.niftypet/resources.py'' but likely it does not exists.'
-            print '----------------------------'
+            log.error('''\
+                \r--------------------------------------------------------------------------
+                \rNiftyPET resources file <resources.py> could not be imported.
+                \rIt should be in ~/.niftypet/resources.py (Linux) or 
+                \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+                \rbut likely it does not exists.
+                \r--------------------------------------------------------------------------
+            ''')
 
     # check and update the constants in C headers according to resources.py
     check_constants()
