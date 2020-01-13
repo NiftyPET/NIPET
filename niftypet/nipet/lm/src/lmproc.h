@@ -6,7 +6,6 @@
 #include "def.h"
 #include "scanner_0.h"
 #include "lmaux.h"
-#include "auxmath.h"
 #include "hst.h"
 
 typedef struct {

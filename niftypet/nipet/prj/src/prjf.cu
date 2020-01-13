@@ -237,7 +237,7 @@ void gpu_fprj(float * prjout,
 {
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- TRANSAXIAL COMPONENT
 	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
@@ -284,9 +284,9 @@ void gpu_fprj(float * prjout,
 	vz0 = 2 * Cnt.RNG_STRT;
 	vz1 = 2 * (Cnt.RNG_END - 1);
 	nvz = 2 * nrng_c - 1;
-	if (Cnt.VERBOSE == 1) {
-		printf("ic> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
-		printf("    corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
+	if (Cnt.LOG <= LOGDEBUG) {
+		printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
+		printf("   corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
 	}
 
 	//-----------------------------------------------------------------
@@ -336,8 +336,8 @@ void gpu_fprj(float * prjout,
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	if (Cnt.VERBOSE == 1)
-		printf("ic> calculating sinograms via forward projection...");
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("i> calculating sinograms via forward projection...");
 
 	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
 	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
@@ -376,7 +376,7 @@ void gpu_fprj(float * prjout,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
@@ -422,7 +422,7 @@ void rec_fprj(float *d_sino,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//get the axial LUTs in constant memory
 	cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
@@ -438,7 +438,7 @@ void rec_fprj(float *d_sino,
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
-	if (Cnt.VERBOSE == 1) printf("i> subset forward projection (Nprj=%d)... ", Nprj);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> subset forward projection (Nprj=%d)... ", Nprj);
 
 	//============================================================================
 	fprj_drct << <Nprj, NRINGS >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0);
@@ -466,7 +466,7 @@ void rec_fprj(float *d_sino,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

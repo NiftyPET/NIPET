@@ -8,7 +8,6 @@ import sys
 import os
 import scipy.ndimage as ndi
 from subprocess import call
-import logging
 
 from niftypet import nimpa
 
@@ -19,6 +18,20 @@ from niftypet.nipet.img.mmrimg import image_affine
 from niftypet.nipet.lm.mmrhist import mmrhist
 
 integers = (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)
+
+#-------------------------------------------------------------------------------
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+ch.setFormatter(formatter)
+# ch.setLevel(logging.ERROR)
+log.addHandler(ch)
+#-------------------------------------------------------------------------------
+
 
 #------------------------------------------------------------------------------
 def mmrchain(datain,        # all input data in a dictionary
@@ -49,6 +62,7 @@ def mmrchain(datain,        # all input data in a dictionary
 
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
                             # is performed.
+
             pvcreg_tool = 'nifyreg', # the registration tool used in PVC
             store_rois = False, # stores the image of PVC ROIs
                                 # as defined in pvcroi.
@@ -65,13 +79,15 @@ def mmrchain(datain,        # all input data in a dictionary
             store_itr=[],   # store any reconstruction iteration in
                             # the list.  ignored if the list is empty.
             del_img_intrmd=False):
-    log = logging.getLogger(__name__)
+
 
     # decompose all the scanner parameters and constants
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
+    #> set the level of verbose
+    log.setLevel(Cnt['LOG'])
 
     # -------------------------------------------------------------------------
     # FRAMES
@@ -88,12 +104,12 @@ def mmrchain(datain,        # all input data in a dictionary
         #   provided the t0 and t1 are within the acquisition times.
 
         # 2D starting with entry 'fluid' or 'timings'
-        if  isinstance(frames[0], basestring) and (frames[0]=='fluid' or frames[0]=='timings') \
+        if  isinstance(frames[0], str) and (frames[0]=='fluid' or frames[0]=='timings') \
             and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
             t_frms = frames[1:]
 
         # if 2D definitions, starting with entry 'def':
-        elif isinstance(frames[0], basestring) and frames[0]=='def' \
+        elif isinstance(frames[0], str) and frames[0]=='def' \
             and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
@@ -106,9 +122,12 @@ def mmrchain(datain,        # all input data in a dictionary
             t_frms = dfrms[1:]
 
         else:
-            log.error('osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')
+            log.error('osemdyn: frames definitions are not given\
+                in the correct list format: 1D [15,15,30,30,...]\
+                or 2D list [[2,15], [2,30], ...]')
     else:
-        log.error('osemdyn: provided dynamic frames definitions are not in either Python list or nympy array.')
+        log.error('osemdyn: provided dynamic frames definitions\
+                are not in either Python list or numpy array.')
         raise TypeError('Wrong data type for dynamic frames')
     # number of dynamic time frames
     nfrm = len(t_frms)
@@ -140,8 +159,7 @@ def mmrchain(datain,        # all input data in a dictionary
         petimg = os.path.join(petdir, 'single-frame')
         pvcdir = os.path.join(pvcdir, 'single-frame')
     else:
-        log.error('confused!')
-        raise TypeError('Unrecognised time frames!')
+        raise TypeError('Unrecognised/confusing time frames!')
     # create now the folder
     nimpa.create_dir(petimg)
     # create folder
@@ -161,13 +179,13 @@ def mmrchain(datain,        # all input data in a dictionary
     muhd = obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
-    if recmod == -1:
-        if muod['exists'] and muhd['exists']:
-            recmod = 3
-        elif muod['exists'] or muhd['exists']:
-            recmod = 1
-            log.warning('partial mu-map:  scatter correction is switched off.')
-        else:
+    if muod['exists'] and muhd['exists'] and recmod==-1:
+        recmod = 3
+    elif  (muod['exists'] or muhd['exists']) and recmod==-1:
+        recmod = 1
+        log.warning('partial mu-map:  scatter correction is switched off.')
+    else:
+        if recmod==-1:
             recmod = 0
             log.warning('no mu-map provided: scatter and attenuation corrections are switched off.')
     # -------------------------------------------------------------------------
@@ -182,24 +200,27 @@ def mmrchain(datain,        # all input data in a dictionary
 
     # if affine transformation is given the baseline mu-map in NIfTI file or dictionary has to be given
     if not tAffine:
-        log.debug('using the provided mu-map the same way for all frames.')
+        log.info('using the provided mu-map the same way for all frames.')
     else:
         if len(tAffine)!=nfrm:
-            log.error('the number of affine transformations in the list has to be the same as the number of dynamic frames!')
-            raise IndexError('Inconsistent number of frames.')
+            log.error('the number of affine transformations in the list\
+                has to be the same as the number of dynamic frames!')
+            raise ValueError('Inconsistent number of frames.')
         elif not isinstance(tAffine, list):
-            log.error('tAffine has to be a list of either 4x4 numpy arrays of affine transformations or a list of file path strings!')
-            raise IndexError('Expecting a list.')
+            log.error('tAffine has to be a list of either 4x4 numpy arrays\
+                of affine transformations or a list of file path strings!')
+            raise ValueError('Expecting a list.')
         elif not 'fim' in muod:
-            log.error('when tAffine is given, the object mu-map has to be provided either as a dictionary or NIfTI file!')
+            log.error('when tAffine is given, the object mu-map has to be\
+                provided either as a dictionary or NIfTI file!')
             raise NameError('No path to object mu-map.')
 
         # check if all are file path strings to the existing files
-        if all([isinstance(t, basestring) for t in tAffine]):
+        if all([isinstance(t, str) for t in tAffine]):
             if all([os.path.isfile(t) for t in tAffine]):
                 # the internal list of affine transformations
                 faff_frms = tAffine
-                log.debug('using provided paths to affine transformations for each dynamic frame.')
+                log.info('using provided paths to affine transformations for each dynamic frame.')
             else:
                 log.error('not all provided paths are valid!')
                 raise IOError('Wrong paths.')
@@ -212,7 +233,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 fout = os.path.join(petaff, 'affine_frame('+str(i)+').txt')
                 np.savetxt(fout, tAffine[i], fmt='%3.9f')
                 faff_frms.append(fout)
-            log.debug('using provided numpy arrays affine transformations for each dynamic frame.')
+            log.info('using provided numpy arrays affine transformations for each dynamic frame.')
         else:
             raise StandardError('Affine transformations for each dynamic frame could not be established.')
 
@@ -221,7 +242,7 @@ def mmrchain(datain,        # all input data in a dictionary
         # -------------------------------------------------------------------------------------
         if 'fmuref' in muod:
             fmuref = muod['fmuref']
-            log.debug('reusing the reference mu-map from the object mu-map dictionary.')
+            log.info('reusing the reference mu-map from the object mu-map dictionary.')
         else:
             # create folder if doesn't exists
             nimpa.create_dir(fmudir)
@@ -233,7 +254,7 @@ def mmrchain(datain,        # all input data in a dictionary
             im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
             # store ref image
             nimpa.array2nii(im, B, fmuref)
-            log.debug('generated a reference mu-map in' + fmuref)
+            log.info('generated a reference mu-map in:\n{}'.format(fmuref))
         # -------------------------------------------------------------------------------------
 
         output['fmuref'] = fmuref
@@ -266,14 +287,22 @@ def mmrchain(datain,        # all input data in a dictionary
         # --------------
         # check if there is enough prompt data to do a reconstruction
         # --------------
-        log.info('dynamic frame times t0, t1:%r, %r' % (t0, t1))
+        log.info('dynamic frame times t0={}, t1={}:'.format(t0, t1))
         if not histo:
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
-            log.info('using provided histogram')
+            log.info('''\
+                \r------------------------------------------------------
+                \rusing provided histogram
+                \r------------------------------------------------------
+                ''')
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
-            log.warning('the amount of random events is the greatest part of prompt events => omitting reconstruction')
+            log.warning('''
+                \r===========================================================================
+                \ramount of randoms is the greater part of prompts => omitting reconstruction
+                \r===========================================================================
+                ''')
             ifrmP = ifrm+1
             continue
         # --------------------
@@ -291,12 +320,11 @@ def mmrchain(datain,        # all input data in a dictionary
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
-                if log.getEffectiveLevel() > log.DEBUG:
+                if log.getEffectiveLevel() > log.INFO:
                     cmd.append('-voff')
                 call(cmd)
             else:
-                log.error('path to the executable for resampling is incorrect!')
-                raise IOError('Incorrect NiftyReg (resampling) executable.')
+                raise IOError('Incorrect path to NiftyReg (resampling) executable.')
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
             muo = muodct['im']
@@ -331,13 +359,17 @@ def mmrchain(datain,        # all input data in a dictionary
             dynrsn[ifrm,:,:,:] = recimg.rsn
             dynmsk[ifrm,:,:,:] = recimg.amsk
 
-
         if store_img_intrmd: output['fpeti'].append(recimg.fpet)
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
     if ret_sinos and itr>1 and recmod>2:
-        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn, 'rsino':dynrsn, 'amask':dynmsk}
+        output['sinos'] = {
+            'psino':dynpsn,
+            'ssino':dynssn,
+            'rsino':dynrsn,
+            'amask':dynmsk}
+
 
     # ----------------------------------------------------------------------
     # trim the PET image
@@ -360,7 +392,7 @@ def mmrchain(datain,        # all input data in a dictionary
             fcomment=fcomment,
             store_img_intrmd=store_img_intrmd,
             memlim=trim_memlim,
-            verbose=log.getEffectiveLevel() < logging.INFO
+            verbose=log.getEffectiveLevel()
         )
 
         output.update({'trimmed': { 'im':petu['im'],
@@ -374,8 +406,7 @@ def mmrchain(datain,        # all input data in a dictionary
     #run PVC if requested and required input given
     if pvcroi:
         if not os.path.isfile(datain['T1lbl']):
-            log.error('no label image from T1 parcellations and/or ROI definitions!')
-            raise StandardError('No ROIs')
+            raise Exception('No labels and/or ROIs image definitions found!')
         else:
             # get the PSF kernel for PVC
             if not psfkernel:
@@ -424,11 +455,10 @@ def mmrchain(datain,        # all input data in a dictionary
                 dynpvc[i,:,:,:] = petpvc_dic['im']
             else:
                 dynpvc = petpvc_dic['im']
-
             fpvc.append(petpvc_dic['fpet'])
-
+            
             if store_rois: froi.append(petpvc_dic['froi'])
-
+        
         #> update output dictionary
         output.update({'impvc':dynpvc})
         if store_img_intrmd: output.update({'fpvc':fpvc})

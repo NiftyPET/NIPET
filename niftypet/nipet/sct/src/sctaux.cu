@@ -23,7 +23,7 @@ void getMemUse(Cnst Cnt) {
 	double free_db = (double)free_mem;
 	double total_db = (double)total_mem;
 	double used_db = total_db - free_db;
-	if (Cnt.VERBOSE == 1) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
+	if (Cnt.LOG <= LOGDEBUG) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
 }
 //************************************************************
 
@@ -65,7 +65,7 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
 		h_scrcdefRng[2 * ir] = (float)isrng[ir];
 		h_scrcdefRng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.VERBOSE == 1) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)h_scrcdefRng[2 * ir], h_scrcdefRng[2 * ir + 1]);
+		if (Cnt.LOG <= LOGDEBUG) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)h_scrcdefRng[2 * ir], h_scrcdefRng[2 * ir + 1]);
 	}
 	HANDLE_ERROR(cudaMalloc(&d_scrsdef.rng, 2 * Cnt.NSRNG * sizeof(float)));
 	HANDLE_ERROR(cudaMemcpy(d_scrsdef.rng, h_scrcdefRng, 2 * Cnt.NSRNG * sizeof(float), cudaMemcpyHostToDevice));
@@ -77,7 +77,7 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 		h_scrsdefCrs[3 * sc] = scrs[3 * sc];
 		h_scrsdefCrs[3 * sc + 1] = scrs[3 * sc + 1];
 		h_scrsdefCrs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.VERBOSE == 1) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
+		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
 	}
 	HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * iscrs * sizeof(float)));
 	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, h_scrsdefCrs, 3 * iscrs * sizeof(float), cudaMemcpyHostToDevice));
@@ -89,7 +89,7 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
 		d_scrsdef.rng[2 * ir] = (float)isrng[ir];
 		d_scrsdef.rng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.VERBOSE == 1) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)d_scrsdef.rng[2 * ir], d_scrsdef.rng[2 * ir + 1]);
+		if (Cnt.LOG <= LOGDEBUG) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)d_scrsdef.rng[2 * ir], d_scrsdef.rng[2 * ir + 1]);
 	}
 
 	//transaxial crs to structure
@@ -98,7 +98,7 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 		d_scrsdef.crs[3 * sc] = scrs[3 * sc];
 		d_scrsdef.crs[3 * sc + 1] = scrs[3 * sc + 1];
 		d_scrsdef.crs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.VERBOSE == 1) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
+		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
 	}
 #endif
 
@@ -307,7 +307,7 @@ snLUT get_scrs2sn(int nscrs, float *scrs, Cnst Cnt) {
 	lut.sct2sn = d_sct2sn;
 	lut.nsval = cnt;
 
-	if (Cnt.VERBOSE == 1) printf("i> number of sino bins used in scatter sinogram: %d\n\n", cnt);
+	if (Cnt.LOG <= LOGINFO) printf("i> number of sino bins used in scatter sinogram: %d\n\n", cnt);
 
 
 	return lut;
@@ -487,7 +487,7 @@ float * srslt2sino(float *d_srslt,
 		HANDLE_ERROR(cudaMemset(d_scts1, 0, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(float)));
 
 
-		if (Cnt.VERBOSE == 1) printf("i> 3D scatter results into span-1 pre-sino for TOF bin %d...", i);
+		if (Cnt.LOG <= LOGINFO) printf("i> 3D scatter results into span-1 pre-sino for TOF bin %d...", i);
 		cudaEvent_t start, stop;
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
@@ -511,11 +511,11 @@ float * srslt2sino(float *d_srslt,
 		cudaEventElapsedTime(&elapsedTime, start, stop);
 		cudaEventDestroy(start);
 		cudaEventDestroy(stop);
-		if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 1e-3*elapsedTime);
+		if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3*elapsedTime);
 
 
 
-		if (Cnt.VERBOSE == 1) printf("i> 3D scatter axial interpolation...");
+		if (Cnt.LOG <= LOGINFO) printf("i> 3D scatter axial interpolation...");
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
 		cudaEventRecord(start, 0);
@@ -543,7 +543,7 @@ float * srslt2sino(float *d_srslt,
 		cudaEventElapsedTime(&elapsedTime, start, stop);
 		cudaEventDestroy(start);
 		cudaEventDestroy(stop);
-		if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 1e-3*elapsedTime);
+		if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3*elapsedTime);
 
 	}
 
@@ -565,7 +565,7 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt)
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	iMSK msk;
 	int nvx = 0;
@@ -623,7 +623,7 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt)
 
 #endif
 
-	if (Cnt.VERBOSE == 1) printf("i> number of voxel values greater than %3.2f is %d out of %d (ratio: %3.2f)\n", thrshld, nvx, SSE_IMX*SSE_IMY*SSE_IMZ, nvx / (float)(SSE_IMX*SSE_IMY*SSE_IMZ));
+	if (Cnt.LOG <= LOGINFO) printf("i> number of voxel values greater than %3.2f is %d out of %d (ratio: %3.2f)\n", thrshld, nvx, SSE_IMX*SSE_IMY*SSE_IMZ, nvx / (float)(SSE_IMX*SSE_IMY*SSE_IMZ));
 	msk.nvx = nvx;
 	msk.i2v = d_i2v;
 	msk.v2i = d_v2i;
@@ -639,7 +639,7 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt)
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	int nvx = 0;
 	for (int i = 0; i<(SS_IMX*SS_IMY*SS_IMZ); i++) {
@@ -693,7 +693,7 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt)
 	}
 
 #endif
-	if (Cnt.VERBOSE == 1) printf("i> number of voxels within the mu-mask is %d out of %d (ratio: %3.2f)\n", nvx, SS_IMX*SS_IMY*SS_IMZ, nvx / (float)(SS_IMX*SS_IMY*SS_IMZ));
+	if (Cnt.LOG <= LOGINFO) printf("i> number of voxels within the mu-mask is %d out of %d (ratio: %3.2f)\n", nvx, SS_IMX*SS_IMY*SS_IMZ, nvx / (float)(SS_IMX*SS_IMY*SS_IMZ));
 	iMSK mlut;
 	mlut.nvx = nvx;
 	mlut.i2v = d_i2v;

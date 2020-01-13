@@ -197,7 +197,7 @@ void gpu_randoms(float *rsn,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- the sino for estimated random events
 	float * d_rsino;
@@ -326,7 +326,7 @@ void gpu_randoms(float *rsn,
 
 
 	//=============================================<<<<<<<<
-	if (Cnt.VERBOSE == 1) printf("\ni> estimating random events (variance reduction)... ");
+	if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events (variance reduction)... ");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -370,7 +370,7 @@ void gpu_randoms(float *rsn,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf(" DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001*elapsedTime);
 	//=============================================<<<<<<<<
 
 
@@ -513,7 +513,7 @@ void p_randoms(float *rsn,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 	
 	//--- the sino for estimated random events
 	float * d_rsino;
@@ -654,7 +654,7 @@ void p_randoms(float *rsn,
 
 
 	//=============================================<<<<<<<<
-	if (Cnt.VERBOSE == 1) printf("\ni> estimating random events from prompts... ");
+	if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events from prompts... ");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -698,7 +698,7 @@ void p_randoms(float *rsn,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf(" DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001*elapsedTime);
 	//=============================================<<<<<<<<
 
 

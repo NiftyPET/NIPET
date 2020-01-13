@@ -7,17 +7,9 @@ find_package(CUDA REQUIRED)
 find_package(PythonInterp)
 find_package(PythonLibs)
 
-# find_library(PYTHON_LIBRARIES
-#             NAMES python27 libpython2.7.so
-#             PATHS ${PYTHON_PREFIX_PATH}/libs/
-#             ${PYTHON_PREFIX_PATH}/lib/
-#             )
-# set(PYTHON_INCLUDE_DIRS)
-# set(PYTHON_LIBRARIES)
 set(PYTHON_PREFIX_PATH)
 
 
- 
 file(GLOB_RECURSE SRC "*.cu")
 file(GLOB_RECURSE HDR "*.h")
 

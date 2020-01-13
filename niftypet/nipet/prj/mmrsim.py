@@ -6,16 +6,29 @@ import numpy as np
 import logging
 
 from niftypet import nimpa
-# from niftypet.nipet.prj import mmrprj
 
-import mmrprj
-import mmrrec
-import petprj
+from . import mmrprj
+from . import mmrrec
+from . import petprj
 
 from niftypet.nipet import mmraux
 from niftypet.nipet.img import mmrimg
 
 from tqdm.auto import trange
+
+
+#-------------------------------------------------------------------------------
+import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
+
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+ch.setFormatter(formatter)
+# ch.setLevel(logging.ERROR)
+log.addHandler(ch)
+#-------------------------------------------------------------------------------
 
 
 def simulate_sino(
@@ -38,7 +51,6 @@ def simulate_sino(
     mu_input  : if True, the values are representative of a mu-map in [1/cm],
         otherwise it represents the CT in [HU].
     '''
-    log = logging.getLogger(__name__)
 
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
@@ -165,7 +177,7 @@ def simulate_recon(
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
             # pick the right slice index (slice_idx) if not given or mistaken
             if slice_idx<0:
-                print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
+                log.warning('the axial index <slice_idx> is chosen to be in the middle of axial FOV.')
                 slice_idx = ctim.shape[0]/2
             if slice_idx>=ctim.shape[0]:
                 raise ValueError('The axial index for 2D slice selection is outside the image.')

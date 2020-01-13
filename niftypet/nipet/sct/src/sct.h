@@ -13,7 +13,8 @@ typedef struct {
 	char	* xsxu; //xs>xu for scatter and unscattered crystals
 }scatOUT;
 
-scatOUT prob_scatt(scatOUT sctout,
+scatOUT prob_scatt(
+	scatOUT sctout,
 	float *KNlut,
 	char* mumsk,
 	IMflt mu,

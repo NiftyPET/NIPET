@@ -9,6 +9,10 @@ from math import pi
 import platform
 import os
 
+#> logging represented by an integer: 10, 20, 30... for DEBUG, INFO, WARNING...
+#> as it is in Python package logging, which is also used here.
+LOG = 20
+
 # Hardware (CT-based) mu-maps, which come with the mMR scanner.
 # The names may be different
 hrdwr_mu = [   
@@ -284,6 +288,9 @@ def get_mmr_constants():
     '''
 
     Cnt = {
+        'LOG':LOG,
+        'VERBOSE':False,
+        
         'ISOTOPE':'F18',
         'DCYCRR':DCYCRR,
         'ALPHA':ALPHA,
@@ -363,8 +370,6 @@ def get_mmr_constants():
 
         'BTP':0, #1:non parametric bootstrap, 2: parametric bootstrap (recommended)
         'BTPRT':1.0, # Ratio of bootstrapped/original events (enables downsampling) 
-
-        'VERBOSE':False,
 
         'SCTSCLEM':SCTSCLEM,
         'SCTSCLMU':SCTSCLMU,

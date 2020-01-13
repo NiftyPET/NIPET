@@ -5,12 +5,25 @@ __copyright__   = "Copyright 2018"
 import numpy as np
 import sys
 import os
+
+from . import petprj
+from ..img import mmrimg
+from .. import mmraux
+
+#-------------------------------------------------------------------------------
 import logging
+log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
-import petprj
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+ch.setFormatter(formatter)
+# ch.setLevel(logging.ERROR)
+log.addHandler(ch)
+#-------------------------------------------------------------------------------
 
-from niftypet.nipet.img import mmrimg
-from niftypet.nipet import mmraux
+
 
 #=========================================================================
 # forward projector
@@ -30,12 +43,14 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
     '''
-    log = logging.getLogger(__name__)
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    #> set the level of verbose
+    log.setLevel(Cnt['LOG'])
 
     #>choose between attenuation forward projection (mu-map is the input)
     #>or the default for emission image forward projection
@@ -105,6 +120,9 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    #> set the level of verbose
+    log.setLevel(Cnt['LOG'])
 
     if Cnt['SPN']==1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)

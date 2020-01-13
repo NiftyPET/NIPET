@@ -47,6 +47,7 @@ __global__ void setup_rand(curandStatePhilox4_32_10_t *state)
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 	curand_init((unsigned long long)clock(), idx, 0, &state[idx]);
 }
+
 //=====================================================================
 __global__ void hst(int *lm,
 	unsigned int *ssrb,
@@ -80,10 +81,10 @@ __global__ void hst(int *lm,
 	//stream index
 	int strmi = off / ELECHNK;
 
-	//index for botostrap random numbers state
+	//index for bootstrap random numbers state
 	int idb = (BTHREADS*strmi + blockIdx.x)*blockDim.x + threadIdx.x;
 
-	//random number generator for bootrapping when requested
+	//random number generator for bootstrapping when requested
 	curandStatePhilox4_32_10_t locState = state[idb];
 	//weight for number of events, only for parametric bootstrap it can be different than 1. 
 	char Nevnt = 1;
@@ -108,7 +109,7 @@ __global__ void hst(int *lm,
 	short si_ssrb = -1;  // ssrb sino index
 	int tot_bins = -1;
 	int aw = -1;
-	int a = -1, w = -1; //angle and projection bin indeces
+	int a = -1, w = -1; //angle and projection bin indexes
 	bool a0, a126;
 
 	int bi; //bootstrap index
@@ -290,12 +291,18 @@ __global__ void hst(int *lm,
 
 }
 
+
+
 //================================================================================
 //***** general variables used for streams
 int ichnk;   // indicator of how many chunks have been processed in the GPU.
 int nchnkrd; // indicator of how many chunks have been read from disk.
 int *lmbuff;     // data buffer
 int dataready[NSTREAMS];
+
+char LOG; // logging in CUDA stram callback
+
+
 
 //================================================================================
 curandStatePhilox4_32_10_t* setup_curand() {
@@ -308,13 +315,19 @@ curandStatePhilox4_32_10_t* setup_curand() {
 	//printf("DONE.\n");
 	return d_prng_states;
 }
+
+
 //================================================================================================
 //***** Stream Callback *****
 void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 {
 	int i = (int)(size_t)data;
-	printf("   +> stream[%d]:   ", i);
-	printf("%d chunks of data are DONE.  ", ichnk + 1);
+
+	if (LOG <= LOGINFO){
+		printf("   +> stream[%d]:   ", i);
+		printf("%d chunks of data are DONE.  ", ichnk + 1);
+	}
+
 	ichnk += 1;
 	if (nchnkrd<lmprop.nchnk) {
 #if RD2MEM
@@ -322,7 +335,7 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 			lmbuff[i*ELECHNK + l] = lm[lmprop.atag[nchnkrd] + l];
 #else
 		FILE *fr = fopen(lmprop.fname, "rb");
-		if (fr == NULL) { fprintf(stderr, "Can't open input file!\n"); exit(1); }
+		if (fr == NULL) { fprintf(stderr, "e> Can't open input file!\n"); exit(1); }
 #ifdef __linux__
 		fseek(fr, 4 * lmprop.atag[nchnkrd], SEEK_SET);//<------------------------------<<<< IMPORTANT!!!
 #endif
@@ -332,16 +345,16 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 		size_t r = fread(&lmbuff[i*ELECHNK], 4, lmprop.ele4chnk[nchnkrd], fr);
 		if (r != lmprop.ele4chnk[nchnkrd]) {
 			printf("ele4chnk = %d, r = %d\n", lmprop.ele4chnk[nchnkrd], r);
-			fputs("Reading error (CUDART callback)\n", stderr); fclose(fr); exit(3);
+			fputs("e> Reading error (CUDART callback)\n", stderr); fclose(fr); exit(3);
 		}
 		fclose(fr);
 #endif
-		printf("<> next chunk (%d of %d) is read.\n", nchnkrd + 1, lmprop.nchnk);
+		if (LOG <= LOGINFO) printf("<> next chunk (%d of %d) is read.\n", nchnkrd + 1, lmprop.nchnk);
 		nchnkrd += 1;
 		dataready[i] = 1; //set a flag: stream[i] is free now and the new data is ready.
 	}
 	else {
-		printf("\n");
+		if (LOG <= LOGINFO) printf("\n");
 	}
 }
 
@@ -362,6 +375,9 @@ void gpu_hst(unsigned int *d_ssrb,
 	const Cnst Cnt)
 {
 
+	//> for logging in CUDA stream callback function 
+	LOG = Cnt.LOG;
+
 	if (nhNSN1 != Cnt.NSN1) {
 		printf("e> defined number of sinos for constant memory, nhNSN1 = %d, does not match the one given in the structure of constants %d.  please, correct that.\n", nhNSN1, Cnt.NSN1);
 		exit(1);
@@ -370,11 +386,11 @@ void gpu_hst(unsigned int *d_ssrb,
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- bootstrap  and init the GPU randoms
 	if (Cnt.BTP>0) {
-		if (Cnt.VERBOSE == 1) {
+		if (Cnt.LOG <= LOGINFO) {
 			printf("\ni> using GPU bootstrap mode: %d\n", Cnt.BTP);
 			printf("   > bootstrap with output ratio of: %f\n", Cnt.BTPRT);
 		}
@@ -430,12 +446,12 @@ void gpu_hst(unsigned int *d_ssrb,
 	HANDLE_ERROR(cudaMallocHost((void**)&lmbuff, NSTREAMS * ELECHNK * sizeof(int)));      // host pinned
 	HANDLE_ERROR(cudaMalloc((void**)&d_lmbuff, NSTREAMS * ELECHNK * sizeof(int))); // device
 
-	if (Cnt.VERBOSE == 1)  printf("\nic> creating %d CUDA streams... ", MIN(NSTREAMS, lmprop.nchnk));
+	if (Cnt.LOG <= LOGINFO)  printf("\ni> creating %d CUDA streams... ", MIN(NSTREAMS, lmprop.nchnk));
 	cudaStream_t *stream = new cudaStream_t[MIN(NSTREAMS, lmprop.nchnk)];
 	//cudaStream_t stream[MIN(NSTREAMS,lmprop.nchnk)];
 	for (int i = 0; i < MIN(NSTREAMS, lmprop.nchnk); ++i)
 		HANDLE_ERROR(cudaStreamCreate(&stream[i]));
-	if (Cnt.VERBOSE == 1)  printf("DONE.\n");
+	if (Cnt.LOG <= LOGINFO)  printf("DONE.\n");
 
 
 
@@ -448,7 +464,7 @@ void gpu_hst(unsigned int *d_ssrb,
 	nchnkrd = 0; // indicator of how many chunks have been read from disk.
 
 
-	if (Cnt.VERBOSE == 1) printf("\ni> reading the first chunks of LM data from:\n   %s  ", lmprop.fname);
+	if (Cnt.LOG <= LOGINFO) printf("\ni> reading the first chunks of LM data from:\n   %s  ", lmprop.fname);
 	fr = fopen(lmprop.fname, "rb");
 	if (fr == NULL) { fprintf(stderr, "Can't open input file!\n"); exit(1); }
 #ifdef __linux__
@@ -457,21 +473,19 @@ void gpu_hst(unsigned int *d_ssrb,
 #ifdef WIN32
 	_fseeki64(fr, 4 * lmprop.atag[nchnkrd], SEEK_SET);//<------------------------------<<<< IMPORTANT!!!
 #endif
-	if (Cnt.VERBOSE == 1) printf("(FSEEK to adrress: %d)...", lmprop.atag[nchnkrd]);
+	if (Cnt.LOG <= LOGINFO) printf("(i> FSEEK to adrress: %d)...", lmprop.atag[nchnkrd]);
 	for (int i = 0; i<MIN(NSTREAMS, lmprop.nchnk); i++) {
 		r = fread(&lmbuff[i*ELECHNK], 4, lmprop.ele4chnk[nchnkrd], fr);//i*ELECHNK
 		if (r != lmprop.ele4chnk[nchnkrd]) { fputs("Reading Error(s)\n", stderr); fclose(fr); exit(3); } //printf("r=%d, ele=%d\n",(int)r,lmprop.ele4chnk[i]);
 		dataready[i] = 1; // stream[i] can start processing the data
-#if EX_PRINT_INFO
-		printf("\nele4chnk[%d]=%d", nchnkrd, lmprop.ele4chnk[nchnkrd]);
-#endif
+		if (Cnt.LOG <= LOGDEBUG) printf("\nele4chnk[%d]=%d", nchnkrd, lmprop.ele4chnk[nchnkrd]);
 		nchnkrd += 1;
 	}
 	fclose(fr);
-	if (Cnt.VERBOSE == 1) printf("DONE.\n");
+	if (Cnt.LOG <= LOGINFO) printf("DONE.\n");
 
+	if (Cnt.LOG <= LOGINFO) printf("\n+> histogramming the LM data:\n");
 
-	printf("\n+> histogramming the LM data:\n");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -487,9 +501,7 @@ void gpu_hst(unsigned int *d_ssrb,
 				if ((cudaStreamQuery(stream[i]) == cudaSuccess) && (dataready[i] == 1)) {
 					busy = 0;
 					si = i;
-#if EX_PRINT_INFO
-					if (Cnt.VERBOSE == 1) printf("   i> stream[%d] was free for %d-th chunk.\n", si, n + 1);
-#endif
+					if (Cnt.LOG <= LOGDEBUG) printf("   i> stream[%d] was free for %d-th chunk.\n", si, n + 1);
 					break;
 				}
 				//else{printf("\n  >> stream %d was busy at %d-th chunk. \n", i, n);}
@@ -506,10 +518,7 @@ void gpu_hst(unsigned int *d_ssrb,
 				lmprop.toff, lmprop.frmoff, lmprop.nitag, lmprop.span, lmprop.nfrm, Cnt.BTP, Cnt.BTPRT,
 				tstart, tstop, d_t2dfrm, d_prng_states, poisson_hst);
 		gpuErrchk(cudaPeekAtLastError());
-
-#if EX_PRINT_INFO    //+++ for debuging
-		if (Cnt.VERBOSE == 1) printf("chunk[%d], stream[%d], ele4thrd[%d], ele4chnk[%d]\n", n, si, lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
-#endif
+		if (Cnt.LOG <= LOGDEBUG) printf("chunk[%d], stream[%d], ele4thrd[%d], ele4chnk[%d]\n", n, si, lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
 		cudaStreamAddCallback(stream[si], MyCallback, (void*)(size_t)si, 0);
 
 	}
@@ -521,7 +530,7 @@ void gpu_hst(unsigned int *d_ssrb,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	printf("+> histogramming DONE in %fs.\n\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGDEBUG) printf("+> histogramming DONE in %fs.\n\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

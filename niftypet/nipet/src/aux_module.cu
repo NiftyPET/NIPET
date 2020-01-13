@@ -1,12 +1,14 @@
-/*------------------------------------------------------------------------
+/*----------------------------------------------------------------------
 CUDA C extension for Python
 This extension module provides auxiliary functionality for list-mode data
 processing, generating look-up tables for image reconstruction.
 
 author: Pawel Markiewicz
 Copyrights: 2018
-------------------------------------------------------------------------*/
+----------------------------------------------------------------------*/
 
+#define PY_SSIZE_T_CLEAN
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION //NPY_API_VERSION
 
 #include <Python.h>
 #include <stdlib.h>
@@ -17,25 +19,7 @@ Copyrights: 2018
 #include "auxmath.h"
 
 
-//=== PYTHON STUFF ===
-
-//--- Docstrings
-static char module_docstring[] =
-"Auxilary routines for the mMR.";
-static char norm_docstring[] =
-"Creates norm 3D sinograms from components provided in a file.";
-static char txLUTs_docstring[] =
-"transaxial (2D) look up tables.";
-static char s11lut_docstring[] =
-"span-1 to span-11 look up table.";
-static char sne7_docstring[] =
-"GPU span-11 results to span-11 in Siemens format.";
-static char sn11_docstring[] =
-"Siemens span-11 sino to span-11 GPU format.";
-
-static char varon_docstring[] =
-"Calculate vector variance online.";
-//---
+//=== START PYTHON INIT ===
 
 //--- Available functions
 static PyObject *mmr_norm(PyObject *self, PyObject *args);
@@ -44,30 +28,58 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args);
 static PyObject *mmr_pgaps(PyObject *self, PyObject *args);
 static PyObject *mmr_rgaps(PyObject *self, PyObject *args);
 static PyObject *aux_varon(PyObject *self, PyObject *args);
-
-/* Module specification */
-static PyMethodDef module_methods[] = {
-	{ "norm",   mmr_norm,   METH_VARARGS, norm_docstring },
-	{ "txlut",  mmr_txlut,  METH_VARARGS, txLUTs_docstring },
-	{ "s1s11",  mmr_span11LUT, METH_VARARGS, s11lut_docstring },
-	{ "pgaps",  mmr_pgaps,  METH_VARARGS, sne7_docstring },
-	{ "rgaps",  mmr_rgaps,  METH_VARARGS, sn11_docstring },
-	{ "varon",  aux_varon,  METH_VARARGS, varon_docstring },
-
-	{ NULL, NULL, 0, NULL }
-};
 //---
 
-//--- Initialize the module
-PyMODINIT_FUNC initmmr_auxe(void)  //it HAS to be init______ and then the name of the shared lib.
-{
-	PyObject *m = Py_InitModule3("mmr_auxe", module_methods, module_docstring);
-	if (m == NULL)
-		return;
 
-	/* Load NumPy functionality. */
+//> Module Method Table
+static PyMethodDef mmr_auxe_methods[] = {
+	{"norm",   mmr_norm, 		METH_VARARGS,
+	 "Create 3D normalisation sinograms from provided normalisation components."},
+	{"txlut",  mmr_txlut,   	METH_VARARGS,
+	 "Create transaxial look up tables."},
+	{"s1s11",  mmr_span11LUT,	METH_VARARGS,
+	 "Create span-1 to span-11 look up table."},
+	{"pgaps",  mmr_pgaps,		METH_VARARGS,
+	 "Create span-11 Siemens compatible sinograms by inserting gaps into the GPU-optimised sinograms in span-11."},
+	{"rgaps",  mmr_rgaps,  METH_VARARGS,
+	 "Create span-11 GPU-optimised sinograms by removing the gaps in Siemens-compatible sinograms in span-11"	},
+	{"varon",  aux_varon,  METH_VARARGS,
+	 "Calculate variance online for the provided vector."},
+	{NULL, NULL, 0, NULL} // Sentinel
+};
+
+
+//> Module Definition Structure
+static struct PyModuleDef mmr_auxe_module = {
+	PyModuleDef_HEAD_INIT,
+
+	//> name of module
+	"mmr_auxe",
+
+	//> module documentation, may be NULL
+	"Initialisation and basic processing routines for the Siemens Biograph mMR.",
+
+	//> the module keeps state in global variables.
+	-1,
+
+	mmr_auxe_methods
+};
+
+
+//> Initialization function
+PyMODINIT_FUNC PyInit_mmr_auxe(void) {
+
+	Py_Initialize();
+
+	//> load NumPy functionality
 	import_array();
+
+	return PyModule_Create(&mmr_auxe_module);
 }
+
+//=== END PYTHON INIT ===
+
+
 //==============================================================================
 
 
@@ -92,15 +104,15 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	axialLUT axLUT;
 
 	//Output norm sino
-	PyObject * o_sino;
+	PyObject * o_sino=NULL;
 	// normalisation component dictionary.
 	PyObject * o_norm_cmp;
 	// axial LUT dicionary. contains such LUTs: li2rno, li2sn, li2nos.
 	PyObject * o_axLUT;
 	// 2D sino index LUT (dead bisn are out).
-	PyObject * o_aw2ali;
+	PyObject * o_aw2ali=NULL;
 	// singles buckets for dead time correction
-	PyObject * o_bckts;
+	PyObject * o_bckts=NULL;
 
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	/* Parse the input tuple */
@@ -128,38 +140,57 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	PyObject* pd_sn1sn11no = PyDict_GetItemString(o_axLUT, "sn1_sn11no");
 
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyInt_AsLong(pd_span);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.SPN = (int)PyLong_AsLong(pd_span);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	//get the output sino
-	PyObject* p_sino = PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sino = NULL;
+	p_sino = (PyArrayObject *)PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 
 	//-- get the arrays from the dictionaries
 	//norm components
-	PyObject *p_geo = PyArray_FROM_OTF(pd_geo, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_cinf = PyArray_FROM_OTF(pd_cinf, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_ceff = PyArray_FROM_OTF(pd_ceff, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_axe1 = PyArray_FROM_OTF(pd_axe1, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_dtp = PyArray_FROM_OTF(pd_dtp, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_dtnp = PyArray_FROM_OTF(pd_dtnp, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_dtc = PyArray_FROM_OTF(pd_dtc, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_axe2 = PyArray_FROM_OTF(pd_axe2, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_axf1 = PyArray_FROM_OTF(pd_axf1, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_geo = NULL;
+	p_geo = (PyArrayObject *)PyArray_FROM_OTF(pd_geo, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_cinf = NULL;
+	p_cinf = (PyArrayObject *)PyArray_FROM_OTF(pd_cinf, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_ceff = NULL;
+	p_ceff = (PyArrayObject *)PyArray_FROM_OTF(pd_ceff, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_axe1 = NULL;
+	p_axe1 = (PyArrayObject *)PyArray_FROM_OTF(pd_axe1, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_dtp = NULL;
+	p_dtp = (PyArrayObject *)PyArray_FROM_OTF(pd_dtp, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_dtnp = NULL;
+	p_dtnp = (PyArrayObject *)PyArray_FROM_OTF(pd_dtnp, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_dtc = NULL;
+	p_dtc = (PyArrayObject *)PyArray_FROM_OTF(pd_dtc, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_axe2 = NULL;
+	p_axe2 = (PyArrayObject *)PyArray_FROM_OTF(pd_axe2, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_axf1 = NULL;
+	p_axf1 = (PyArrayObject *)PyArray_FROM_OTF(pd_axf1, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	
 	//then axLUTs
-	PyObject *p_li2rno = PyArray_FROM_OTF(pd_li2rno, NPY_INT32, NPY_IN_ARRAY);
-	PyObject *p_li2sn = PyArray_FROM_OTF(pd_li2sn, NPY_INT32, NPY_IN_ARRAY);
-	PyObject *p_li2nos = PyArray_FROM_OTF(pd_li2nos, NPY_INT32, NPY_IN_ARRAY);
-	PyObject *p_sn1sn11 = PyArray_FROM_OTF(pd_sn1sn11, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_sn1rno = PyArray_FROM_OTF(pd_sn1rno, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_sn1sn11no = PyArray_FROM_OTF(pd_sn1sn11no, NPY_INT8, NPY_IN_ARRAY);
+	PyArrayObject *p_li2rno = NULL;
+	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_li2sn = NULL;
+	p_li2sn = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_li2nos = NULL;
+	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_sn1sn11 = NULL;
+	p_sn1sn11 = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1sn11, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_sn1rno = NULL;
+	p_sn1rno = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1rno, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_sn1sn11no = NULL;
+	p_sn1sn11no = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1sn11no, NPY_INT8, NPY_ARRAY_IN_ARRAY);
 
 	//2D sino index LUT:
-	PyObject *p_aw2ali = PyArray_FROM_OTF(o_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_aw2ali = NULL;
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(o_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 	// single bucktes:
-	PyObject *p_bckts = PyArray_FROM_OTF(o_bckts, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_bckts = NULL;
+	p_bckts = (PyArrayObject *)PyArray_FROM_OTF(o_bckts, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 	//--
 
 	/* If that didn't work, throw an exception. */
@@ -189,7 +220,9 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 		Py_XDECREF(p_aw2ali);
 		//singles buckets
 		Py_XDECREF(p_bckts);
+
 		//output sino
+		PyArray_DiscardWritebackIfCopy(p_sino);
 		Py_XDECREF(p_sino);
 		return NULL;
 	}
@@ -267,7 +300,9 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	Py_DECREF(p_aw2ali);
 	//singles buckets
 	Py_DECREF(p_bckts);
+
 	//output sino
+	PyArray_ResolveWritebackIfCopy(p_sino);
 	Py_DECREF(p_sino);
 
 	Py_INCREF(Py_None);
@@ -302,31 +337,29 @@ static PyObject *mmr_txlut(PyObject *self, PyObject *args) {
 
 	/* Interpret the input objects as... */
 	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
-	Cnt.A = (int)PyInt_AsLong(pd_A);
+	Cnt.A = (int)PyLong_AsLong(pd_A);
 	PyObject* pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");
-	Cnt.W = (int)PyInt_AsLong(pd_W);
+	Cnt.W = (int)PyLong_AsLong(pd_W);
 	PyObject* pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
-	Cnt.NSN1 = (int)PyInt_AS_LONG(pd_NSN1);
+	Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
 	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyInt_AS_LONG(pd_NSN11);
+	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
 	PyObject* pd_NRNG = PyDict_GetItemString(o_mmrcnst, "NRNG");
-	Cnt.NRNG = (int)PyInt_AS_LONG(pd_NRNG);
+	Cnt.NRNG = (int)PyLong_AsLong(pd_NRNG);
 	PyObject* pd_NCRS = PyDict_GetItemString(o_mmrcnst, "NCRS");
-	Cnt.NCRS = (int)PyInt_AS_LONG(pd_NCRS);
+	Cnt.NCRS = (int)PyLong_AsLong(pd_NCRS);
 	PyObject* pd_NCRSR = PyDict_GetItemString(o_mmrcnst, "NCRSR");
-	Cnt.NCRSR = (int)PyInt_AS_LONG(pd_NCRSR);
+	Cnt.NCRSR = (int)PyLong_AsLong(pd_NCRSR);
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyInt_AS_LONG(pd_span);
+	Cnt.SPN = (int)PyLong_AsLong(pd_span);
 	PyObject* pd_tgap = PyDict_GetItemString(o_mmrcnst, "TGAP");
-	Cnt.TGAP = (int)PyInt_AS_LONG(pd_tgap);
+	Cnt.TGAP = (int)PyLong_AsLong(pd_tgap);
 	PyObject* pd_offgap = PyDict_GetItemString(o_mmrcnst, "OFFGAP");
-	Cnt.OFFGAP = (int)PyInt_AS_LONG(pd_offgap);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.OFFGAP = (int)PyLong_AsLong(pd_offgap);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 
 	txluts = get_txlut(Cnt);
-
-
 
 	//---GET results out into Python tuples
 	//sino to crystals (3 LUTs)
@@ -390,6 +423,7 @@ static PyObject *mmr_txlut(PyObject *self, PyObject *args) {
 	PyTuple_SetItem(tuple_out, 6, PyArray_Return(o_msino));
 
 	return tuple_out;
+
 }
 
 
@@ -422,36 +456,41 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 
 	/* Interpret the input objects as... */
 	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyInt_AS_LONG(pd_NSN11);
+	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
 	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
-	Cnt.A = (int)PyInt_AsLong(pd_A);
+	Cnt.A = (int)PyLong_AsLong(pd_A);
 	PyObject* pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");
-	Cnt.W = (int)PyInt_AsLong(pd_W);
+	Cnt.W = (int)PyLong_AsLong(pd_W);
 	PyObject* pd_SPN = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyInt_AS_LONG(pd_SPN);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.SPN = (int)PyLong_AsLong(pd_SPN);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	PyObject* pd_rngstrt = PyDict_GetItemString(o_mmrcnst, "RNG_STRT");
 	PyObject* pd_rngend = PyDict_GetItemString(o_mmrcnst, "RNG_END");
-	Cnt.RNG_STRT = (char)PyInt_AS_LONG(pd_rngstrt);
-	Cnt.RNG_END = (char)PyInt_AS_LONG(pd_rngend);
+	Cnt.RNG_STRT = (char)PyLong_AsLong(pd_rngstrt);
+	Cnt.RNG_END = (char)PyLong_AsLong(pd_rngend);
 
 	//GPU 2D linear sino index into Siemens sino index LUT
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//GPU input sino and the above 2D LUT
-	PyObject *p_sng = PyArray_FROM_OTF(o_sng, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_aw2ali = PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sng = NULL;
+	p_sng = (PyArrayObject *)PyArray_FROM_OTF(o_sng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_aw2ali = NULL;
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
 	//output sino
-	PyObject *p_sino = PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sino = NULL;
+	p_sino = (PyArrayObject *)PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 
 	if (p_sng == NULL || p_aw2ali == NULL || p_sino == NULL) {
 		Py_XDECREF(p_aw2ali);
 		Py_XDECREF(p_sng);
+
+		PyArray_DiscardWritebackIfCopy(p_sino);
 		Py_XDECREF(p_sino);
 	}
 
@@ -471,6 +510,8 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 	//Clean up
 	Py_DECREF(p_aw2ali);
 	Py_DECREF(p_sng);
+
+	PyArray_ResolveWritebackIfCopy(p_sino);
 	Py_DECREF(p_sino);
 
 	Py_INCREF(Py_None);
@@ -502,38 +543,43 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-	/* Interpret the input objects as... */
+	/* Interpret the input objects as... PyLong_AsLong*/
 	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyInt_AS_LONG(pd_NSN11);
+	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
 	PyObject* pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
-	Cnt.NSN1 = (int)PyInt_AS_LONG(pd_NSN1);
+	Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
 	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
-	Cnt.A = (int)PyInt_AsLong(pd_A);
+	Cnt.A = (int)PyLong_AsLong(pd_A);
 	PyObject* pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");
-	Cnt.W = (int)PyInt_AsLong(pd_W);
+	Cnt.W = (int)PyLong_AsLong(pd_W);
 	PyObject* pd_SPN = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyInt_AS_LONG(pd_SPN);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.SPN = (int)PyLong_AsLong(pd_SPN);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	//GPU 2D linear sino index into Siemens sino index LUT
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//input sino and the above 2D LUT
-	PyObject *p_sino = PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_aw2ali = PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sino = NULL;
+	p_sino = (PyArrayObject *)PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	PyArrayObject *p_aw2ali = NULL;
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
 	// number of sinogram from the shape of the sino (can be any number especially when using reduced ring number)
 	int snno = (int)PyArray_DIM(p_sino, 0);
 
 	//output sino
-	PyObject *p_sng = PyArray_FROM_OTF(o_sng, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sng = NULL;
+	p_sng = (PyArrayObject *)PyArray_FROM_OTF(o_sng, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 
 	if (p_sino == NULL || p_aw2ali == NULL || p_sino == NULL) {
 		Py_XDECREF(p_aw2ali);
 		Py_XDECREF(p_sino);
+
+		PyArray_DiscardWritebackIfCopy(p_sng);
 		Py_XDECREF(p_sng);
 	}
 
@@ -552,6 +598,8 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
 	//Clean up
 	Py_DECREF(p_aw2ali);
 	Py_DECREF(p_sino);
+
+	PyArray_ResolveWritebackIfCopy(p_sng);
 	Py_DECREF(p_sng);
 
 	Py_INCREF(Py_None);
@@ -577,13 +625,13 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
 
 	/* Interpret the input objects as... */
 	PyObject* pd_Naw = PyDict_GetItemString(o_mmrcnst, "Naw");
-	Cnt.aw = (int)PyInt_AS_LONG(pd_Naw);
+	Cnt.aw = (int)PyLong_AsLong(pd_Naw);
 	PyObject* pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
-	Cnt.NSN1 = (int)PyInt_AS_LONG(pd_NSN1);
+	Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
 	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyInt_AS_LONG(pd_NSN11);
+	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
 	PyObject* pd_NRNG = PyDict_GetItemString(o_mmrcnst, "NRNG");
-	Cnt.NRNG = (int)PyInt_AS_LONG(pd_NRNG);
+	Cnt.NRNG = (int)PyLong_AsLong(pd_NRNG);
 
 
 	span11LUT span11 = span1_span11(Cnt);
@@ -627,17 +675,22 @@ static PyObject *aux_varon(PyObject *self, PyObject *args) {
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	//input sino and the above 2D LUT
-	PyObject *p_m1 = PyArray_FROM_OTF(o_m1, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_m2 = PyArray_FROM_OTF(o_m2, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_x = PyArray_FROM_OTF(o_x, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_m1 = NULL;
+	p_m1 = (PyArrayObject *)PyArray_FROM_OTF(o_m1, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+	PyArrayObject *p_m2 = NULL;
+	p_m2 = (PyArrayObject *)PyArray_FROM_OTF(o_m2, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+	PyArrayObject *p_x  = NULL;
+	p_x  = (PyArrayObject *)PyArray_FROM_OTF(o_x, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	if (p_m1 == NULL || p_m2 == NULL || p_x == NULL) {
+		PyArray_DiscardWritebackIfCopy(p_m1);
+		PyArray_DiscardWritebackIfCopy(p_m2);
 		Py_XDECREF(p_m1);
 		Py_XDECREF(p_m2);
 		Py_XDECREF(p_x);
@@ -663,6 +716,8 @@ static PyObject *aux_varon(PyObject *self, PyObject *args) {
 	//<><><><><><><><><><><><><><><><><><><><><><>
 
 	//Clean up
+	PyArray_ResolveWritebackIfCopy(p_m1);
+	PyArray_ResolveWritebackIfCopy(p_m2);
 	Py_DECREF(p_m1);
 	Py_DECREF(p_m2);
 	Py_DECREF(p_x);

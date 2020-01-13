@@ -9,18 +9,39 @@ import sys
 import os
 import scipy.ndimage as ndi
 from collections import namedtuple
-import logging
+import time
 from tqdm.auto import trange
 
-import petprj
-
-from niftypet.nipet.img import mmrimg
-from niftypet.nipet import mmrnorm
-from niftypet.nipet import mmraux
 from niftypet import nimpa
+
+from . import petprj
+from ..img import mmrimg
+from .. import mmrnorm
+from .. import mmraux
+from ..lm.mmrhist import randoms
+
+
+from ..sct import vsm
+#from ..lm import mmrhist
+
 
 # for isotope info
 import resources
+import logging
+
+#-------------------------------------------------------------------------------
+def get_logger(name):
+    log = logging.getLogger(name)
+
+    #> console handler
+    ch = logging.StreamHandler()
+    formatter = logging.Formatter('\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s')
+    ch.setFormatter(formatter)
+    # ch.setLevel(logging.ERROR)
+    log.addHandler(ch)
+    return log
+#-------------------------------------------------------------------------------
+
 
 #reconstruction mode:
 # 0 - no attenuation  and  no scatter
@@ -49,7 +70,7 @@ def get_subsets14(n, params):
     # number of subsets
     N = 14
     # projections per subset
-    P = Cnt['NSANGLES']/N
+    P = Cnt['NSANGLES'] // N
     # the remaining projections which have to be spread over the N subsets with a given frequency
     fs = N/float(P-N)
     # generate sampling pattern for subsets up to N out of P
@@ -78,23 +99,15 @@ def get_subsets14(n, params):
             sai = sp[-1,rai[i]]+i+1
             totsum[s] += aisum[sai]
             si.append(sai)
-        # print si
         S[s] = np.array((si))
 
     # get the projection bin index for transaxial gpu sinos
     tmsk = txLUT['msino']>0
     Smsk = -1*np.ones(tmsk.shape, dtype=np.int32)
-    Smsk[tmsk] = range(Cnt['Naw'])
+    Smsk[tmsk] = list(range(Cnt['Naw']))
 
     iprj = Smsk[:,S[n]]
     iprj = iprj[iprj>=0]
-
-    # n=0; plot(S[n,:-4],ones(14), '*'); plot(S[n,-4:],ones(4), 'o')
-
-    # Smsk = -1*np.ones(tmsk.shape, dtype=np.int32)
-    # q=-1*ones(Cnt['Naw'])
-    # q[iprj] = 3
-    # Smsk[tmsk] = q
 
     return iprj, S
 #---------------------------------------------------------------------------------------
@@ -112,7 +125,15 @@ def osemone(datain, mumaps, hst, scanner_params,
             attnsino = None,
             randsino = None,
             normcomp = None):
-    log = logging.getLogger(__name__)
+
+    #> Get particular scanner parameters: Constants, transaxial and axial LUTs
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+    #> set the logging and its level of verbose
+    log = get_logger(__name__)
+    log.setLevel(Cnt['LOG'])
 
     #---------- sort out OUTPUT ------------
     #-output file name for the reconstructed image, initially assume n/a
@@ -133,17 +154,10 @@ def osemone(datain, mumaps, hst, scanner_params,
 
     #----------
 
-    # Get particular scanner parameters: Constants, transaxial and axial LUTs
-    Cnt   = scanner_params['Cnt']
-    txLUT = scanner_params['txLUT']
-    axLUT = scanner_params['axLUT']
 
-    import time
-    from niftypet import nipet
-    # from niftypet.nipet.sct import mmrsct
-    # from niftypet.nipet.prj import mmrhist
+    
 
-    log.debug('reconstruction in mode:%d' % recmod)
+    log.info('reconstruction in mode:%d' % recmod)
 
     # get object and hardware mu-maps
     muh, muo = mumaps
@@ -200,7 +214,7 @@ def osemone(datain, mumaps, hst, scanner_params,
         rsino = randsino
         rsng = mmraux.remgaps(randsino, txLUT, Cnt)
     else:
-        rsino, snglmap = nipet.randoms(hst, scanner_params)
+        rsino, snglmap = randoms(hst, scanner_params)
         rsng = mmraux.remgaps(rsino, txLUT, Cnt)
     #=========================================================================
 
@@ -212,7 +226,7 @@ def osemone(datain, mumaps, hst, scanner_params,
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
         elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
-            ssn = nipet.vsm(
+            ssn = vsm(
                 datain,
                 mumaps,
                 emd['im'],
@@ -230,7 +244,7 @@ def osemone(datain, mumaps, hst, scanner_params,
         ssng = np.zeros(rsng.shape, dtype=rsng.dtype)
     #=========================================================================
 
-    log.debug('------ OSEM (%d) -------' % itr)
+    log.info('------ OSEM (%d) -------' % itr)
     #------------------------------------
     Sn = 14 # number of subsets
     #-get one subset to get number of projection bins in a subset
@@ -284,48 +298,49 @@ def osemone(datain, mumaps, hst, scanner_params,
     with trange(itr, desc="OSEM",
         disable=log.getEffectiveLevel() > logging.INFO,
         leave=log.getEffectiveLevel() <= logging.INFO) as pbar:
-      for k in pbar:
-        petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
-        if np.nansum(img) < 0.1:
-            log.warning('it seems there is not enough true data to render reasonable image')
-            #img[:]=0
-            itr = k
-            break
-        if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
-            sct_time = time.time()
-            sct = nipet.vsm(
-                datain,
-                mumaps,
-                mmrimg.convert2e7(img, Cnt),
-                hst,
-                rsino,
-                scanner_params,
-                emmsk=emmskS,
-                return_ssrb=return_ssrb,
-                return_mask=return_mask)
+      
+        for k in pbar:
+            petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
+            if np.nansum(img) < 0.1:
+                log.warning('it seems there is not enough true data to render reasonable image')
+                #img[:]=0
+                itr = k
+                break
+            if recmod>=3 and ( ((k<itr-1) and (itr>1)) ): # or (itr==1)
+                sct_time = time.time()
+                sct = vsm(
+                    datain,
+                    mumaps,
+                    mmrimg.convert2e7(img, Cnt),
+                    hst,
+                    rsino,
+                    scanner_params,
+                    emmsk=emmskS,
+                    return_ssrb=return_ssrb,
+                    return_mask=return_mask)
 
-            if isinstance(sct, dict):
-                ssn = sct['sino']
-            else:
-                ssn = sct
+                if isinstance(sct, dict):
+                    ssn = sct['sino']
+                else:
+                    ssn = sct
 
-            ssng = mmraux.remgaps(ssn, txLUT, Cnt)
-            pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
-        # save images during reconstruction if requested
-        if store_itr and k in store_itr:
-            im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
-            fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
-                + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
-                +'_itr'+str(k)+fcomment+'_inrecon.nii.gz')
-            nimpa.array2nii( im[::-1,::-1,:], B, fout)
+                ssng = mmraux.remgaps(ssn, txLUT, Cnt)
+                pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
+            # save images during reconstruction if requested
+            if store_itr and k in store_itr:
+                im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
+                fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
+                    + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
+                    +'_itr'+str(k)+fcomment+'_inrecon.nii.gz')
+                nimpa.array2nii( im[::-1,::-1,:], B, fout)
 
-    log.debug('recon time:%.3g' % (time.time() - stime))
+    log.info('recon time:%.3g' % (time.time() - stime))
     #=========================================================================
 
 
-    log.debug('applying decay correction of %r' % dcycrr)
-    log.debug('applying quantification factor:%r to the whole image' % qf)
-    log.debug('for the frame duration of :%r' % hst['dur'])
+    log.info('applying decay correction of %r' % dcycrr)
+    log.info('applying quantification factor:%r to the whole image' % qf)
+    log.info('for the frame duration of :%r' % hst['dur'])
 
     img *= dcycrr * qf * qf_loc #additional factor for making it quantitative in absolute terms (derived from measurements)
 
@@ -354,7 +369,7 @@ def osemone(datain, mumaps, hst, scanner_params,
         fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
                 + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
                 +'_itr'+str(itr)+fcomment+'.nii.gz')
-        log.debug('saving image to: ' + fout)
+        log.info('saving image to: ' + fout)
         nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
 
 

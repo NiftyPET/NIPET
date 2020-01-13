@@ -19,7 +19,7 @@ void lmproc(hstout dicout,
 {
 
 	//list mode data file (binary)
-	if (Cnt.VERBOSE == 1) printf("ic> the list mode file: %s\n", flm);
+	if (Cnt.LOG <= LOGINFO) printf("i> the list-mode file: %s\n", flm);
 
 	//--- file and path names
 #ifdef WIN32
@@ -148,9 +148,9 @@ void lmproc(hstout dicout,
 	lmprop.tstart = tstart;
 	lmprop.tstop = tstop;
 
-	if (Cnt.VERBOSE == 1) printf("i> frame start time: %d\n", tstart);
-	if (Cnt.VERBOSE == 1) printf("i> frame stop  time: %d\n", tstop);
-	if (Cnt.VERBOSE == 1) printf("\ni> total number of dynamic frames = %d\n", nfrm);
+	if (Cnt.LOG <= LOGINFO) printf("i> frame start time: %d\n", tstart);
+	if (Cnt.LOG <= LOGINFO) printf("i> frame stop  time: %d\n", tstop);
+	if (Cnt.LOG <= LOGINFO) printf("\ni> total number of dynamic frames = %d\n", nfrm);
 	//---
 
 
@@ -165,7 +165,7 @@ void lmproc(hstout dicout,
 			t2dfrm[i] = 0;
 		}
 		//======= get only the chunks which have the time frame data
-		modifyLMinfo(tstart, tstop);
+		modifyLMinfo(tstart, tstop, Cnt);
 		lmprop.nfrm = nfrm;
 		lmprop.nfrm2 = nfrm;
 		lmprop.t2dfrm = t2dfrm;
@@ -180,15 +180,15 @@ void lmproc(hstout dicout,
 		for (int i = 0; i<nfrm; i++) {
 			init += frames[i];
 			dcumfrm[i] = init;
-			if (Cnt.VERBOSE == 1) printf("   i> dcumfrm[%d] = %d\n", i, dcumfrm[i]);
+			if (Cnt.LOG <= LOGINFO) printf("   i> dcumfrm[%d] = %d\n", i, dcumfrm[i]);
 		}
-		if (Cnt.VERBOSE == 1) printf("\n");
+		if (Cnt.LOG <= LOGINFO) printf("\n");
 
 		//middle time point (the whole dynamic sino will not fit in the GPU memory)
 		int nfrm2 = nfrm / 2 - 1;
 		tmidd = dcumfrm[nfrm2];
 		lmprop.tmidd = tmidd;
-		if (Cnt.VERBOSE == 1) printf("i> frame midd time: %d (frame indx = %d)\n", tmidd, nfrm2);
+		if (Cnt.LOG <= LOGINFO) printf("i> frame midd time: %d (frame indx = %d)\n", tmidd, nfrm2);
 
 		//dynamic frames definitions in look up table
 		t2dfrm = (short*)malloc(dcumfrm[nfrm - 1] * sizeof(short)); //time to dynamic frames
@@ -203,7 +203,7 @@ void lmproc(hstout dicout,
 		if (dcumfrm[nfrm - 1]<tstop) {
 			tstop = dcumfrm[nfrm - 1];
 			lmprop.tstop = tstop;
-			if (Cnt.VERBOSE == 1) printf("i> changed stop time to: %d \n", tstop);
+			if (Cnt.LOG <= LOGINFO) printf("i> changed stop time to: %d \n", tstop);
 		}
 	}
 
@@ -226,13 +226,13 @@ void lmproc(hstout dicout,
 		lmprop.ele4thrd = o_ele4thrd;
 		lmprop.nchnk = o_nchnk;
 		//======= get only the chunks which have the time frame data
-		modifyLMinfo(tstart, tmidd);//tmidd
+		modifyLMinfo(tstart, tmidd, Cnt);//tmidd
 		lmprop.nfrm = nfrm;
 		lmprop.nfrm2 = nfrm / 2;
 		lmprop.t2dfrm = t2dfrm;
 		lmprop.frmoff = 0; //frame offset to account for the splitting of the dynamic data into two
 		lmprop.span = Cnt.SPN;
-		if (Cnt.VERBOSE == 1) printf("i> number of chunks = %d", lmprop.nchnk);
+		if (Cnt.LOG <= LOGINFO) printf("i> number of chunks = %d", lmprop.nchnk);
 		//===========
 
 		//====================== TWO STAGE HISTOGRAMMING OF DYNAMIC DATA ======================
@@ -267,11 +267,11 @@ void lmproc(hstout dicout,
 		lmprop.ele4thrd = o_ele4thrd;
 		lmprop.nchnk = o_nchnk;
 
-		modifyLMinfo(tmidd, tstop);
+		modifyLMinfo(tmidd, tstop, Cnt);
 		lmprop.nfrm2 = nfrm - nfrm / 2;
 		lmprop.t2dfrm = t2dfrm;
 		lmprop.frmoff = nfrm / 2;
-		if (Cnt.VERBOSE == 1) printf("i> number of chunks (2nd stage) = %d\n", lmprop.nchnk);
+		if (Cnt.LOG <= LOGINFO) printf("i> number of chunks (2nd stage) = %d\n", lmprop.nchnk);
 
 		// set the sino to zero again to be reused
 		cudaMemset(d_sino, 0, (nfrm + 1) / 2 * tot_bins / 2 * sizeof(unsigned int));
@@ -315,7 +315,7 @@ void lmproc(hstout dicout,
 		psum_ssrb += dicout.ssr[i];
 		//if (i % 10000 == 0) printf("ic> running sum : = %llu  the ssr : = %llu \n", psum_ssrb, dicout.ssr[i]);
 	}
-	if (Cnt.VERBOSE == 1) printf("ic> total SSRB sino events (prompts):  P = %llu\n", psum_ssrb);
+	if (Cnt.LOG <= LOGINFO) printf("i> total SSRB sino events (prompts):  P = %llu\n", psum_ssrb);
 	//---
 
 	if (nfrm == 1) {
@@ -340,7 +340,7 @@ void lmproc(hstout dicout,
 		free(sino);
 	}
 
-	if (Cnt.VERBOSE == 1) printf("\nic> total sino events (prompts and delayeds):  P = %llu, D = %llu\n", dicout.psm, dicout.dsm);
+	if (Cnt.LOG <= LOGINFO) printf("\ni> total sino events (prompts and delayeds):  P = %llu, D = %llu\n", dicout.psm, dicout.dsm);
 
 	//--- output data to Python
 	//projection views

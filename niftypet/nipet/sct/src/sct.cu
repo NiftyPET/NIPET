@@ -325,7 +325,8 @@ void Psct(float *rslt,
 
 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-scatOUT prob_scatt(scatOUT sctout,
+scatOUT prob_scatt(
+	scatOUT sctout,
 	float *KNlut,
 	char* mumsk,
 	IMflt mu,
@@ -346,7 +347,7 @@ scatOUT prob_scatt(scatOUT sctout,
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	getMemUse(Cnt);
 
@@ -363,7 +364,7 @@ scatOUT prob_scatt(scatOUT sctout,
 	tofbin[3] = Cnt.ITOFBIND;
 	cudaMemcpyToSymbol(c_TOFBIN, tofbin, 4 * sizeof(float));
 
-	if (Cnt.VERBOSE == 1) {
+	if (Cnt.LOG <= LOGINFO) {
 		printf("i> time of flight properties for scatter estimation:\n");
 		for (int i = 0; i<4; i++) printf("   tofbin[%d]=%f\n", i, tofbin[i]);
 	}
@@ -375,7 +376,7 @@ scatOUT prob_scatt(scatOUT sctout,
 	//==================================================================
 	//scatter crystals definition [crs no, centre.x, centre.y]
 	scrsDEF d_scrsdef = def_scrs(isrng, crs, Cnt);
-	if (Cnt.VERBOSE == 1) printf("i> number of scatter crystals used:\n  >transaxially: %d\n  >axially: %d\n", d_scrsdef.nscrs, d_scrsdef.nsrng);
+	if (Cnt.LOG <= LOGINFO) printf("i> number of scatter crystals used:\n  >transaxially: %d\n  >axially: %d\n", d_scrsdef.nscrs, d_scrsdef.nsrng);
 	// for(int i=0; i<d_scrsdef.nsrng; i++)    printf("rng[%d]=%f\n", (int)d_scrsdef.rng[2*i], d_scrsdef.rng[2*i+1]);
 	// for(int i=0; i<d_scrsdef.nscrs; i++)    printf("crs[%d]=%f, %f\n", (int)d_scrsdef.crs[3*i], d_scrsdef.crs[3*i+1], d_scrsdef.crs[3*i+2]);
 	//==================================================================
@@ -487,7 +488,7 @@ scatOUT prob_scatt(scatOUT sctout,
 	cudaTextureObject_t texo_mu3d = 0;
 	cudaCreateTextureObject(&texo_mu3d, &resDesc, &texDesc, NULL);
 
-	if (Cnt.VERBOSE == 1) printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
+	if (Cnt.LOG <= LOGINFO) printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
 	// printf("i> memory usage after setting up 3D mu-map texture:");
 	//====================================================================
 
@@ -504,7 +505,7 @@ scatOUT prob_scatt(scatOUT sctout,
 		short *d_rays = raysLUT(texo_mu3d, d_mu_msk, d_scrsdef, Cnt);
 		//============================================================
 
-		if (Cnt.VERBOSE == 1) printf("ic> calculating scatter probabilities for %d emission voxels...", d_em_msk.nvx);
+		if (Cnt.LOG <= LOGINFO) printf("i> calculating scatter probabilities for %d emission voxels...", d_em_msk.nvx);
 		cudaEvent_t start, stop;
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
@@ -532,7 +533,7 @@ scatOUT prob_scatt(scatOUT sctout,
 		cudaEventElapsedTime(&elapsedTime, start, stop);
 		cudaEventDestroy(start);
 		cudaEventDestroy(stop);
-		if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n\n", 0.001*elapsedTime);
+		if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n\n", 0.001*elapsedTime);
 		cudaFree(d_rays);
 		cudaDeviceSynchronize();
 		error = cudaGetLastError();
@@ -582,7 +583,7 @@ scatOUT prob_scatt(scatOUT sctout,
 
 	end = clock();
 	time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-	if (Cnt.VERBOSE == 1) printf("ic> TOTAL SCATTER TIME: %f\n", time_spent);
+	if (Cnt.LOG <= LOGINFO) printf("\ni> TOTAL SCATTER TIME: %f\n", time_spent);
 
 	return sctout;
 }

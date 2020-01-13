@@ -4,25 +4,47 @@ __copyright__   = "Copyright 2018"
 #-------------------------------------------------------------------------------
 
 import numpy as np
-# import matplotlib.pyplot as plt
-import logging
 from math import pi
-import os
 import random
-import re
 import sys
+import os
+import scipy.ndimage as ndi
+
+import scipy.spatial.qhull as qhull
+from scipy.interpolate import CloughTocher2DInterpolator
+
+from concurrent.futures import ThreadPoolExecutor
 
 import nibabel as nib
-import scipy.ndimage as ndi
-from tqdm.auto import trange
+import re
 
-import petsct
+from . import nifty_scatter
+from ..prj import petprj
+from ..prj import mmrprj, petprj
 
-from niftypet.nipet import mmraux
-from niftypet.nipet import mmr_auxe
-from niftypet.nipet import mmrnorm
-from niftypet.nipet.img import mmrimg
-from niftypet.nipet.prj import mmrprj, petprj, mmrrec
+from ..img import mmrimg
+from .. import mmrnorm
+from .. import mmraux
+from .. import mmr_auxe
+
+
+#-------------------------------------------------------------------------------
+# LOGGING
+#-------------------------------------------------------------------------------
+import logging
+
+#> console handler
+ch = logging.StreamHandler()
+formatter = logging.Formatter(
+    '\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s'
+    )
+ch.setFormatter(formatter)
+logging.getLogger(__name__).addHandler(ch)
+
+def get_logger(name):
+    return logging.getLogger(name)
+#-------------------------------------------------------------------------------
+
 
 
 # ------------------------------------
@@ -36,8 +58,13 @@ def fwhm2sig (fwhm, Cnt):
 
 #get Klein-Nishina LUTs
 def get_knlut(Cnt):
+
+    log = get_logger(__name__)
+
+    #> set the level of verbose
+    log.setLevel(Cnt['LOG'])
+
     from scipy.special import erfc
-    log = logging.getLogger(__name__)
 
     SIG511 = Cnt['ER']*Cnt['E511']/2.35482
 
@@ -55,7 +82,7 @@ def get_knlut(Cnt):
 
         # Add energy resolution:
         if Cnt['ER']>0:
-            log.info('using energy resolution for scatter simulation, ER = %r' % Cnt['ER'])
+            log.info('using energy resolution for scatter simulation, ER = {}'.format(Cnt['ER']))
             knlut[i,0] *= .5*erfc( (Cnt['LLD']-alpha*Cnt['E511'])/(SIG511*np.sqrt(2*alpha)) );
             #knlut[i,0] *= .5*erfc( (Cnt['LLD']-alpha*Cnt['E511'])/(SIG511) );
 
@@ -117,16 +144,16 @@ def get_sctLUT(Cnt):
 
             #see: https://en.wikipedia.org/wiki/Bilinear_interpolation
             if (br==bl)and(bu!=bd):
-
+                
                 sctaxR[sni,0] = rd2sni(offseg, bd, r0)
                 sctaxW[sni,0] = (r1-bu)/float(bd-bu)
                 sctaxR[sni,1] = rd2sni(offseg, bu, r0)
                 sctaxW[sni,1] = (bd-r1)/float(bd-bu)
 
-                mich2[r1,r0] = mich[bd,r0]*sctaxW[sni,0]  +  mich[bu,r0]*sctaxW[sni,1]
+                mich2[r1,r0] = mich[bd,r0]*sctaxW[sni,0]  +  mich[bu,r0]*sctaxW[sni,1] 
 
             elif (bu==bd)and(br!=bl):
-
+                
                 sctaxR[sni,0] = rd2sni(offseg, r1, bl)
                 sctaxW[sni,0] = (br-r0)/float(br-bl)
                 sctaxR[sni,1] = rd2sni(offseg, r1, br)
@@ -162,21 +189,30 @@ def get_sctLUT(Cnt):
     #get K-N LUT:
     KN = get_knlut(Cnt)
 
-    sctLUT = {'sctaxR':sctaxR, 'sctaxW':sctaxW, 'isrng':irng, 'offseg':offseg, 'KN':KN, 'mich_chck':[mich, mich2]}
+    sctLUT = {'sctaxR':sctaxR, 'sctaxW':sctaxW, 'isrng':irng, 'offseg':offseg, 'KN':KN, 'mich_chck':[mich, mich2]} 
     return sctLUT
 
 
 #-------------------------------------------------------------------------------------------------
 # S C A T T E R    I N T E R P O L A T I O N
 #-------------------------------------------------------------------------------------------------
-def get_sctinterp(ssn2d, sct2AW, Cnt):
 
-    from scipy.interpolate import griddata #used for scatter interpolation
 
-    iAW = np.unique(sct2AW)
+def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
+    ''' perform 2D interpolation for all scatter sinograms
+        to form a 3D scatter sionogram.
+    '''
+
+    #> set the logger and its level of verbose
+    log = get_logger(__name__)
+    log.setLevel(Cnt['LOG'])
+
+    #-----------------------------------------------------
+    #> indecies 
+    iAW = np.unique(sctind)
     nsbins = len(iAW)
 
-    ai = iAW/Cnt['NSBINS']
+    ai = iAW // Cnt['NSBINS']
     wi = iAW - ai*Cnt['NSBINS']
 
     #---add extra points (from the top) at the bottom of sino
@@ -186,23 +222,92 @@ def get_sctinterp(ssn2d, sct2AW, Cnt):
     wien = len(wie)
     aie = Cnt['NSANGLES']*np.ones(wien, dtype=np.int32)
 
-    #---prepare the arrays for interpolation input
-    # indexes
+    #---prepare the array for qhull.Delaunay input
     sind = np.zeros( (wien + nsbins,2), dtype=np.int32)
-    # scatter values for the above indecies
-    sval = np.zeros( (wien + nsbins,1), dtype=np.float32)
     # append to the sino bottom in order to get a properly interpolated sino
     sind[:,1] = np.append(wi,wie)
     sind[:,0] = np.append(ai,aie)
-    sval = ssn2d[ np.append( ai, np.zeros(len(ai0[0]),dtype=np.int32) ), np.append(wi, wi[ai0]) ]
 
-    # do the interpolation after creating the grid
+    #> get the traingulations based on data points (sctind)
+    tri = qhull.Delaunay(sind)
+
     grid_x, grid_y = np.mgrid[0:Cnt['NSANGLES'], 0:Cnt['NSBINS']]
-    issino = griddata(sind, sval, (grid_x, grid_y), method='cubic')
-    issino = np.nan_to_num(issino)
-    issino[issino<0] = 0
+    
+    #-----------------------------------------------------
+    log.info('scatter sinogram interpolation...')
 
-    return issino
+    def func(i):
+        #> temporary 2D scatter sinogram, initially as 1D vector
+        tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=dtype)
+        tmp2d[:] = 0
+        for ti in range(len(sctind)):
+            tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
+
+        ssn2d = np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS']))
+
+        #> prepare the array for interpolation input
+        sval = np.zeros( (wien + nsbins,1), dtype=dtype)
+        
+        #> append to the sino bottom in order to get a properly interpolated sino
+        sval = ssn2d[ 
+            np.append( ai, np.zeros(len(ai0[0]), dtype=np.int32) ),
+            np.append(wi, wi[ai0]) ]
+
+        intrp = CloughTocher2DInterpolator(tri, sval, fill_value=0.0)
+        issn = intrp((grid_x, grid_y))
+        issn = np.nan_to_num(issn)
+        issn[issn<0] = 0.
+        return issn
+    #-----------------------------------------------------
+
+    ssn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+    sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+
+    #> begin Casper's threading magic:
+    with ThreadPoolExecutor() as exec:
+        for i, issn in enumerate(exec.map(func, range(snno))):
+            ssn[i,...] = issn
+            sssr[ssrlut[i],:,:] += ssn[i,:,:]
+    #> end of Casper's magic
+
+    return ssn, sssr
+
+
+# def get_sctinterp(ssn2d, sct2AW, Cnt):
+
+#     from scipy.interpolate import griddata #used for scatter interpolation
+
+#     iAW = np.unique(sct2AW)
+#     nsbins = len(iAW)
+
+#     ai = iAW // Cnt['NSBINS']
+#     wi = iAW - ai*Cnt['NSBINS']
+
+#     #---add extra points (from the top) at the bottom of sino
+#     #find the indexes where angle indx is 0
+#     ai0 = np.where(ai==0)
+#     wie = abs((Cnt['NSBINS']-1)-wi[ai0])
+#     wien = len(wie)
+#     aie = Cnt['NSANGLES']*np.ones(wien, dtype=np.int32)
+
+#     #---prepare the arrays for interpolation input
+#     # indexes
+#     sind = np.zeros( (wien + nsbins,2), dtype=np.int32)
+#     # scatter values for the above indecies
+#     sval = np.zeros( (wien + nsbins,1), dtype=np.float32)
+#     # append to the sino bottom in order to get a properly interpolated sino
+#     sind[:,1] = np.append(wi,wie)
+#     sind[:,0] = np.append(ai,aie)
+#     sval = ssn2d[ np.append( ai, np.zeros(len(ai0[0]),dtype=np.int32) ), np.append(wi, wi[ai0]) ]
+
+#     # do the interpolation after creating the grid
+#     grid_x, grid_y = np.mgrid[0:Cnt['NSANGLES'], 0:Cnt['NSBINS']]
+#     issino = griddata(sind, sval, (grid_x, grid_y), method='cubic')
+#     issino = np.nan_to_num(issino)
+#     issino[issino<0] = 0
+
+#     return issino
+
 #====================================================================================================
 
 
@@ -220,39 +325,45 @@ def vsm(
         return_mask=False,
     ):
     '''
-    Voxel-driven scatter modelling (VSM).
-    Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
-    an estimate of emission image, the prompt measured sinogram, an
-    estimate of the randoms sinogram and a normalisation sinogram.
-    Input:
-    - datain:       Contains the data used for scatter-specific detector
-                    normalisation.  May also include the non-corrected
-                    emission image used for masking, when requested.
-    - mumaps:       A tuple of hardware and object mu-maps (in this order).
-    - em:           An estimate of the emission image.
-    - hst:          Dictionary containing the histogrammed measured data into
-                    sinograms.
-    - rsinos:       Randoms sinogram (3D).  Needed for proper scaling of
-                    scatter to the prompt data.
-    - scanner_params: Scanner specific parameters.
-    - prcnt_scl:    Ratio of the maximum scatter intensities below which the
-                    scatter is not used for fitting it to the tails of prompt
-                    data.  Default is 10%.
-    - emmsk:        When 'True' it will use uncorrected emission image for
-                    masking the sources (voxels) of photons to be used in the
-                    scatter modelling.
+        Voxel-driven scatter modelling (VSM).
+        Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
+        an estimate of emission image, the prompt measured sinogram, an 
+        estimate of the randoms sinogram and a normalisation sinogram.
+        Input:
+        - datain:       Contains the data used for scatter-specific detector
+                        normalisation.  May also include the non-corrected 
+                        emission image used for masking, when requested.
+        - mumaps:       A tuple of hardware and object mu-maps (in this order).
+        - em:           An estimate of the emission image.
+        - hst:          Dictionary containing the histogrammed measured data into
+                        sinograms.
+        - rsinos:       Randoms sinogram (3D).  Needed for proper scaling of
+                        scatter to the prompt data.
+        - scanner_params: Scanner specific parameters.
+        - prcnt_scl:    Ratio of the maximum scatter intensities below which the
+                        scatter is not used for fitting it to the tails of prompt
+                        data.  Default is 10%.
+        - emmsk:        When 'True' it will use uncorrected emission image for 
+                        masking the sources (voxels) of photons to be used in the
+                        scatter modelling.
+
     '''
-    log = logging.getLogger(__name__)
 
-    muh, muo = mumaps
-
-    #-constants, transaxial and axial LUTs are extracted
+    #> decompose constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
+    #> decompose mu-maps
+    muh, muo = mumaps
+
+    #> set the logger and its level of verbose
+    log = get_logger(__name__)
+    log.setLevel(Cnt['LOG'])
+
+
     if emmsk and not os.path.isfile(datain['em_nocrr']):
-        log.info('reconstruction of emission data without scatter and attenuation correction for mask generation')
+        log.info('reconstructing emission data without scatter and attenuation corrections for mask generation...')
         recnac = mmrrec.osemone(datain, mumaps, hst, scanner_params, recmod=0, itr=3, fwhm=2.0, store_img=True)
         datain['em_nocrr'] = recnac.fpet
 
@@ -280,8 +391,8 @@ def vsm(
 
     #LUTs for scatter
     sctLUT = get_sctLUT(Cnt)
-
-
+    
+    
     #-smooth before down-sampling mu-map and emission image
     muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(0.42, Cnt), mode='mirror')
     muim = ndi.interpolation.zoom( muim, Cnt['SCTSCLMU'], order=3 ) #(0.499, 0.5, 0.5)
@@ -289,7 +400,7 @@ def vsm(
     emim = ndi.filters.gaussian_filter(em, fwhm2sig(0.42, Cnt), mode='mirror')
     emim = ndi.interpolation.zoom( emim, Cnt['SCTSCLEM'], order=3 ) #(0.34, 0.33, 0.33)
     #emim = ndi.interpolation.zoom( emim, (0.499, 0.5, 0.5), order=3 )
-
+    
 
     #-smooth the mu-map for mask creation.  the mask contains voxels for which attenuation ray LUT is found.
     smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(0.84, Cnt), mode='mirror')
@@ -298,19 +409,22 @@ def vsm(
     #CORE SCATTER ESTIMATION
     NSCRS, NSRNG = 64, 8
     sctout ={
-        'xsxu'    :np.zeros((NSCRS, NSCRS/2), dtype=np.int8), #one when xs>xu, otherwise zero
-        'bin_indx':np.zeros((NSCRS, NSCRS/2), dtype=np.int32),
-        'sct_val' :np.zeros((Cnt['TOFBINN'], NSRNG, NSCRS, NSRNG, NSCRS/2), dtype=np.float32),
-        'sct_3d'  :np.zeros((Cnt['TOFBINN'], snno_, NSCRS, NSCRS/2), dtype=np.float32)
+        'bin_indx':np.zeros((NSCRS, NSCRS//2), dtype=np.int32),
+        'sct_3d'  :np.zeros((Cnt['TOFBINN'], snno_, NSCRS, NSCRS//2), dtype=np.float32),
+        'sct_val' :np.zeros((Cnt['TOFBINN'], NSRNG, NSCRS, NSRNG, NSCRS//2), dtype=np.float32),
+        'xsxu'    :np.zeros((NSCRS, NSCRS//2), dtype=np.int8), #one when xs>xu, otherwise zero
     }
 
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
-    petsct.scatter(sctout, muim, mumsk, emim, sctLUT, txLUT, axLUT, Cnt)
+    nifty_scatter.vsm(sctout, muim, mumsk, emim, sctLUT, txLUT, axLUT, Cnt)
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
+    
     sct3d  = sctout['sct_3d']
     sctind = sctout['bin_indx']
 
-    log.debug('total scatter sum:%r' % np.sum(sct3d))
+    # import pdb; pdb.set_trace()
+
+    log.debug('total scatter sum: {}'.format(np.sum(sct3d)))
     if np.sum(sct3d)<1e-04:
         sss    = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         amsksn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
@@ -338,7 +452,7 @@ def vsm(
     mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
     nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
-
+    
 
     #get attenuation + norm in (span-11) and SSR
     attossr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
@@ -353,7 +467,7 @@ def vsm(
         mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
         nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
-
+    
     #get the mask for the object from uncorrected emission image
     if emmsk and os.path.isfile(datain['em_nocrr']):
         nim = nib.load(datain['em_nocrr'])
@@ -376,14 +490,14 @@ def vsm(
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
 
     #--------------------------------------------------------------------------------------------
-    # get scatter sinos for TOF or non-TOF
+    #> get scatter sinos for TOF or non-TOF
     if Cnt['TOFBINN']>1:
         ssn = np.zeros((Cnt['TOFBINN'], snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float64);
         sssr = np.zeros((Cnt['TOFBINN'], Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
         tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float64)
         log.info('interpolate each scatter sino...')
         for k in range(Cnt['TOFBINN']):
-            log.info('doing TOF bin k = %d' % k)
+            log.info('interpolating TOF bin k = {}'.format(k))
             for i in range(snno):
                 tmp2d[:] = 0
                 for ti in range(len(sctind)):
@@ -391,20 +505,25 @@ def vsm(
                 #interpolate estimated scatter
                 ssn[k,i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
                 sssr[k, ssrlut[i], :, :] += ssn[k,i,:,:]
-            log.info('TOF bin #%d' % k)
+            
     elif Cnt['TOFBINN']==1:
-        ssn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
-        log.info('scatter sinogram interpolation...')
-        for i in trange(snno, desc="interpolating", unit="sinogram",
-                        leave=log.getEffectiveLevel() < logging.INFO):
-            tmp2d[:] = 0
-            for ti in range(len(sctind)):
-                tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
-            #interpolate estimated scatter
-            ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
-            sssr[ssrlut[i],:,:] += ssn[i,:,:]
+        
+        ssn, sssr = intrp_sct(sctind, sct3d, Cnt, snno, ssrlut)
+        
+        # tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
+
+        # log.info('scatter sinogram interpolation...')
+        # for i in range(snno):
+        #     tmp2d[:] = 0
+        #     for ti in range(len(sctind)):
+        #         tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
+        #     #interpolate estimated scatter
+        #     ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
+        #     sssr[ssrlut[i],:,:] += ssn[i,:,:]
+        #     if (i%100)==0: 
+        #         log.info('sinograms interpolated: {}'.format(i))
+
+
     #--------------------------------------------------------------------------------------------
 
     #=== scale scatter for ssr and non-TOF===
@@ -446,7 +565,7 @@ def vsm(
         out['ssrb'] = sssr
 
     if return_mask:
-        out['mask'] = amsksn
+        out['mask'] = amsk
 
 
     if not out:

@@ -1,14 +1,12 @@
 cmake_minimum_required(VERSION 3.2)
 
 # set project name as the module name of the .dll/.pyd 
-project(petsct) 
+project(nifty_scatter) 
 # set name of folder, because it isnt set to the project name :(
 set(CURR_FOLDER_NAME "sct")
 
 # get the site packages location, then strip the trailing whitespace
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; from distutils.sysconfig import get_python_lib; print(get_python_lib())"
-  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process ( COMMAND python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 #get source files
 file(GLOB_RECURSE SRC "src/*.cu")
@@ -20,12 +18,7 @@ include_directories(include ${CMAKE_BINARY_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)
 include_directories(${PYTHON_INCLUDE_DIRS})
-#include_directories(${PYTHON_SITE_PACKAGES}/numpy/core/include/)
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; import numpy; print(numpy.get_include())"
-  OUTPUT_VARIABLE PYTHON_NUMPY_INCLUDE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-include_directories(${PYTHON_NUMPY_INCLUDE})
+include_directories(${PYTHON_SITE_PACKAGES}/numpy/core/include/)
 
 cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
 

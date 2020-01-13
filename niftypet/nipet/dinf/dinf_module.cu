@@ -1,34 +1,51 @@
+/*----------------------------------------------------------------------
+CUDA C extension for Python
+Provides basic functionality for obtaining information about the GPU(s)
+
+author: Pawel Markiewicz
+Copyrights: 2019
+----------------------------------------------------------------------*/
+
+#define PY_SSIZE_T_CLEAN
+
 #include <Python.h>
 #include <stdlib.h>
 #include "devprop.h"
 
 
-//=== PYTHON STUFF ===
 
-//--- Docstrings
-static char module_docstring[] =
-"This simple module provides information about CUDA resources.";
-static char dev_docstring[] =
-"Obtains information about GPU devices.";
-//---
+//=== START PYTHON INIT ===
 
 //--- Available functions
 static PyObject *dev_info(PyObject *self, PyObject *args);
+//---
 
-//--- Module specification
-static PyMethodDef module_methods[] = {
-	{ "dev_info", dev_info,   METH_VARARGS, dev_docstring }, //(PyCFunction)
-	{NULL, NULL, 0, NULL}
+
+//> Module Method Table
+static PyMethodDef dinf_methods[] = {
+    {"dev_info", dev_info, METH_VARARGS,
+     "Obtain information about installed GPU devices."},
+    {NULL, NULL, 0, NULL} // Sentinel
 };
 
-//--- Initialize the module
-PyMODINIT_FUNC initdinf(void)  //it HAS to be init______ and then the name of the shared lib.
-{
-	PyObject *m = Py_InitModule3("dinf", module_methods, module_docstring);
-	if (m == NULL)
-		return;
+//> Module Definition Structure
+static struct PyModuleDef dinf_module = {
+    PyModuleDef_HEAD_INIT,
+    "dinf",   //> name of module
+    //> module documentation, may be NULL
+    "This module provides information about CUDA resources (GPUs).",
+    -1,         //> the module keeps state in global variables.
+    dinf_methods
+};
+
+//> Initialization function
+PyMODINIT_FUNC PyInit_dinf(void) {
+    return PyModule_Create(&dinf_module);
 }
-//---
+
+//=== END PYTHON INIT ===
+
+
 
 //======================================================================================
 // O B T A I N   C U D A   D A T A
@@ -55,13 +72,15 @@ static PyObject *dev_info(PyObject *self, PyObject *args)
 
     // length of the list of GPU devices
     Py_ssize_t l_lng = (Py_ssize_t)prop[0].n_gpu;
+    
     // create a list of GPUs
     dlist = PyList_New(l_lng);
+    
     // from the C array to Python tuples and then the list
     for (int i=0; i<prop[0].n_gpu; i++){
 
         dtuple = PyTuple_New(4);
-        PyTuple_SetItem(dtuple, 0, PyString_FromString((char *)prop[i].name) );
+        PyTuple_SetItem(dtuple, 0, PyUnicode_FromString((char *)prop[i].name) );
         PyTuple_SetItem(dtuple, 1, PyLong_FromLong( (long)prop[i].totmem ) );
         PyTuple_SetItem(dtuple, 2, PyLong_FromLong( (long)prop[i].cc_major ) );
         PyTuple_SetItem(dtuple, 3, PyLong_FromLong( (long)prop[i].cc_minor ) );

@@ -10,6 +10,10 @@
 
 #define MIN( a, b ) ( ((a) < (b)) ? (a) : (b) )
 
+#define LOGDEBUG 10
+#define LOGINFO 20
+#define LOGWARNING 30
+
 
 #define RD2MEM 0
 

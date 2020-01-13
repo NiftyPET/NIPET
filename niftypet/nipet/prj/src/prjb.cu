@@ -216,7 +216,7 @@ void gpu_bprj(float *bimg,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- TRANSAXIAL COMPONENT
 	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
@@ -263,9 +263,9 @@ void gpu_bprj(float *bimg,
 	vz0 = 2 * Cnt.RNG_STRT;
 	vz1 = 2 * (Cnt.RNG_END - 1);
 	nvz = 2 * nrng_c - 1;
-	if (Cnt.VERBOSE == 1) {
-		printf("ic> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
-		printf("    corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
+	if (Cnt.LOG <= LOGDEBUG) {
+		printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
+		printf("   corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
 	}
 	//-----------------------------------------------------------------
 
@@ -286,7 +286,7 @@ void gpu_bprj(float *bimg,
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	if (Cnt.VERBOSE == 1)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("i> calculating image through back projection... ");
 
 	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
@@ -337,7 +337,7 @@ void gpu_bprj(float *bimg,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
@@ -361,8 +361,8 @@ void gpu_bprj(float *bimg,
 		HANDLE_ERROR(cudaMemcpy(bimg, d_imr, SZ_IMX*SZ_IMY*nvz * sizeof(float), cudaMemcpyDeviceToHost));
 		cudaFree(d_im);
 		cudaFree(d_imr);
-		if (Cnt.VERBOSE == 1)
-			printf("ic> redued the axial (z) image size to %d\n", nvz);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("i> reduced the axial (z) image size to %d\n", nvz);
 	}
 	else {
 		//copy to host memory
@@ -405,7 +405,7 @@ void rec_bprj(float *d_bimg,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//get the axial LUTs in constant memory
 	cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
@@ -421,7 +421,7 @@ void rec_bprj(float *d_bimg,
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
-	if (Cnt.VERBOSE == 1) printf("i> subset    back projection (Nprj=%d)... ", Nprj);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> subset back projection (Nprj=%d)... ", Nprj);
 
 	//============================================================================
 	bprj_drct << <Nprj, NRINGS >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
@@ -449,7 +449,7 @@ void rec_bprj(float *d_bimg,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

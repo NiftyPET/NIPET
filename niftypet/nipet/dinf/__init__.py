@@ -1,5 +1,5 @@
 # init the package folder
-from dinf import dev_info
+from .dinf import dev_info
 
 def gpuinfo(extended=False):
 	''' Run the CUDA dev_info shared library to get info about the installed GPU devices. 
@@ -7,7 +7,7 @@ def gpuinfo(extended=False):
 
 	if extended:
 		info = dev_info(1)
-		print info
+		print(info)
 	else:
 		info = dev_info(0)
 

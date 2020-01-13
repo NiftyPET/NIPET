@@ -19,7 +19,7 @@ void getMemUse(Cnst Cnt) {
 	double free_db = (double)free_mem;
 	double total_db = (double)total_mem;
 	double used_db = total_db - free_db;
-	if (Cnt.VERBOSE == 1) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
+	if (Cnt.LOG <= LOGDEBUG) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
 }
 //************************************************************
 
@@ -196,7 +196,7 @@ void osem(float *imgout,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 
 	//--- TRANSAXIAL COMPONENT
@@ -291,11 +291,11 @@ void osem(float *imgout,
 	float *d_bimg;  HANDLE_ERROR(cudaMallocManaged(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
 #endif
 
-	if (Cnt.VERBOSE == 1) printf("ic> loaded variables in device memory for image reconstruction.\n");
+	if (Cnt.LOG <= LOGDEBUG) printf("i> loaded variables in device memory for image reconstruction.\n");
 	getMemUse(Cnt);
 
 	for (int i = 0; i<Nsub; i++) {
-		if (Cnt.VERBOSE == 1) printf("i>--- subset %d-th ---\n", i);
+		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));

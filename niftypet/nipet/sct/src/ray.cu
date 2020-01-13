@@ -121,7 +121,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	// Allocate result of transformation in device memory
 	short *d_LUTout;
@@ -134,7 +134,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 
 	//return d_LUTout;
 
-	if (Cnt.VERBOSE == 1) printf("i> precalculating attenuation paths into LUT...");
+	if (Cnt.LOG <= LOGINFO) printf("i> precalculating attenuation paths into LUT...");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -157,7 +157,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

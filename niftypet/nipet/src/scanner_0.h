@@ -52,7 +52,7 @@ struct Cnst {
 	float BTPRT; // ratio of bootstrapped/original events in the target sinogram (1.0 default)
 
 	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations 
-	bool VERBOSE;
+	char LOG; //different levels of verbose/logging like in Python's logging package
 
 
 	// float ICOSSTP;
@@ -146,20 +146,25 @@ txLUTs get_txlut(Cnst Cnt);
 
 //LORcc *get_sn2rng(void);
 
-//get the properties of LM and the chunks into which the LM is divided
-void getLMinfo(char *flm);
-
-//modify the properties of LM in case of dynamic studies as the number of frames wont fit in the memory
-void modifyLMinfo(int tstart, int tstop);
-
-//setup the GPU arrays
-void d_setup(int * d_rprmt, int * d_rdlyd,
-	mMass d_mass, unsigned int * d_snview,
-	unsigned int * d_fansums, unsigned int * d_bucks,
-	unsigned int * d_sino);
-
 //LUT for converstion from span-1 to span-11
 span11LUT span1_span11(const Cnst Cnt);
 
+
+//------------------------
+// mMR gaps
+//------------------------
+void put_gaps(
+	float *sino,
+	float *sng,
+	int *aw2ali,
+	Cnst Cnt);
+
+void remove_gaps(
+	float *sng,
+	float *sino,
+	int snno,
+	int * aw2ali,
+	Cnst Cnt);
+//------------------------
 
 #endif //AUX_H

@@ -4,8 +4,12 @@ Provides functionality for forward and back projection in PET image
 reconstruction.
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2019
 ------------------------------------------------------------------------*/
+
+#define PY_SSIZE_T_CLEAN
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION //NPY_API_VERSION
+
 #include <Python.h>
 #include <stdlib.h>
 #include <numpy/arrayobject.h>
@@ -18,43 +22,49 @@ Copyrights: 2018
 #include "scanner_0.h"
 
 
-//--- Docstrings
-static char module_docstring[] =
-"This module provides an interface for GPU routines of forward and back projection.";
-static char fprj_docstring[] =
-"Forward projector for PET system.";
-static char bprj_docstring[] =
-"Back projector for PET system.";
-static char osem_docstring[] =
-"OSEM reconstruction of PET data.";
-//---
+
+//===================== START PYTHON INIT ==============================
 
 //--- Available functions
 static PyObject *frwd_prj(PyObject *self, PyObject *args);
 static PyObject *back_prj(PyObject *self, PyObject *args);
 static PyObject *osem_rec(PyObject *self, PyObject *args);
+//---
 
-/* Module specification */
-static PyMethodDef module_methods[] = {
-	{ "fprj",   frwd_prj,   METH_VARARGS, fprj_docstring },
-	{ "bprj",   back_prj,   METH_VARARGS, bprj_docstring },
-	{ "osem",   osem_rec,   METH_VARARGS, osem_docstring },
-	{ NULL, NULL, 0, NULL }
+
+//> Module Method Table
+static PyMethodDef petprj_methods[] = {
+	{"fprj",   frwd_prj,   METH_VARARGS,
+	 "PET forward projector."},
+	{"bprj",   back_prj,   METH_VARARGS,
+	"PET back projector." },
+	{"osem",   osem_rec,   METH_VARARGS, 
+	 "OSEM reconstruction of PET data." },
+	{NULL, NULL, 0, NULL} // Sentinel
 };
-//---
 
-//--- Initialize the module
-PyMODINIT_FUNC initpetprj(void)  //it HAS to be init______ and then the name of the shared lib.
-{
-	PyObject *m = Py_InitModule3("petprj", module_methods, module_docstring);
-	if (m == NULL)
-		return;
+//> Module Definition Structure
+static struct PyModuleDef petprj_module = {
+	PyModuleDef_HEAD_INIT,
+	"petprj",   //> name of module
+	//> module documentation, may be NULL
+	"This module provides an interface for GPU routines of PET forward and back projection.",
+	-1,       	//> the module keeps state in global variables.
+	petprj_methods
+};
 
-	/* Load NumPy functionality. */
+//> Initialization function
+PyMODINIT_FUNC PyInit_petprj(void) {
+
+	Py_Initialize();
+
+	//> load NumPy functionality
 	import_array();
+
+	return PyModule_Create(&petprj_module);
 }
-//---
-//=======================
+
+//====================== END PYTHON INIT ===============================
 
 
 #define CUDA_CHECK(ans) { gpuAssert((ans), __FILE__, __LINE__); }
@@ -105,47 +115,60 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (char)PyInt_AS_LONG(pd_span);
+	Cnt.SPN = (char)PyLong_AsLong(pd_span);
 	PyObject* pd_rngstrt = PyDict_GetItemString(o_mmrcnst, "RNG_STRT");
-	Cnt.RNG_STRT = (char)PyInt_AS_LONG(pd_rngstrt);
+	Cnt.RNG_STRT = (char)PyLong_AsLong(pd_rngstrt);
 	PyObject* pd_rngend = PyDict_GetItemString(o_mmrcnst, "RNG_END");
-	Cnt.RNG_END = (char)PyInt_AS_LONG(pd_rngend);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.RNG_END = (char)PyLong_AsLong(pd_rngend);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	/* Interpret the input objects as numpy arrays. */
 	//axial LUTs:
 	PyObject* pd_li2rno = PyDict_GetItemString(o_axLUT, "li2rno");
-	PyObject* pd_li2sn = PyDict_GetItemString(o_axLUT, "li2sn");
+	PyObject* pd_li2sn  = PyDict_GetItemString(o_axLUT, "li2sn");
 	PyObject* pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
 	PyObject* pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
 	PyObject* pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
-	//trasaxial sino LUTs:
+	
+	//transaxial sino LUTs:
 	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
 	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//-- get the arrays from the dictionaries
 	//axLUTs
-	PyObject *p_li2rno = PyArray_FROM_OTF(pd_li2rno, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2sn = PyArray_FROM_OTF(pd_li2sn, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2sn1 = PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2nos = PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2rng = PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_IN_ARRAY);
-	//2D sino index LUT:
-	PyObject *p_aw2ali = PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
+	PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
+	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
+	p_li2sn1 = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn1, NPY_INT16,	NPY_ARRAY_IN_ARRAY);
+	p_li2sn  = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn,  NPY_INT16,	NPY_ARRAY_IN_ARRAY);
+	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
+	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32,NPY_ARRAY_IN_ARRAY);
+	
 	//sino to crystal, crystals
-	PyObject *p_s2c = PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_crs = PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL; 
+	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
+	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
+
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+
+
 	//image object
-	PyObject *p_im = PyArray_FROM_OTF(o_im, NPY_FLOAT32, NPY_IN_ARRAY);
-	//subsets if using e.g. OSEM
-	PyObject *p_subs = PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_im = NULL;
+	p_im = (PyArrayObject *)PyArray_FROM_OTF(o_im, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	
+	//subsets if using e.g., OSEM
+	PyArrayObject *p_subs = NULL;
+	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	
 	//output sino object
-	PyObject *p_prjout = PyArray_FROM_OTF(o_prjout, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_prjout = NULL;
+	p_prjout = (PyArrayObject *)PyArray_FROM_OTF(o_prjout, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 	//--
+
 
 	/* If that didn't work, throw an exception. */
 	if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
@@ -168,8 +191,11 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 		Py_XDECREF(p_im);
 		//subset definition object
 		Py_XDECREF(p_subs);
+
 		//output sino object
+		PyArray_DiscardWritebackIfCopy(p_prjout);
 		Py_XDECREF(p_prjout);
+
 		return NULL;
 	}
 
@@ -188,22 +214,22 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	float *crs = (float*)PyArray_DATA(p_crs);
 	float *im = (float*)PyArray_DATA(p_im);
 
-	if (Cnt.VERBOSE == 1)
-		printf("ic> fwd-prj image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1), PyArray_DIM(p_im, 2));
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("i> forward-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1), PyArray_DIM(p_im, 2));
 
 	int Nprj = PyArray_DIM(p_subs, 0);
 	int N0crs = PyArray_DIM(p_crs, 0);
 	int N1crs = PyArray_DIM(p_crs, 1);
 	int Naw = PyArray_DIM(p_aw2ali, 0);
 
-	if (Cnt.VERBOSE == 1)
-		printf("\nic> N0crs=%d, N1crs=%d, Naw=%d, Nprj=%d\n", N0crs, N1crs, Naw, Nprj);
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("\ni> N0crs=%d, N1crs=%d, Naw=%d, Nprj=%d\n", N0crs, N1crs, Naw, Nprj);
 
 	int *subs;
 	if (subs_[0] == -1) {
 		Nprj = AW;
-		if (Cnt.VERBOSE == 1)
-			printf("ic> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
+		if (Cnt.LOG <= LOGWARNING)
+			printf("i> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
 		// all projections in
 		subs = (int*)malloc(Nprj * sizeof(int));
 		for (int i = 0; i<Nprj; i++) {
@@ -211,8 +237,8 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 		}
 	}
 	else {
-		if (Cnt.VERBOSE == 1)
-			printf("ic> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("i> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
 		subs = subs_;
 	}
 
@@ -242,6 +268,8 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	Py_DECREF(p_crs);
 	Py_DECREF(p_im);
 	Py_DECREF(p_subs);
+
+	PyArray_ResolveWritebackIfCopy(p_prjout);
 	Py_DECREF(p_prjout);
 
 	if (subs_[0] == -1) free(subs);
@@ -286,51 +314,64 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (char)PyInt_AS_LONG(pd_span);
+	Cnt.SPN = (char)PyLong_AsLong(pd_span);
 	PyObject* pd_rngstrt = PyDict_GetItemString(o_mmrcnst, "RNG_STRT");
-	Cnt.RNG_STRT = (char)PyInt_AS_LONG(pd_rngstrt);
+	Cnt.RNG_STRT = (char)PyLong_AsLong(pd_rngstrt);
 	PyObject* pd_rngend = PyDict_GetItemString(o_mmrcnst, "RNG_END");
-	Cnt.RNG_END = (char)PyInt_AS_LONG(pd_rngend);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.RNG_END = (char)PyLong_AsLong(pd_rngend);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
+
 	/* Interpret the input objects as numpy arrays. */
 	//axial LUTs:
 	PyObject* pd_li2rno = PyDict_GetItemString(o_axLUT, "li2rno");
-	PyObject* pd_li2sn = PyDict_GetItemString(o_axLUT, "li2sn");
+	PyObject* pd_li2sn  = PyDict_GetItemString(o_axLUT, "li2sn");
 	PyObject* pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
 	PyObject* pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
 	PyObject* pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
-	//trasaxial sino LUTs:
+	
+	//transaxial sino LUTs:
 	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
 	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//-- get the arrays from the dictionaries
 	//axLUTs
-	PyObject *p_li2rno = PyArray_FROM_OTF(pd_li2rno, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2sn = PyArray_FROM_OTF(pd_li2sn, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2sn1 = PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2nos = PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2rng = PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_IN_ARRAY);
-	//2D sino index LUT:
-	PyObject *p_aw2ali = PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
+	PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
+	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
+	p_li2sn1 = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn1, NPY_INT16,	NPY_ARRAY_IN_ARRAY);
+	p_li2sn  = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn,  NPY_INT16,	NPY_ARRAY_IN_ARRAY);
+	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
+	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32,NPY_ARRAY_IN_ARRAY);
+	
 	//sino to crystal, crystals
-	PyObject *p_s2c = PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_crs = PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL; 
+	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
+	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
+
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+
 	//sino object
-	PyObject *p_sino = PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_IN_ARRAY);
-	//subset definition
-	PyObject *p_subs = PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_IN_ARRAY);
-	//output backprojection iamge
-	PyObject *p_bim = PyArray_FROM_OTF(o_bimg, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_sino = NULL;
+	p_sino = (PyArrayObject *)PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+
+	//subsets if using e.g., OSEM
+	PyArrayObject *p_subs = NULL;
+	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	
+	//output back-projection image
+	PyArrayObject *p_bim = NULL;
+	p_bim = (PyArrayObject *)PyArray_FROM_OTF(o_bimg, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 	//--
 
+
 	/* If that didn't work, throw an exception. */
-	if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-		p_aw2ali == NULL || p_s2c == NULL || p_sino == NULL || p_crs == NULL ||
-		p_subs == NULL || p_bim == NULL || p_li2rng == NULL)
+	if (p_li2rno==NULL || p_li2sn==NULL || p_li2sn1==NULL || p_li2nos==NULL ||
+		p_aw2ali==NULL || p_s2c==NULL || p_sino==NULL || p_crs==NULL ||
+		p_subs==NULL   || p_li2rng==NULL || p_bim==NULL)
 	{
 		//axLUTs
 		Py_XDECREF(p_li2rno);
@@ -346,12 +387,16 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 		Py_XDECREF(p_crs);
 		//sino object
 		Py_XDECREF(p_sino);
-		//subsets
+		//subset definition object
 		Py_XDECREF(p_subs);
-		//backprojection image
+
+		//back-projection image
+		PyArray_DiscardWritebackIfCopy(p_bim);
 		Py_XDECREF(p_bim);
+
 		return NULL;
 	}
+
 
 	int   *subs_ = (int*)PyArray_DATA(p_subs);
 	short *s2c = (short*)PyArray_DATA(p_s2c);
@@ -376,8 +421,8 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	int *subs;
 	if (subs_[0] == -1) {
 		Nprj = AW;
-		if (Cnt.VERBOSE == 1)
-			printf("\nic> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
+		if (Cnt.LOG <= LOGDEBUG )
+			printf("\ni> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
 		// all projections in
 		subs = (int*)malloc(Nprj * sizeof(int));
 		for (int i = 0; i<Nprj; i++) {
@@ -385,15 +430,15 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 		}
 	}
 	else {
-		if (Cnt.VERBOSE == 1)
-			printf("\nic> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("\ni> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
 		subs = subs_;
 	}
 
 	float *bimg = (float*)PyArray_DATA(p_bim);
 
-	if (Cnt.VERBOSE == 1)
-		printf("ic> bck-prj image dimensions: %d, %d, %d\n", PyArray_DIM(p_bim, 0), PyArray_DIM(p_bim, 1), PyArray_DIM(p_bim, 2));
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("i> back-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_bim, 0), PyArray_DIM(p_bim, 1), PyArray_DIM(p_bim, 2));
 
 	// sets the device on which to calculate
 	cudaSetDevice(Cnt.DEVID);
@@ -413,6 +458,8 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	Py_DECREF(p_crs);
 	Py_DECREF(p_sino);
 	Py_DECREF(p_subs);
+
+	PyArray_ResolveWritebackIfCopy(p_bim);
 	Py_DECREF(p_bim);
 
 	if (subs_[0] == -1) free(subs);
@@ -465,12 +512,12 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (char)PyInt_AS_LONG(pd_span);
+	Cnt.SPN = (char)PyLong_AsLong(pd_span);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	/* Interpret the input objects as numpy arrays. */
 	//axial LUTs:
@@ -479,40 +526,53 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyObject* pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
 	PyObject* pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
 	PyObject* pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
-	//trasaxial sino LUTs:
+	//transaxial sino LUTs:
 	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
 	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//-- get the arrays from the dictionaries
-	//output backprojection iamge
-	PyObject *p_imgout = PyArray_FROM_OTF(o_imgout, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_rcnmsk = PyArray_FROM_OTF(o_rcnmsk, NPY_BOOL, NPY_IN_ARRAY);
+	//output back-projection image
+	PyArrayObject *p_imgout = NULL;
+	p_imgout = (PyArrayObject *)PyArray_FROM_OTF(o_imgout, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+
+	//image mask
+	PyArrayObject *p_rcnmsk = NULL;
+	p_rcnmsk = (PyArrayObject *)PyArray_FROM_OTF(o_rcnmsk, NPY_BOOL, NPY_ARRAY_IN_ARRAY);
 
 	//sino objects
-	PyObject *p_psng = PyArray_FROM_OTF(o_psng, NPY_UINT16, NPY_IN_ARRAY);
-	PyObject *p_rsng = PyArray_FROM_OTF(o_rsng, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_ssng = PyArray_FROM_OTF(o_ssng, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_nsng = PyArray_FROM_OTF(o_nsng, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_asng = PyArray_FROM_OTF(o_asng, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_psng = NULL, *p_rsng = NULL, *p_ssng = NULL, *p_nsng = NULL, *p_asng = NULL;
+	p_psng = (PyArrayObject *)PyArray_FROM_OTF(o_psng, NPY_UINT16, NPY_ARRAY_IN_ARRAY);
+	p_rsng = (PyArrayObject *)PyArray_FROM_OTF(o_rsng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_ssng = (PyArrayObject *)PyArray_FROM_OTF(o_ssng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_nsng = (PyArrayObject *)PyArray_FROM_OTF(o_nsng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_asng = (PyArrayObject *)PyArray_FROM_OTF(o_asng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	//subset definition
-	PyObject *p_subs = PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_subs = NULL;
+	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
 	//sensitivity image
-	PyObject *p_imgsens = PyArray_FROM_OTF(o_imgsens, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_imgsens = NULL;
+	p_imgsens = (PyArrayObject *)PyArray_FROM_OTF(o_imgsens, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	//axLUTs
-	PyObject *p_li2rno = PyArray_FROM_OTF(pd_li2rno, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2sn = PyArray_FROM_OTF(pd_li2sn, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2sn1 = PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_li2nos = PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_li2rng = PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
+	PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
+	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT8, NPY_ARRAY_IN_ARRAY);
+	p_li2sn  = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	p_li2sn1 = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_ARRAY_IN_ARRAY);
+	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	
 	//2D sino index LUT:
-	PyObject *p_aw2ali = PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_IN_ARRAY);
+	PyArrayObject *p_aw2ali = NULL;
+	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+	
 	//sino to crystal, crystals
-	PyObject *p_s2c = PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_crs = PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_IN_ARRAY);
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL;
+	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 	//--
 
 	/* If that didn't work, throw an exception. */
@@ -520,7 +580,9 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 		p_imgsens == NULL || p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL || p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL)
 	{
 		//output image
+		PyArray_DiscardWritebackIfCopy(p_imgout);
 		Py_XDECREF(p_imgout);
+
 		Py_XDECREF(p_rcnmsk);
 
 		//sino objects
@@ -580,7 +642,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	int Nsub = PyArray_DIM(p_subs, 0);
 	// number of elements used to store max. number of subsets projection - 1
 	int Nprj = PyArray_DIM(p_subs, 1);
-	if (Cnt.VERBOSE == 1) printf("ic> number of subsets = %d, and max. number of projections/subset = %d\n", Nsub, Nprj - 1);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> number of subsets = %d, and max. number of projections/subset = %d\n", Nsub, Nprj - 1);
 
 	int *subs = (int*)PyArray_DATA(p_subs);
 
@@ -593,7 +655,9 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	//<><><><><><><><<><><><>><><><><><><>
 
 	//Clean up
+	PyArray_ResolveWritebackIfCopy(p_imgout);
 	Py_DECREF(p_imgout);
+
 	Py_DECREF(p_rcnmsk);
 	Py_DECREF(p_psng);
 	Py_DECREF(p_rsng);

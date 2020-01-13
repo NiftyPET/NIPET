@@ -16,7 +16,7 @@ void getMemUse(void);
 void getLMinfo(char *flm, const Cnst Cnt);
 
 //modify the properties of LM in case of dynamic studies as the number of frames wont fit in the memory
-void modifyLMinfo(int tstart, int tstop);
+void modifyLMinfo(int tstart, int tstop, const Cnst Cnt);
 
 //uncompress the sinogram after GPU execution
 void dsino_ucmpr(unsigned int *d_dsino,

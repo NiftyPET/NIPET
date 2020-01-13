@@ -1,55 +1,70 @@
 /*------------------------------------------------------------------------
-Python extension for CUDA routines used for voxel-driven
-scatter modelling (VSM)
+Python extension for CUDA routines used for voxel-driven scatter
+modelling (VSM)
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2019
 ------------------------------------------------------------------------*/
+
+#define PY_SSIZE_T_CLEAN
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION //NPY_API_VERSION
 
 #include <Python.h>
 #include <stdlib.h>
 #include <numpy/arrayobject.h>
+
 #include "def.h"
+#include "scanner_0.h"
 #include "sct.h"
 #include "sctaux.h"
 
 
-//=== PYTHON STUFF ===
+//=== START PYTHON INIT ===
 
-//--- Docstrings
-static char module_docstring[] =
-"This module provides an interface for single scatter modelling.";
-static char scatter_docstring[] =
-"Estimates scatter event sinograms using mu-map and emission image (estimate).";
+//--- Available function
+static PyObject *vsm_scatter(PyObject *self, PyObject *args);
+//---
 
-//--- Available functions
-static PyObject *mmr_scat(PyObject *self, PyObject *args);
-
-/* Module specification */
-static PyMethodDef module_methods[] = {
-	{ "scatter",   mmr_scat,   METH_VARARGS, scatter_docstring },
-	{ NULL, NULL, 0, NULL }
+//> Module Method Table
+static PyMethodDef nifty_scatter_methods[] = {
+	{"vsm", vsm_scatter, METH_VARARGS,
+	 "Estimates fully 3D TOF scatter event sinograms using a mu-map and an emission image."},
+	{NULL, NULL, 0, NULL} // Sentinel
 };
-//---
 
-//--- Initialize the module
-PyMODINIT_FUNC initpetsct(void)  //it HAS to be init______ and then the name of the shared lib.
-{
-	PyObject *m = Py_InitModule3("petsct", module_methods, module_docstring);
-	if (m == NULL)
-		return;
+//> Module Definition Structure
+static struct PyModuleDef nifty_scatter_module = {
+	PyModuleDef_HEAD_INIT,
+	"nifty_scatter",   //> name of module
+	//> module documentation, may be NULL
+	"This module provides an interface for the high throughput Voxel Driven Scatter modelling using CUDA.",
+	-1,       	//> the module keeps state in global variables.
+	nifty_scatter_methods
+};
 
-	/* Load NumPy functionality. */
+//> Initialization function
+PyMODINIT_FUNC PyInit_nifty_scatter(void) {
+
+	Py_Initialize();
+
+	//> load NumPy functionality
 	import_array();
+
+	return PyModule_Create(&nifty_scatter_module);
 }
-//---
-//=======================
+//=== END PYTHON INIT ===
+
+
+
+
+
+
 
 //======================================================================================
 // E S T I M A T I N G    S C A T T E R    E V E N T S
 //--------------------------------------------------------------------------------------
 
-static PyObject *mmr_scat(PyObject *self, PyObject *args) {
+static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 
 	//Structure of constants
 	Cnst Cnt;
@@ -88,50 +103,29 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 
-	//output dictionary for results
-	PyObject* pd_xsxu = PyDict_GetItemString(o_sctout, "xsxu");
-	PyObject* pd_bind = PyDict_GetItemString(o_sctout, "bin_indx");
-	PyObject* pd_sval = PyDict_GetItemString(o_sctout, "sct_val");
-	PyObject* pd_sct3 = PyDict_GetItemString(o_sctout, "sct_3d");
-
-	//trasaxial crystal LUTs:
-	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
-
-	//axial luts:
-	PyObject* pd_sn1_rno = PyDict_GetItemString(o_axLUT, "sn1_rno");
-	PyObject* pd_sn1_sn11 = PyDict_GetItemString(o_axLUT, "sn1_sn11");
-
-	//scatter luts:
-	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
-	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
-	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
-	PyObject* pd_isrng = PyDict_GetItemString(o_sctLUT, "isrng");
-	PyObject* pd_KN = PyDict_GetItemString(o_sctLUT, "KN");
-
-
 	/* Interpret the input objects as numpy arrays. */
 	PyObject* pd_aw = PyDict_GetItemString(o_mmrcnst, "Naw");
-	Cnt.aw = (int)PyInt_AsLong(pd_aw);
+	Cnt.aw = (int)PyLong_AsLong(pd_aw);
 	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
-	Cnt.A = (int)PyInt_AsLong(pd_A);
+	Cnt.A = (int)PyLong_AsLong(pd_A);
 	PyObject* pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");
-	Cnt.W = (int)PyInt_AsLong(pd_W);
+	Cnt.W = (int)PyLong_AsLong(pd_W);
 	PyObject* pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
-	Cnt.NSN1 = (int)PyInt_AsLong(pd_NSN1);
+	Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
 	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyInt_AsLong(pd_NSN11);
+	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
 	PyObject* pd_NSN64 = PyDict_GetItemString(o_mmrcnst, "NSN64");
-	Cnt.NSN64 = (int)PyInt_AsLong(pd_NSN64);
+	Cnt.NSN64 = (int)PyLong_AsLong(pd_NSN64);
 	PyObject* pd_MRD = PyDict_GetItemString(o_mmrcnst, "MRD");
-	Cnt.MRD = (int)PyInt_AsLong(pd_MRD);
+	Cnt.MRD = (int)PyLong_AsLong(pd_MRD);
 	PyObject* pd_NRNG = PyDict_GetItemString(o_mmrcnst, "NRNG");
-	Cnt.NRNG = (int)PyInt_AsLong(pd_NRNG);
+	Cnt.NRNG = (int)PyLong_AsLong(pd_NRNG);
 	PyObject* pd_NSRNG = PyDict_GetItemString(o_mmrcnst, "NSRNG");
-	Cnt.NSRNG = (int)PyInt_AsLong(pd_NSRNG);
+	Cnt.NSRNG = (int)PyLong_AsLong(pd_NSRNG);
 	PyObject* pd_NCRS = PyDict_GetItemString(o_mmrcnst, "NCRS");
-	Cnt.NCRS = (int)PyInt_AsLong(pd_NCRS);
+	Cnt.NCRS = (int)PyLong_AsLong(pd_NCRS);
 	PyObject* pd_NSEG0 = PyDict_GetItemString(o_mmrcnst, "NSEG0");
-	Cnt.NSEG0 = (int)PyInt_AsLong(pd_NSEG0);
+	Cnt.NSEG0 = (int)PyLong_AsLong(pd_NSEG0);
 	PyObject* pd_ALPHA = PyDict_GetItemString(o_mmrcnst, "ALPHA");
 	Cnt.ALPHA = (float)PyFloat_AsDouble(pd_ALPHA);
 	PyObject* pd_AXR = PyDict_GetItemString(o_mmrcnst, "AXR");
@@ -140,7 +134,7 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	Cnt.RE = (float)PyFloat_AsDouble(pd_RRING);
 
 	PyObject* pd_TOFBINN = PyDict_GetItemString(o_mmrcnst, "TOFBINN");
-	Cnt.TOFBINN = (int)PyInt_AsLong(pd_TOFBINN);
+	Cnt.TOFBINN = (int)PyLong_AsLong(pd_TOFBINN);
 	PyObject* pd_TOFBINS = PyDict_GetItemString(o_mmrcnst, "TOFBINS");
 	Cnt.TOFBINS = (float)PyFloat_AsDouble(pd_TOFBINS);
 	PyObject* pd_TOFBIND = PyDict_GetItemString(o_mmrcnst, "TOFBIND");
@@ -154,88 +148,92 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	Cnt.COSUPSMX = (float)PyFloat_AsDouble(pd_COSUPSMX);
 
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyInt_AsLong(pd_span);
+	Cnt.SPN = (int)PyLong_AsLong(pd_span);
 	PyObject* pd_rngstrt = PyDict_GetItemString(o_mmrcnst, "RNG_STRT");
-	Cnt.RNG_STRT = (char)PyInt_AS_LONG(pd_rngstrt);
+	Cnt.RNG_STRT = (char)PyLong_AsLong(pd_rngstrt);
 	PyObject* pd_rngend = PyDict_GetItemString(o_mmrcnst, "RNG_END");
-	Cnt.RNG_END = (char)PyInt_AS_LONG(pd_rngend);
-	PyObject* pd_verbose = PyDict_GetItemString(o_mmrcnst, "VERBOSE");
-	Cnt.VERBOSE = (bool)PyInt_AS_LONG(pd_verbose);
+	Cnt.RNG_END = (char)PyLong_AsLong(pd_rngend);
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
-	Cnt.DEVID = (char)PyInt_AS_LONG(pd_devid);
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
-	// PyObject* pd_ICOSSTP  = PyDict_GetItemString(o_mmrcnst, "ICOSSTP");
-	// Cnt.ICOSSTP = (float) PyFloat_AsDouble(pd_ICOSSTP);
+	//> images
+	PyArrayObject *p_mumap=NULL, *p_mumsk=NULL, *p_emimg=NULL;
+	p_mumap = (PyArrayObject *)PyArray_FROM_OTF(o_mumap, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_mumsk = (PyArrayObject *)PyArray_FROM_OTF(o_mumsk, NPY_INT8, NPY_ARRAY_IN_ARRAY);
+	p_emimg = (PyArrayObject *)PyArray_FROM_OTF(o_emimg, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
-	// PyObject* pd_SS_IMZ  = PyDict_GetItemString(o_mmrcnst, "SS_IMZ");
-	// Cnt.SS_IMZ = (float) PyFloat_AsDouble(pd_SS_IMZ);
-	// PyObject* pd_SS_IMY  = PyDict_GetItemString(o_mmrcnst, "SS_IMY");
-	// Cnt.SS_IMY = (float) PyFloat_AsDouble(pd_SS_IMY);
-	// PyObject* pd_SS_IMX  = PyDict_GetItemString(o_mmrcnst, "SS_IMX");
-	// Cnt.SS_IMX = (float) PyFloat_AsDouble(pd_SS_IMX);
-	// PyObject* pd_SS_VXZ  = PyDict_GetItemString(o_mmrcnst, "SS_VXZ");
-	// Cnt.SS_VXZ = (float) PyFloat_AsDouble(pd_SS_VXZ);
-	// PyObject* pd_SS_VXY  = PyDict_GetItemString(o_mmrcnst, "SS_VXY");
-	// Cnt.SS_VXY = (float) PyFloat_AsDouble(pd_SS_VXY);
+	//> output dictionary for results
+	PyObject* pd_bind = PyDict_GetItemString(o_sctout, "bin_indx");
+	PyObject* pd_sct3 = PyDict_GetItemString(o_sctout, "sct_3d");
+	PyObject* pd_sval = PyDict_GetItemString(o_sctout, "sct_val");
+	PyObject* pd_xsxu = PyDict_GetItemString(o_sctout, "xsxu");
 
-	// PyObject* pd_SSE_IMZ  = PyDict_GetItemString(o_mmrcnst, "SSE_IMZ");
-	// Cnt.SSE_IMZ = (float) PyFloat_AsDouble(pd_SSE_IMZ);
-	// PyObject* pd_SSE_IMY  = PyDict_GetItemString(o_mmrcnst, "SSE_IMY");
-	// Cnt.SSE_IMY = (float) PyFloat_AsDouble(pd_SSE_IMY);
-	// PyObject* pd_SSE_IMX  = PyDict_GetItemString(o_mmrcnst, "SSE_IMX");
-	// Cnt.SSE_IMX = (float) PyFloat_AsDouble(pd_SSE_IMX);
-	// PyObject* pd_SSE_VXZ  = PyDict_GetItemString(o_mmrcnst, "SSE_VXZ");
-	// Cnt.SSE_VXZ = (float) PyFloat_AsDouble(pd_SSE_VXZ);
-	// PyObject* pd_SSE_VXY  = PyDict_GetItemString(o_mmrcnst, "SSE_VXY");
-	// Cnt.SSE_VXY = (float) PyFloat_AsDouble(pd_SSE_VXY);
+	PyArrayObject *p_bind=NULL, *p_sct3=NULL, *p_xsxu=NULL, *p_sval=NULL;
+	p_bind = (PyArrayObject *)PyArray_FROM_OTF(pd_bind, NPY_INT32, NPY_ARRAY_INOUT_ARRAY2);
+	p_sct3 = (PyArrayObject *)PyArray_FROM_OTF(pd_sct3, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+	p_xsxu = (PyArrayObject *)PyArray_FROM_OTF(pd_xsxu, NPY_INT8, NPY_ARRAY_INOUT_ARRAY2);
+	p_sval = (PyArrayObject *)PyArray_FROM_OTF(pd_sval, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 
-	//output results
-	PyObject *p_xsxu = PyArray_FROM_OTF(pd_xsxu, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_bind = PyArray_FROM_OTF(pd_bind, NPY_INT32, NPY_IN_ARRAY);
-	PyObject *p_sval = PyArray_FROM_OTF(pd_sval, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_sct3 = PyArray_FROM_OTF(pd_sct3, NPY_FLOAT32, NPY_IN_ARRAY);
 
-	//-- trasaxial crystal LUTs:
-	PyObject *p_crs = PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_IN_ARRAY);
+	//> transaxial crystal LUTs:
+	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
+	PyArrayObject *p_crs=NULL;
+	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
-	PyObject *p_mumap = PyArray_FROM_OTF(o_mumap, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_mumsk = PyArray_FROM_OTF(o_mumsk, NPY_INT8, NPY_IN_ARRAY);
-	PyObject *p_emimg = PyArray_FROM_OTF(o_emimg, NPY_FLOAT32, NPY_IN_ARRAY);
+	//> axial LUTs:
+	PyObject* pd_sn1_rno  = PyDict_GetItemString(o_axLUT, "sn1_rno");
+	PyObject* pd_sn1_sn11 = PyDict_GetItemString(o_axLUT, "sn1_sn11");
+	PyArrayObject *p_sn1_rno=NULL, *p_sn1_sn11=NULL;
+	p_sn1_rno  = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1_rno, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+	p_sn1_sn11 = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1_sn11, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+
+
 	//--
-
-	//-- get the arrays form the dictionaries (objects)
-	PyObject *p_sn1_rno = PyArray_FROM_OTF(pd_sn1_rno, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_sn1_sn11 = PyArray_FROM_OTF(pd_sn1_sn11, NPY_INT16, NPY_IN_ARRAY);
-
-	PyObject *p_isrng = PyArray_FROM_OTF(pd_isrng, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_offseg = PyArray_FROM_OTF(pd_offseg, NPY_INT16, NPY_IN_ARRAY);
-	PyObject *p_sctaxR = PyArray_FROM_OTF(pd_sctaxR, NPY_INT32, NPY_IN_ARRAY);
-	PyObject *p_sctaxW = PyArray_FROM_OTF(pd_sctaxW, NPY_FLOAT32, NPY_IN_ARRAY);
-	PyObject *p_KN = PyArray_FROM_OTF(pd_KN, NPY_FLOAT32, NPY_IN_ARRAY);
+	//> scatter luts:
+	PyObject* pd_KN 	= PyDict_GetItemString(o_sctLUT, "KN");
+	PyObject* pd_isrng 	= PyDict_GetItemString(o_sctLUT, "isrng");
+	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
+	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
+	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
+	
+	PyArrayObject 	*p_KN=NULL, *p_isrng=NULL, *p_offseg=NULL,
+					*p_sctaxR=NULL, *p_sctaxW=NULL;
+	p_KN 		= (PyArrayObject *)PyArray_FROM_OTF(pd_KN, 		NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
+	p_isrng 	= (PyArrayObject *)PyArray_FROM_OTF(pd_isrng, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
+	p_offseg 	= (PyArrayObject *)PyArray_FROM_OTF(pd_offseg, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
+	p_sctaxR 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxR, 	NPY_INT32, 		NPY_ARRAY_IN_ARRAY);
+	p_sctaxW 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxW, 	NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 	//--
 
 	/* If that didn't work, throw an exception. */
-	if (p_mumap == NULL || p_mumsk == NULL || p_emimg == NULL || p_sn1_rno == NULL ||
-		p_sn1_sn11 == NULL || p_sctaxR == NULL || p_sctaxW == NULL || p_offseg == NULL ||
-		p_isrng == NULL || p_KN == NULL || p_crs == NULL ||
-		p_xsxu == NULL || p_bind == NULL || p_sval == NULL || p_sct3 == NULL)
+	if (p_mumap == NULL || p_mumsk == NULL 	|| p_emimg == NULL ||
+		p_bind == NULL 	|| p_sct3 == NULL 	|| p_sval == NULL  || p_xsxu == NULL ||
+		p_crs == NULL   || p_sn1_rno == NULL|| p_sn1_sn11 == NULL ||
+		p_KN == NULL 	|| p_isrng == NULL 	|| p_offseg == NULL ||
+		p_sctaxR == NULL|| p_sctaxW == NULL )
 	{
 		Py_XDECREF(p_mumap);
 		Py_XDECREF(p_mumsk);
 		Py_XDECREF(p_emimg);
+		Py_XDECREF(p_crs);
 		Py_XDECREF(p_sn1_rno);
 		Py_XDECREF(p_sn1_sn11);
-		Py_XDECREF(p_offseg);
+		Py_XDECREF(p_KN);
 		Py_XDECREF(p_isrng);
+		Py_XDECREF(p_offseg);
 		Py_XDECREF(p_sctaxR);
 		Py_XDECREF(p_sctaxW);
-		Py_XDECREF(p_KN);
-		Py_XDECREF(p_crs);
 
-		Py_XDECREF(p_xsxu);
+		PyArray_DiscardWritebackIfCopy(p_bind);
 		Py_XDECREF(p_bind);
-		Py_XDECREF(p_sval);
+		PyArray_DiscardWritebackIfCopy(p_sct3);
 		Py_XDECREF(p_sct3);
+		PyArray_DiscardWritebackIfCopy(p_sval);
+		Py_XDECREF(p_sval);
+		PyArray_DiscardWritebackIfCopy(p_xsxu);
+		Py_XDECREF(p_xsxu);
 
 		printf("e> problem with getting the images and LUTs in C functions... :(\n");
 		return NULL;
@@ -251,13 +249,13 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 
 	float *crs = (float*)PyArray_DATA(p_crs);
 
-	//indecies of rings included in scatter estimation
+	//indexes of rings included in scatter estimation
 	short *isrng = (short*)PyArray_DATA(p_isrng);
 	//offset in each segment used for rings to sino LUT
 	short *offseg = (short*)PyArray_DATA(p_offseg);
-	//scatter sino indeces in axial dimensions through michelogram used for interpolation in 3D
+	//scatter sino indexes in axial dimensions through Michelogram used for interpolation in 3D
 	int   *sctaxR = (int*)PyArray_DATA(p_sctaxR);
-	//weightes for the interpolation in 3D (used together with the above)
+	//weights for the interpolation in 3D (used together with the above)
 	float *sctaxW = (float*)PyArray_DATA(p_sctaxW);
 	//K-N probabilities in the LUT
 	float *KNlut = (float*)PyArray_DATA(p_KN);
@@ -273,10 +271,10 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	muIMG.nvx = (size_t)(PyArray_DIM(p_mumap, 0) * PyArray_DIM(p_mumap, 1) * PyArray_DIM(p_mumap, 2));
 	emIMG.nvx = (size_t)(PyArray_DIM(p_emimg, 0) * PyArray_DIM(p_emimg, 1) * PyArray_DIM(p_emimg, 2));
 
-	if (muIMG.nvx != emIMG.nvx)
+	if ((muIMG.nvx != emIMG.nvx) && (Cnt.LOG <= LOGWARNING))
 		printf("\nw> mu-map and emission image have different dims: mu.nvx = %d, em.nvx = %d\n", muIMG.nvx, emIMG.nvx);
 
-	//get the stats in the img structure
+	//get the stats in the image structure
 	float mumx = -1e12, emmx = -1e12, mumn = 1e12, emmn = 1e12;
 	for (int i = 0; i<muIMG.nvx; i++) {
 		if (mumap[i]>mumx) mumx = mumap[i];
@@ -301,18 +299,30 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	for (int i = 0; i<emIMG.nvx; i++)
 		if (emimg[i]>0.1*emmx) emIMG.n10mx += 1;
 
-	if (Cnt.VERBOSE == 1) printf("i> mumx = %f, mumin = %f, emmx = %f, emmn = %f\n", mumx, mumn, emmx, emmn);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> mumx = %f, mumin = %f, emmx = %f, emmn = %f\n", mumx, mumn, emmx, emmn);
 
 	// sets the device on which to calculate
 	cudaSetDevice(Cnt.DEVID);
 	
 	//<><><><><><><><><> S C A T T E R    K E R N E L <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-	prob_scatt(sctout, KNlut, mumsk, muIMG, emIMG, sctaxR, sctaxW, offseg, isrng, crs, sn1_rno, sn1_sn11, Cnt);
+	prob_scatt(
+		sctout,
+		KNlut,
+		mumsk,
+		muIMG, emIMG,
+		sctaxR,sctaxW,
+		offseg,
+		isrng,
+		crs,
+		sn1_rno,
+		sn1_sn11,
+		Cnt);
+
 	cudaDeviceSynchronize();
 	//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 	//Clean up
-	if (Cnt.VERBOSE == 1) printf("ci> cleaning scatter variables...");
+	if (Cnt.LOG <= LOGDEBUG) printf("i> cleaning scatter variables...");
 	Py_DECREF(p_mumap);
 	Py_DECREF(p_mumsk);
 	Py_DECREF(p_emimg);
@@ -323,12 +333,16 @@ static PyObject *mmr_scat(PyObject *self, PyObject *args) {
 	Py_DECREF(p_sctaxR);
 	Py_DECREF(p_sctaxW);
 
-	Py_DECREF(p_xsxu);
+	PyArray_ResolveWritebackIfCopy(p_bind);
 	Py_DECREF(p_bind);
-	Py_DECREF(p_sval);
+	PyArray_ResolveWritebackIfCopy(p_sct3);
 	Py_DECREF(p_sct3);
+	PyArray_ResolveWritebackIfCopy(p_sval);
+	Py_DECREF(p_sval);
+	PyArray_ResolveWritebackIfCopy(p_xsxu);
+	Py_DECREF(p_xsxu);
 
 	Py_INCREF(Py_None);
-	if (Cnt.VERBOSE == 1) printf("DONE.\n");
+	if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
 	return Py_None;
 }
