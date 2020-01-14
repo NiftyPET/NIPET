@@ -3,7 +3,7 @@
     for namespace package 'niftypet'.
 """
 __author__      = "Pawel J. Markiewicz"
-__copyright__   = "Copyright 2019"
+__copyright__   = "Copyright 2020"
 # ---------------------------------------------------------------------------------
 
 from setuptools import setup, find_packages
@@ -87,7 +87,7 @@ def update_resources(Cnt):
     return Cnt
 #-------------------------------------------------------------------------
 
-if not 'Windows' in platform.system() and not 'Linux' in platform.system():
+if 'Windows' not in platform.system() and 'Linux' not in platform.system():
     log.error('the current operating system is not supported.')
     raise SystemError('OS: Unknown Sysytem.')
 
@@ -101,7 +101,7 @@ gpuarch = cs.resources_setup()
 
 #===============================================================
 # Hardware mu-maps
-log.info('indicate the location of hardware mu-maps...')
+log.info('indicate the location of hardware mu-maps:')
 
 #---------------------------------------------------------------
 # get the local path to NiftyPET resources.py
@@ -112,7 +112,7 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
     try:
         import resources
     except ImportError:
-        log.error('NiftyPET resources file <resources.py> could not be imported')
+        log.error("NiftyPET's resources file <resources.py> could not be imported")
         raise
     # get the current setup, if any
     Cnt = resources.get_setup()
@@ -150,7 +150,7 @@ log.info('hardware mu-maps have been located')
 
 
 #===============================================================
-log.info('CUDA compilation for NIPET ...')
+log.info('CUDA compilation for NIPET')
 
 path_current = os.path.dirname( os.path.realpath(__file__) )
 path_build = os.path.join(path_current, 'build')
@@ -186,8 +186,6 @@ for ci in range(len(cmd)):
 
     with open(cmakelog[ci], 'w') as f:
         f.write(stdout)
-
-    
 
     ei = stderr.find('error')
     if ei>=0:
@@ -253,15 +251,16 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license = 'Apache 2.0',
-    version='1.1.17',
+    version='1.1.19',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author='Pawel J. Markiewicz',
     author_email='p.markiewicz@ucl.ac.uk',
-    url='https://github.com/pjmark/NiftyPET',
+    url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
     install_requires=['nimpa>=1.2.0', 'pydicom>=1.0.2,<=1.2.2',
       'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27'],
+    python_requires='>=3.0.0',
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],
