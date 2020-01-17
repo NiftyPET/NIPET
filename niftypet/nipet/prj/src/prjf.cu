@@ -381,6 +381,8 @@ void gpu_fprj(float * prjout,
 
 	cudaDeviceSynchronize();
 
+	printf(">>> Nprj = %d, snno = %d\n", Nprj, snno);
+
 	HANDLE_ERROR(cudaMemcpy(prjout, d_sn, Nprj*snno * sizeof(float), cudaMemcpyDeviceToHost));
 
 
