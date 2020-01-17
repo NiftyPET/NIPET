@@ -33,6 +33,11 @@ except ImportError as ie:
 #===========================
 
 
+from . import mmrnorm
+from . import prj
+from . import img
+
+#> Siemens Biograph mMR
 from . import mmraux
 from .mmraux import explore_input as classify_input
 from .mmraux import mMR_params as get_mmrparams
@@ -40,7 +45,6 @@ from .mmraux import mMR_params as get_mmrparams
 # shared CUDA C library for extended auxiliary functions for the mMR
 from . import mmr_auxe
 
-#> Siemens Biograph mMR
 from . import lm
 from .lm.mmrhist import dynamic_timings
 from .lm.mmrhist import mmrhist
@@ -73,11 +77,8 @@ if resources.ENBLXNAT:
 
 
 #> GE Signa
-from . import aux_1
+# from . import aux_1
 
-from . import lm_1
-from .lm_1.hst_1 import lminfo_sig
+# from . import lm_1
+# from .lm_1.hst_1 import lminfo_sig
 
-from . import mmrnorm
-from . import prj
-from . import img
