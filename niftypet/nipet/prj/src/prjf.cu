@@ -343,6 +343,8 @@ void gpu_fprj(float * prjout,
 	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
 	//-----------------------------------------------------------------------
 
+	printf(">>> all works until now?\n");
+
 	//============================================================================
 	fprj_drct <<<Nprj, nrng_c >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
 	cudaError_t error = cudaGetLastError();

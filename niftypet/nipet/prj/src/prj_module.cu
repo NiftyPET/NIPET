@@ -18,6 +18,8 @@ Copyrights: 2019
 #include "prjf.h"
 #include "prjb.h"
 
+#include "tprj.h"
+
 #include "recon.h"
 #include "scanner_0.h"
 
@@ -26,6 +28,7 @@ Copyrights: 2019
 //===================== START PYTHON INIT ==============================
 
 //--- Available functions
+static PyObject *trnx_prj(PyObject *self, PyObject *args);
 static PyObject *frwd_prj(PyObject *self, PyObject *args);
 static PyObject *back_prj(PyObject *self, PyObject *args);
 static PyObject *osem_rec(PyObject *self, PyObject *args);
@@ -34,6 +37,8 @@ static PyObject *osem_rec(PyObject *self, PyObject *args);
 
 //> Module Method Table
 static PyMethodDef petprj_methods[] = {
+	{"tprj",   trnx_prj,   METH_VARARGS,
+	 "Transaxial projector."},
 	{"fprj",   frwd_prj,   METH_VARARGS,
 	 "PET forward projector."},
 	{"bprj",   back_prj,   METH_VARARGS,
@@ -76,6 +81,176 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
       if (abort) exit(code);
    }
 }
+
+
+//==============================================================================
+// T R A N S A X I A L   P R O J E C T O R 
+//------------------------------------------------------------------------------
+static PyObject *trnx_prj(PyObject *self, PyObject *args)
+{
+	//Structure of constants
+	Cnst Cnt;
+
+	//Dictionary of scanner constants
+	PyObject * o_mmrcnst;
+
+	// transaxial LUT dictionary (e.g., 2D sino where dead bins are out).
+	PyObject * o_txLUT;
+
+	// input/output image
+	PyObject * o_im;
+
+	// input/output projection sinogram
+	PyObject * o_prjout;
+
+	// output transaxial sampling parameters
+	PyObject * o_tv;
+	PyObject * o_tt;
+
+
+	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+	/* Parse the input tuple */
+	if (!PyArg_ParseTuple(args, "OOOOOOi", &o_prjout, &o_im, &o_tv, &o_tt, &o_txLUT, &o_mmrcnst))
+		return NULL;
+	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+	Cnt.LOG = (char)PyLong_AsLong(pd_log);
+	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
+	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
+
+
+	// transaxial sino LUTs:
+	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
+	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
+
+	//sino to crystal, crystals
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL; 
+	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
+	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
+
+
+	//image object
+	PyArrayObject *p_im = NULL;
+	p_im = (PyArrayObject *)PyArray_FROM_OTF(o_im, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+	
+	//output sino object
+	PyArrayObject *p_prjout = NULL;
+	p_prjout = (PyArrayObject *)PyArray_FROM_OTF(o_prjout, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+
+	//transaxial voxel sampling (ray-driven)
+	PyArrayObject *p_tv = NULL;
+	p_tv = (PyArrayObject *)PyArray_FROM_OTF(o_tv, NPY_UINT8, NPY_ARRAY_INOUT_ARRAY2);
+
+	//transaxial parameters for voxel sampling (ray-driven)
+	PyArrayObject *p_tt = NULL;
+	p_tt = (PyArrayObject *)PyArray_FROM_OTF(o_tt, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
+
+	//--
+
+	/* If that didn't work, throw an exception. */
+	if (p_s2c == NULL  || p_im == NULL || p_crs == NULL ||
+		p_prjout == NULL || p_tv == NULL || p_tt == NULL)
+	{
+		//sino 2 crystals
+		Py_XDECREF(p_s2c);
+		Py_XDECREF(p_crs);
+
+		//image object
+		PyArray_DiscardWritebackIfCopy(p_im);
+		Py_XDECREF(p_im);
+
+		//output sino object
+		PyArray_DiscardWritebackIfCopy(p_prjout);
+		Py_XDECREF(p_prjout);
+
+		//transaxial outputs
+		PyArray_DiscardWritebackIfCopy(p_tv);
+		Py_XDECREF(p_tv);
+
+		PyArray_DiscardWritebackIfCopy(p_tt);
+		Py_XDECREF(p_tt);
+
+		return NULL;
+	}
+
+	short *s2c = (short*)PyArray_DATA(p_s2c);
+	float *crs = (float*)PyArray_DATA(p_crs);
+
+	int N0crs = PyArray_DIM(p_crs, 0);
+	int N1crs = PyArray_DIM(p_crs, 1);
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("\ni> N0crs=%d, N1crs=%d\n", N0crs, N1crs);
+	
+
+	float *im  = (float*)PyArray_DATA(p_im);
+	if (Cnt.LOG <= LOGDEBUG)
+		printf("i> forward-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1));
+
+	// input/output projection sinogram 
+	float *prjout = (float*)PyArray_DATA(p_prjout);
+
+	// output sampling 
+	unsigned char *tv = (unsigned char*)PyArray_DATA(p_tv);
+	float *tt = (float*)PyArray_DATA(p_tt);
+
+	
+	// CUDA --------------------------------------------------------------------
+
+	// sets the device on which to calculate
+	cudaSetDevice(Cnt.DEVID);
+
+	int dev_id;
+	cudaGetDevice(&dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
+
+	//--- TRANSAXIAL COMPONENTS
+	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
+	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs*N1crs * sizeof(float), cudaMemcpyHostToDevice));
+
+	short2 *d_s2c;  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
+	HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
+
+	float *d_tt;  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT*AW * sizeof(float)));
+
+	unsigned char *d_tv;  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV*AW * sizeof(unsigned char)));
+	HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV*AW * sizeof(unsigned char)));
+
+	//------------DO TRANSAXIAL CALCULATIONS------------------------------------
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	//--------------------------------------------------------------------------
+
+	HANDLE_ERROR(
+		cudaMemcpy(tt, d_tt, N_TT*AW * sizeof(float), cudaMemcpyDeviceToHost));
+	HANDLE_ERROR(
+		cudaMemcpy(tv, d_tv, N_TV*AW * sizeof(unsigned char), cudaMemcpyDeviceToHost));
+
+	// CUDA END-----------------------------------------------------------------
+
+
+	//Clean up
+	Py_DECREF(p_s2c);
+	Py_DECREF(p_crs);
+
+	PyArray_ResolveWritebackIfCopy(p_im);
+	Py_DECREF(p_im);
+
+	PyArray_ResolveWritebackIfCopy(p_tv);
+	Py_DECREF(p_tv);
+
+	PyArray_ResolveWritebackIfCopy(p_tt);
+	Py_DECREF(p_tt);
+
+	PyArray_ResolveWritebackIfCopy(p_prjout);
+	Py_DECREF(p_prjout);
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+//------------------------------------------------------------------------------
+
+
 
 
 
@@ -126,20 +301,15 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
 	/* Interpret the input objects as numpy arrays. */
-	//axial LUTs:
+	// axial LUTs:
 	PyObject* pd_li2rno = PyDict_GetItemString(o_axLUT, "li2rno");
 	PyObject* pd_li2sn  = PyDict_GetItemString(o_axLUT, "li2sn");
 	PyObject* pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
 	PyObject* pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
 	PyObject* pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
-	
-	//transaxial sino LUTs:
-	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
-	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
-	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//-- get the arrays from the dictionaries
-	//axLUTs
+	// axLUTs
 	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
 	PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
 	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
@@ -147,7 +317,13 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	p_li2sn  = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn,  NPY_INT16,	NPY_ARRAY_IN_ARRAY);
 	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
 	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32,NPY_ARRAY_IN_ARRAY);
-	
+
+
+	// transaxial sino LUTs:
+	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
+	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
+	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
+
 	//sino to crystal, crystals
 	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL; 
 	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);

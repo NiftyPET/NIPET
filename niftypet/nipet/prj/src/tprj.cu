@@ -113,7 +113,7 @@ __global__ void sddn_tx(
 		int nr = y21 * roundf(abs(lr2 - lr1) / SZ_VOXY) + lr21; // number of rows on the way *_SZVXY
 		float dtr;
 		if (nr>0)
-			dtr = (tr2 - tr1) / nr + lr21*t2;	 // t increament for each row; add max (t2) when only one
+			dtr = (tr2 - tr1) / nr + lr21*t2;	 // t increment for each row; add max (t2) when only one
 		else
 			dtr = t2;
 
