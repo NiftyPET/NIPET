@@ -447,9 +447,11 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 	//Structure of constants
 	Cnst Cnt;
 
+	int sino_no;
+
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "OOOO", &o_sino, &o_sng, &o_txLUT, &o_mmrcnst))
+	if (!PyArg_ParseTuple(args, "OOOOi", &o_sino, &o_sng, &o_txLUT, &o_mmrcnst, &sino_no))
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -504,7 +506,7 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 
 	//<><><><><><><><><><><><><><><><><><><><><><>
 	//Run the conversion to sinos with gaps
-	put_gaps(sino, sng, aw2ali, Cnt);
+	put_gaps(sino, sng, aw2ali, sino_no, Cnt);
 	//<><><><><><><><><><><><><><><><><><><><><><>
 
 	//Clean up

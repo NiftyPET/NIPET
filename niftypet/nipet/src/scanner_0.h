@@ -157,7 +157,9 @@ void put_gaps(
 	float *sino,
 	float *sng,
 	int *aw2ali,
-	Cnst Cnt);
+	int sino_no,
+	Cnst Cnt	
+	);
 
 void remove_gaps(
 	float *sng,

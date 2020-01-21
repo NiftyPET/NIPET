@@ -1045,7 +1045,7 @@ def explore_input(fldr, params, print_paths=False):
     return datain
 
 #=====================================================================================
-def putgaps(s, txLUT, Cnt):
+def putgaps(s, txLUT, Cnt, sino_no=0):
 
     #number of sino planes (2D sinos) depends on the span used
     if Cnt['SPN']==1:

@@ -322,6 +322,7 @@ __global__ void d_putgaps(float *sne7,
 void put_gaps(float *sino,
 	float *sng,
 	int *aw2ali,
+	int sino_no,
 	Cnst Cnt)
 {
 	// check which device is going to be used
@@ -348,8 +349,12 @@ void put_gaps(float *sino,
 		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
 		if (nrng_c == 64)  snno -= 12;
 	}
+	// if sino_no is greater than 0, the number of sinograms is defined by user
+	else if (sino_no>0){
+		snno = sino_no;
+	}
 	else {
-		printf("e> not span-1 nor span-11\n");
+		printf("e> not span-1, span-11 nor user defined.\n");
 		return;
 	}
 
@@ -375,7 +380,8 @@ void put_gaps(float *sino,
 	cudaEventRecord(start, 0);
 
 	//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-	d_putgaps << < zBpG, 64 * 14 >> >(d_sino,
+	d_putgaps <<< zBpG, 64 * 14 >>>(
+		d_sino,
 		d_sng,
 		d_aw2ali,
 		snno);
