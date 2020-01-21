@@ -335,7 +335,10 @@ void put_gaps(float *sino,
 	//number of blocks of threads
 	dim3 zBpG(AW, 1, 1);
 
-	if (Cnt.SPN == 11) {
+	if (sino_no>0){
+		snno = sino_no;
+	}
+	else if (Cnt.SPN == 11) {
 		// number of blocks (y) for CUDA launch
 		zBpG.y = 2;
 		snno = NSINOS11;
@@ -348,10 +351,6 @@ void put_gaps(float *sino,
 		snno = nrng_c*nrng_c;
 		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
 		if (nrng_c == 64)  snno -= 12;
-	}
-	// if sino_no is greater than 0, the number of sinograms is defined by user
-	else if (sino_no>0){
-		snno = sino_no;
 	}
 	else {
 		printf("e> not span-1, span-11 nor user defined.\n");
