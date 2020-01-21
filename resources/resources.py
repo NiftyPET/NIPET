@@ -103,6 +103,17 @@ sct_irng = np.int16([0, 10, 19, 28, 35, 44, 53, 63])
 NSRNG = len(sct_irng)
 #------------------------------------------------------
 
+#------------------------------------------------------
+#> transaxial projection parameters (should be in 
+#> with the parameters as defined in def.h for C files)
+
+#> parameters for each transaxial LOR
+NTT = 10
+
+#> all voxels intersected by a given LOR
+NTV = 907
+#------------------------------------------------------
+
 # number of direct sinograms (i.e., for segment 0)
 SEG0 = 127
 
@@ -335,6 +346,10 @@ def get_mmr_constants():
         'SO_VXZ':SO_VXZ,
         'SO_VXY':SO_VXY,
         'SO_VXX':SO_VXX,
+
+        'NTT':NTT,
+        'NTV':NTV,
+
         'NSEG0':SEG0,
         'RE':RE, #effective ring radius
         'R':R,

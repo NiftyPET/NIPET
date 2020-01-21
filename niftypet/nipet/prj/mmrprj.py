@@ -10,19 +10,64 @@ from . import petprj
 from ..img import mmrimg
 from .. import mmraux
 
+
+#-------------------------------------------------------------------------------
+# LOGGING
 #-------------------------------------------------------------------------------
 import logging
-log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 #> console handler
 ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
+formatter = logging.Formatter(
+    '\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s'
+    )
 ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
+logging.getLogger(__name__).addHandler(ch)
+
+def get_logger(name):
+    return logging.getLogger(name)
+
+#> default log level (10-debug, 20-info, ...)
+log_default = logging.WARNING
 #-------------------------------------------------------------------------------
 
+
+
+
+#=========================================================================
+# transaxial (one-slice) projector
+#-------------------------------------------------------------------------
+
+def trnx_prj(scanner_params, sino=None, im=None):
+
+    # Get particular scanner parameters: Constants, transaxial and axial LUTs
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+    #> set the logger and its level of verbose
+    log = get_logger(__name__)
+    if 'LOG' in Cnt:
+        log.setLevel(Cnt['LOG'])
+    else:
+        log.setLevel(log_default)
+
+    # if sino==None and im==None:
+    #     raise ValueError('Input sinogram or image has to be given.')
+    if sino!=None and im!=None:
+        raise ValueError('Only one input should be given: sinogram or image.')
+
+    if sino==None:
+        sino = np.zeros((txLUT['Naw'], ), dtype=np.float32)
+    if im==None:
+        im = np.zeros((Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
+
+    tv = np.zeros(Cnt['NTV']*Cnt['Naw'], dtype=np.uint8)
+    tt = np.zeros(Cnt['NTT']*Cnt['Naw'], dtype=np.float32)
+
+    nipet.prj.petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
+
+    return {'tv':tv, 'tt':tt}
 
 
 #=========================================================================

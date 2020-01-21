@@ -110,7 +110,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "OOOOOOi", &o_prjout, &o_im, &o_tv, &o_tt, &o_txLUT, &o_mmrcnst))
+	if (!PyArg_ParseTuple(args, "OOOOOO", &o_prjout, &o_im, &o_tv, &o_tt, &o_txLUT, &o_mmrcnst))
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
