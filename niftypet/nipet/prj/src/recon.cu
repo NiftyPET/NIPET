@@ -213,7 +213,7 @@ void osem(float *imgout,
 	HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV*AW * sizeof(unsigned char)));
 
 	//-------------------------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
 	//-------------------------------------------------
 
 	// array of subset projection bins

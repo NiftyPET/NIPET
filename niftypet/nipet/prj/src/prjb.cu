@@ -290,7 +290,7 @@ void gpu_bprj(float *bimg,
 		printf("i> calculating image through back projection... ");
 
 	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
 	//-----------------------------------------------------------------------
 
 	//============================================================================

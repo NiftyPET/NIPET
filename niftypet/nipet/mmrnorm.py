@@ -150,7 +150,7 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
-    mmr_auxe.pgaps(sino, s, txLUT, Cnt)
+    mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2,0,1))
 
     return sino
@@ -175,7 +175,7 @@ def get_norm_sino(datain, scanner_params, hst):
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
-    mmr_auxe.pgaps(sino, s, txLUT, Cnt)
+    mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2,0,1))
 
     return sino

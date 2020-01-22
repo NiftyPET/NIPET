@@ -1063,7 +1063,7 @@ def putgaps(s, txLUT, Cnt, sino_no=0):
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
-    mmr_auxe.pgaps(sino, s.astype(np.float32), txLUT, Cnt)
+    mmr_auxe.pgaps(sino, s.astype(np.float32), txLUT, Cnt, sino_no)
     sino = np.transpose(sino, (2,0,1))
 
     return sino.astype(s.dtype)

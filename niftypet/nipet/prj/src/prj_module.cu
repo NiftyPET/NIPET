@@ -217,7 +217,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV*AW * sizeof(unsigned char)));
 
 	//------------DO TRANSAXIAL CALCULATIONS------------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
 	//--------------------------------------------------------------------------
 
 	HANDLE_ERROR(

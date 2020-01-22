@@ -23,8 +23,7 @@ __global__ void sddn_tx(
 	const float * crs,
 	const short2 * s2c,
 	float * tt,
-	unsigned char * tv,
-	int n1crs)
+	unsigned char * tv)
 {
 	// indexing along the transaxial part of projection space
 	// (angle fast changing) 
@@ -54,29 +53,6 @@ __global__ void sddn_tx(
 		float px, py;
 		px = crs[c1] + 0.5*e[0];
 		py = crs[c1 + C] + 0.5*e[1];
-
-
-		// int c1 = s2c[2*idx];
-		// int c2 = s2c[2*idx + 1];
-
-		// // int c1 = s2c[idx];
-		// // int c2 = s2c[idx + AW];
-
-		// float cc1[3];
-		// float cc2[3];
-		// cc1[0] = .5*( crs[n1crs*c1] + crs[n1crs*c1+2] );
-		// cc2[0] = .5*( crs[n1crs*c2] + crs[n1crs*c2+2] );
-
-		// cc1[1] = .5*( crs[n1crs*c1+1] + crs[n1crs*c1+3] );
-		// cc2[1] = .5*( crs[n1crs*c2+1] + crs[n1crs*c2+3] );
-
-		// float e[2];			// crystal Edge vector
-		// e[0] = crs[n1crs*c1+2] - crs[n1crs*c1];
-		// e[1] = crs[n1crs*c1+3] - crs[n1crs*c1+1];
-
-		// float px, py;
-		// px = crs[n1crs*c1]   + 0.5*e[0];
-		// py = crs[n1crs*c1+1] + 0.5*e[1];
 
 		float at[3], atn;
 		for (int i = 0; i<2; i++) {
@@ -137,21 +113,12 @@ __global__ void sddn_tx(
 		else
 			dtc = t2;
 
-
-		tt[N_TT*idx] = tr1;
-		tt[N_TT*idx + 1] = tc1;
-		tt[N_TT*idx + 2] = dtr;
-		tt[N_TT*idx + 3] = dtc;
-		tt[N_TT*idx + 4] = t1;
-		tt[N_TT*idx + 5] = fminf(tr1, tc1);
-		tt[N_TT*idx + 6] = t2;
-		tt[N_TT*idx + 7] = atn;
-		tt[N_TT*idx + 8] = u + (v << UV_SHFT);
-
 		// if(idx==62301){
 		//   printf("\n$$$> e[0] = %f, e[1] = %f | px[0] = %f, py[1] = %f\n", e[0], e[1], px, py );
 		//   for(int i=0; i<9; i++) printf("tt[%d] = %f\n",i, tt[N_TT*idx+i]);
 		// }
+		
+
 		/***************************************************************/
 		float ang = atanf(at[1] / at[0]); // angle of the ray
 		bool tsin;			    // condition for the slower changing <t> to be in
@@ -207,17 +174,27 @@ __global__ void sddn_tx(
 				k += 1;
 			}
 		}
+
+		tt[N_TT*idx    ] = tr1;
+		tt[N_TT*idx + 1] = tc1;
+		tt[N_TT*idx + 2] = dtr;
+		tt[N_TT*idx + 3] = dtc;
+		tt[N_TT*idx + 4] = t1;
+		tt[N_TT*idx + 5] = fminf(tr1, tc1);
+		tt[N_TT*idx + 6] = t2;
+		tt[N_TT*idx + 7] = atn;
+		tt[N_TT*idx + 8] = u + (v << UV_SHFT);
 		tt[N_TT*idx + 9] = k; 	// note: the first two are used for signs
-								/*************************************************************/
-								//tsino[idx] = dtc;
+		/***************************************************************/
+		//tsino[idx] = dtc;
 	}
 }
 
-void gpu_siddon_tx(float *d_crs,
+void gpu_siddon_tx(
+	float *d_crs,
 	short2 *d_s2c,
 	float *d_tt,
-	unsigned char *d_tv,
-	int n1crs)
+	unsigned char *d_tv)
 {
 
 	//============================================================================
@@ -230,7 +207,7 @@ void gpu_siddon_tx(float *d_crs,
 	//-----
 	dim3 BpG(ceil(AW / (float)NTHREADS), 1, 1);
 	dim3 TpB(NTHREADS, 1, 1);
-	sddn_tx << <BpG, TpB >> >(d_crs, d_s2c, d_tt, d_tv, n1crs);
+	sddn_tx<<<BpG, TpB>>>(d_crs, d_s2c, d_tt, d_tv);
 	//-----
 	cudaError_t error = cudaGetLastError();
 	if (error != cudaSuccess) { printf("CUDA kernel tx SIDDON error: %s\n", cudaGetErrorString(error)); exit(-1); }

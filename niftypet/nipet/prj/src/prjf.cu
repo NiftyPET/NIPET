@@ -340,10 +340,8 @@ void gpu_fprj(float * prjout,
 		printf("i> calculating sinograms via forward projection...");
 
 	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
 	//-----------------------------------------------------------------------
-
-	printf(">>> all works until now?\n");
 
 	//============================================================================
 	fprj_drct <<<Nprj, nrng_c >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
@@ -383,10 +381,7 @@ void gpu_fprj(float * prjout,
 
 	cudaDeviceSynchronize();
 
-	printf(">>> Nprj = %d, snno = %d\n", Nprj, snno);
-
 	HANDLE_ERROR(cudaMemcpy(prjout, d_sn, Nprj*snno * sizeof(float), cudaMemcpyDeviceToHost));
-
 
 	cudaFree(d_sn);
 	cudaFree(d_im);
