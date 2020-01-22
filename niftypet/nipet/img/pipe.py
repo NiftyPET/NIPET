@@ -49,7 +49,7 @@ def mmrchain(datain,        # all input data in a dictionary
 
             pvcroi=[],      # ROI used for PVC.  If undefined no PVC
                             # is performed.
-            pvcreg_tool = 'nifyreg', # the registration tool used in PVC
+            pvcreg_tool = 'niftyreg', # the registration tool used in PVC
             store_rois = False, # stores the image of PVC ROIs
                                 # as defined in pvcroi.
 
