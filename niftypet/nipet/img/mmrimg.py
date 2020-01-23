@@ -1156,6 +1156,9 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     # gantry table offset, through conversion of string to float
     gtoxyz = re.findall(b'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
     gtozyx = np.float32(gtoxyz)[::-1]/10
+    if len(gtoxyz)>3:
+        log.warning('the gantry table offset got more than 3 entries detected--check needed.')
+        gtozyx = gtozyx[-3:]
     #--------------------------------------------------------
 
     log.info('gantry table offset (z,y,x) (cm): {}'.format(gtozyx))

@@ -81,21 +81,24 @@ def get_components(datain, Cnt):
     nhdr_locations = [[0x29,0x1010], [0x29,0x1110]]
     # read the DICOM file
     d = dcm.read_file(fnrm_hdr)
-    if   d[0x0018, 0x1020].value == 'syngo MR B20P' or d[0x0018, 0x1020].value == 'syngo MR E11':
-        nhdr = d[0x29,0x1010].value.decode()
-    elif d[0x0018, 0x1020].value == 'syngo MR B18P':
-        found_nhdr = False
-        for loc in nhdr_locations:
-            if loc in d:
+
+    # if   d[0x0018, 0x1020].value == 'syngo MR B20P' or d[0x0018, 0x1020].value == 'syngo MR E11':
+    #     nhdr = d[0x29,0x1010].value.decode()
+    # elif d[0x0018, 0x1020].value == 'syngo MR B18P':
+
+    found_nhdr = False
+    for loc in nhdr_locations:
+        if loc in d:
+            try:
                 nhdr = d[loc].value.decode()
-                if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
-                    if Cnt['VERBOSE']: print('i> got the normalisation interfile header from [', hex(loc[0]),',', hex(loc[1]), ']')
-                    found_nhdr = True
-                    break
-        if not found_nhdr:           
-            print('e> DICOM field with normalisation interfile header has not been found!')
-            return None, None
-    else: print('e> unknown scanner software version!');  return None, None
+            except:
+                continue
+            if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
+                if Cnt['VERBOSE']: print('i> got the normalisation interfile header from [', hex(loc[0]),',', hex(loc[1]), ']')
+                found_nhdr = True
+                break
+    if not found_nhdr:
+        raise ValueError('DICOM field with normalisation interfile header has not been found!')        
 
     f0 = nhdr.find('scanner quantification factor')
     f1 = f0+nhdr[f0:].find('\n')
