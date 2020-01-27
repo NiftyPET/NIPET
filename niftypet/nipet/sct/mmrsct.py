@@ -56,7 +56,75 @@ def fwhm2sig (fwhm, Cnt):
 # S C A T T E R
 #-------------------------------------------------------------------------------------------------
 
-#get Klein-Nishina LUTs
+#> get table of selected transaxial and axial (ring) crystals for scatter modelling
+def get_scrystals(scanner_params):
+
+
+    #> decompose constants, transaxial and axial LUTs are extracted
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+    #> set the logger and its level of verbose
+    log = get_logger(__name__)
+    log.setLevel(Cnt['LOG'])
+
+
+    #------------------------------------------------------
+    #> transaxial crystals definitions
+    crs = txLUT['crs']
+
+    #> period of scatter crystals (needed for definition)
+    SCRS_T = 7
+
+    #> counter for crystal period, SCRS_T
+    cntr = 0
+
+    #> scatter crystal index
+    iscrs = 0
+
+    #> initialise list of transaxial scatter crystal table
+    scrs = []
+
+    logtxt = ''
+
+    #> transaxial scatter crystal selection for modelling
+    for c in range(Cnt['NCRS']):
+        if (((c + 1) % 9) == 0): continue
+        cntr += 1
+        if (cntr == SCRS_T):
+            cntr = 0
+            scrs.append([
+                c,
+                0.5*(crs[0, c] + crs[2, c]),
+                0.5*(crs[1, c] + crs[3, c])
+                ])
+
+            logtxt += '''\
+                \r{}-th scatter crystal is #{}: (x,y) = {}, {}
+                '''.format(iscrs, c, scrs[-1][1], scrs[-1][2])
+            iscrs += 1
+
+    log.info('transaxial scatter crystal definitions:\n\n'+logtxt)
+
+    #> convert the scatter crystal table to Numpy array
+    scrs = np.array(scrs, dtype=np.float32)
+    #------------------------------------------------------
+
+
+    #------------------------------------------------------
+    #> scatter ring definition (axially)
+    sct_irng = np.int16([0, 10, 19, 28, 35, 44, 53, 63])
+    # number of scatter rings (used for scatter estimation)
+    NSRNG = len(sct_irng)
+    #------------------------------------------------------
+
+
+    return dict(SCTRNG=sct_irng, NSRNG=NSRNG, SCTCRS=scrs)
+
+
+
+#> get Klein-Nishina LUTs
 def get_knlut(Cnt):
 
     log = get_logger(__name__)
@@ -101,10 +169,23 @@ def rd2sni(offseg, r1, r0):
     sni = offseg[rdi] + np.minimum(r0,r1)
     return sni
 #--------------------------------------------------------------------------------------------------
-def get_sctLUT(Cnt):
 
-    # get the indeces of rings used for scatter estimation
-    irng = Cnt['SCTRNG']
+def get_sctLUT(scanner_params):
+
+    #> decompose constants, transaxial and axial LUTs are extracted
+    Cnt   = scanner_params['Cnt']
+    txLUT = scanner_params['txLUT']
+    axLUT = scanner_params['axLUT']
+
+
+    #> get the Klein-Nishina LUT:
+    KN = get_knlut(Cnt)
+
+    #> get scatter crystal tables:
+    scrs_def = get_scrystals(scanner_params)
+
+    # get the indexes of rings used for scatter estimation
+    irng = scrs_def['SCTRNG']
 
     # get number of ring accounting for the possible ring reduction (to save computation time)
     # NRNG = Cnt['RNG_END']-Cnt['RNG_STRT']
@@ -123,7 +204,7 @@ def get_sctLUT(Cnt):
 
 
     J, I =  np.meshgrid(irng, irng)
-    mich[J,I] = np.reshape(np.arange(len(Cnt['SCTRNG'])**2), (len(Cnt['SCTRNG']), len(Cnt['SCTRNG'])))
+    mich[J,I] = np.reshape(np.arange(len(scrs_def['SCTRNG'])**2), (len(scrs_def['SCTRNG']), len(scrs_def['SCTRNG'])))
     # plt.figure(64), plt.imshow(mich, interpolation='none')
 
     for r1 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
@@ -186,10 +267,18 @@ def get_sctLUT(Cnt):
 
     # plt.figure(65), plt.imshow(mich2, interpolation='none')
 
-    #get K-N LUT:
-    KN = get_knlut(Cnt)
 
-    sctLUT = {'sctaxR':sctaxR, 'sctaxW':sctaxW, 'isrng':irng, 'offseg':offseg, 'KN':KN, 'mich_chck':[mich, mich2]} 
+    sctLUT = {
+        'sctaxR':sctaxR,
+        'sctaxW':sctaxW,
+        'isrng':irng,
+        'offseg':offseg,
+        'KN':KN,
+        'mich_chck':[mich, mich2],
+        **scrs_def,
+        'NSCRS':scrs_def['SCTCRS'].shape[0]}
+
+
     return sctLUT
 
 
@@ -390,7 +479,7 @@ def vsm(
         saxnrm = nrmcmp['sax_f11']
 
     #LUTs for scatter
-    sctLUT = get_sctLUT(Cnt)
+    sctLUT = get_sctLUT(scanner_params)
     
     
     #-smooth before down-sampling mu-map and emission image

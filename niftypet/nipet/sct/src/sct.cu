@@ -334,6 +334,7 @@ scatOUT prob_scatt(
 	int *sctaxR,
 	float *sctaxW,
 	short *offseg,
+	float *scrs,
 	short *isrng,
 	float *crs,
 	short *sn1_rno,
@@ -375,7 +376,7 @@ scatOUT prob_scatt(
 
 	//==================================================================
 	//scatter crystals definition [crs no, centre.x, centre.y]
-	scrsDEF d_scrsdef = def_scrs(isrng, crs, Cnt);
+	scrsDEF d_scrsdef = def_scrs(isrng, scrs, Cnt);
 	if (Cnt.LOG <= LOGINFO) printf("i> number of scatter crystals used:\n  >transaxially: %d\n  >axially: %d\n", d_scrsdef.nscrs, d_scrsdef.nsrng);
 	// for(int i=0; i<d_scrsdef.nsrng; i++)    printf("rng[%d]=%f\n", (int)d_scrsdef.rng[2*i], d_scrsdef.rng[2*i+1]);
 	// for(int i=0; i<d_scrsdef.nscrs; i++)    printf("crs[%d]=%f, %f\n", (int)d_scrsdef.crs[3*i], d_scrsdef.crs[3*i+1], d_scrsdef.crs[3*i+2]);

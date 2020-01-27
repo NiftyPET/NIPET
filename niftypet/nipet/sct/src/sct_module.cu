@@ -120,8 +120,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Cnt.MRD = (int)PyLong_AsLong(pd_MRD);
 	PyObject* pd_NRNG = PyDict_GetItemString(o_mmrcnst, "NRNG");
 	Cnt.NRNG = (int)PyLong_AsLong(pd_NRNG);
-	PyObject* pd_NSRNG = PyDict_GetItemString(o_mmrcnst, "NSRNG");
-	Cnt.NSRNG = (int)PyLong_AsLong(pd_NSRNG);
+	// PyObject* pd_NSRNG = PyDict_GetItemString(o_mmrcnst, "NSRNG");
+	// Cnt.NSRNG = (int)PyLong_AsLong(pd_NSRNG);
 	PyObject* pd_NCRS = PyDict_GetItemString(o_mmrcnst, "NCRS");
 	Cnt.NCRS = (int)PyLong_AsLong(pd_NCRS);
 	PyObject* pd_NSEG0 = PyDict_GetItemString(o_mmrcnst, "NSEG0");
@@ -190,29 +190,39 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	p_sn1_sn11 = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1_sn11, NPY_INT16, NPY_ARRAY_IN_ARRAY);
 
 
-	//--
-	//> scatter luts:
+	//-------- SCATTER --------
+	// number of axial scatter crystals (rings) for modelling 
+	PyObject* pd_NSRNG = PyDict_GetItemString(o_sctLUT, "NSRNG");
+	Cnt.NSRNG = (int)PyLong_AsLong(pd_NSRNG);
+	// number of transaxial scatter crystals for modelling 
+	PyObject* pd_NSCRS = PyDict_GetItemString(o_sctLUT, "NSCRS");
+	Cnt.NSCRS = (int)PyLong_AsLong(pd_NSCRS);
+
+	//> scatter LUTs:
+	PyObject* pd_SCTCRS = PyDict_GetItemString(o_sctLUT, "SCTCRS");
 	PyObject* pd_KN 	= PyDict_GetItemString(o_sctLUT, "KN");
 	PyObject* pd_isrng 	= PyDict_GetItemString(o_sctLUT, "isrng");
 	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
 	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
 	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
 	
-	PyArrayObject 	*p_KN=NULL, *p_isrng=NULL, *p_offseg=NULL,
-					*p_sctaxR=NULL, *p_sctaxW=NULL;
+	PyArrayObject 	*p_SCTCRS=NULL, *p_KN=NULL, *p_isrng=NULL, 
+					*p_offseg=NULL, *p_sctaxR=NULL, *p_sctaxW=NULL;
+
+	p_SCTCRS	= (PyArrayObject *)PyArray_FROM_OTF(pd_SCTCRS,  NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 	p_KN 		= (PyArrayObject *)PyArray_FROM_OTF(pd_KN, 		NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 	p_isrng 	= (PyArrayObject *)PyArray_FROM_OTF(pd_isrng, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
 	p_offseg 	= (PyArrayObject *)PyArray_FROM_OTF(pd_offseg, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
 	p_sctaxR 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxR, 	NPY_INT32, 		NPY_ARRAY_IN_ARRAY);
 	p_sctaxW 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxW, 	NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
-	//--
+	//-------------------------
 
 	/* If that didn't work, throw an exception. */
 	if (p_mumap == NULL || p_mumsk == NULL 	|| p_emimg == NULL ||
 		p_bind == NULL 	|| p_sct3 == NULL 	|| p_sval == NULL  || p_xsxu == NULL ||
 		p_crs == NULL   || p_sn1_rno == NULL|| p_sn1_sn11 == NULL ||
-		p_KN == NULL 	|| p_isrng == NULL 	|| p_offseg == NULL ||
-		p_sctaxR == NULL|| p_sctaxW == NULL )
+		p_SCTCRS == NULL|| p_KN == NULL 	|| p_isrng == NULL 	||
+		p_offseg == NULL|| p_sctaxR == NULL || p_sctaxW == NULL )
 	{
 		Py_XDECREF(p_mumap);
 		Py_XDECREF(p_mumsk);
@@ -220,6 +230,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 		Py_XDECREF(p_crs);
 		Py_XDECREF(p_sn1_rno);
 		Py_XDECREF(p_sn1_sn11);
+
+		Py_XDECREF(p_SCTCRS);
 		Py_XDECREF(p_KN);
 		Py_XDECREF(p_isrng);
 		Py_XDECREF(p_offseg);
@@ -259,6 +271,9 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	float *sctaxW = (float*)PyArray_DATA(p_sctaxW);
 	//K-N probabilities in the LUT
 	float *KNlut = (float*)PyArray_DATA(p_KN);
+
+	// transaxial scatter crystal table
+	float *scrs = (float*)PyArray_DATA(p_SCTCRS);
 
 	//output structure
 	scatOUT sctout;
@@ -312,6 +327,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 		muIMG, emIMG,
 		sctaxR,sctaxW,
 		offseg,
+		scrs,
 		isrng,
 		crs,
 		sn1_rno,
@@ -332,6 +348,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Py_DECREF(p_offseg);
 	Py_DECREF(p_sctaxR);
 	Py_DECREF(p_sctaxW);
+	Py_DECREF(p_KN);
+	Py_DECREF(p_SCTCRS);
 
 	PyArray_ResolveWritebackIfCopy(p_bind);
 	Py_DECREF(p_bind);

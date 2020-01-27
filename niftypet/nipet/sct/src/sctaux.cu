@@ -33,29 +33,32 @@ void getMemUse(Cnst Cnt) {
 //==========================================================================================
 
 //------------- DEFINE A SUBSET OF CRYSTAL and THEIR CENTRES FOR SCATTER -------------------
-scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
+scrsDEF def_scrs(short * isrng, float *scrs, Cnst Cnt)
 {
 
+	// float * scrs = (float*)malloc(3 * nCRS * sizeof(float));
+	// //indx of scatter crystals, ending with the total number
+	// int iscrs = 0;
+	// //counter for crystal period, SCRS_T
+	// int cntr = 0;
+
+	// for (int c = 0; c<nCRS; c++) {
+	// 	// avoiding gaps
+	// 	if (((c + 1) % 9) == 0) continue;
+	// 	cntr += 1;
+	// 	if (cntr == SCRS_T) {
+	// 		cntr = 0;
+	// 		scrs[3 * iscrs] = (float)c;
+	// 		scrs[3 * iscrs + 1] = 0.5*(crs[c] + crs[c + 2 * nCRS]);
+	// 		scrs[3 * iscrs + 2] = 0.5*(crs[c + nCRS] + crs[c + 3 * nCRS]);
+
+	// 		//printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", iscrs, c, scrs[3*iscrs+1], scrs[3*iscrs+2]);
+	// 		iscrs += 1;
+	// 	}
+	// }
+
+
 	scrsDEF d_scrsdef;
-	float * scrs = (float*)malloc(3 * nCRS * sizeof(float));
-	//indx of scatter crystals, ending with the total number
-	int iscrs = 0;
-	//counter for crystal period, SCRS_T
-	int cntr = 0;
-
-	for (int c = 0; c<nCRS; c++) {
-		if (((c + 1) % 9) == 0) continue;
-		cntr += 1;
-		if (cntr == SCRS_T) {
-			cntr = 0;
-			scrs[3 * iscrs] = (float)c;
-			scrs[3 * iscrs + 1] = 0.5*(crs[c] + crs[c + 2 * nCRS]);
-			scrs[3 * iscrs + 2] = 0.5*(crs[c + nCRS] + crs[c + 3 * nCRS]);
-
-			// printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", iscrs, c, scrs[3*iscrs+1], scrs[3*iscrs+2]);
-			iscrs += 1;
-		}
-	}
 
 	//scatter ring definitions
 #ifdef WIN32
@@ -71,16 +74,16 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	HANDLE_ERROR(cudaMemcpy(d_scrsdef.rng, h_scrcdefRng, 2 * Cnt.NSRNG * sizeof(float), cudaMemcpyHostToDevice));
 	HANDLE_ERROR(cudaFreeHost(h_scrcdefRng));
 
-	//transaxial crs to structure
-	HANDLE_ERROR(cudaMallocHost(&h_scrsdefCrs, 3 * iscrs * sizeof(float)));
-	for (int sc = 0; sc<iscrs; sc++) {
+	//transaxial crystals to structure
+	HANDLE_ERROR(cudaMallocHost(&h_scrsdefCrs, 3 * Cnt.NSCRS * sizeof(float)));
+	for (int sc = 0; sc<Cnt.NSCRS; sc++) {
 		h_scrsdefCrs[3 * sc] = scrs[3 * sc];
 		h_scrsdefCrs[3 * sc + 1] = scrs[3 * sc + 1];
 		h_scrsdefCrs[3 * sc + 2] = scrs[3 * sc + 2];
 		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
 	}
-	HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * iscrs * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, h_scrsdefCrs, 3 * iscrs * sizeof(float), cudaMemcpyHostToDevice));
+	HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * Cnt.NSCRS * sizeof(float)));
+	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, h_scrsdefCrs, 3 * Cnt.NSCRS * sizeof(float), cudaMemcpyHostToDevice));
 	HANDLE_ERROR(cudaFreeHost(h_scrsdefCrs));
 
 #else
@@ -93,21 +96,17 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	}
 
 	//transaxial crs to structure
-	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.crs, 3 * iscrs * sizeof(float)));
-	for (int sc = 0; sc<iscrs; sc++) {
-		d_scrsdef.crs[3 * sc] = scrs[3 * sc];
+	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.crs, 3 * Cnt.NSCRS * sizeof(float)));
+	for (int sc = 0; sc<Cnt.NSCRS; sc++) {
+		d_scrsdef.crs[3 * sc] 	  = scrs[3 * sc];
 		d_scrsdef.crs[3 * sc + 1] = scrs[3 * sc + 1];
 		d_scrsdef.crs[3 * sc + 2] = scrs[3 * sc + 2];
 		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
 	}
 #endif
 
-
-	d_scrsdef.nscrs = iscrs;
+	d_scrsdef.nscrs = Cnt.NSCRS;
 	d_scrsdef.nsrng = Cnt.NSRNG;
-	Cnt.NSCRS = iscrs;
-
-	free(scrs);
 
 	return d_scrsdef;
 }

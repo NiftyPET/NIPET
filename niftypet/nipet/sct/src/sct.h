@@ -22,6 +22,7 @@ scatOUT prob_scatt(
 	int *sctaxR,
 	float *sctaxW,
 	short *offseg,
+	float *scrs,
 	short *isrng,
 	float *crs,
 	short *sn1_rno,
