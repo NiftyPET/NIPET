@@ -130,8 +130,6 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Cnt.ALPHA = (float)PyFloat_AsDouble(pd_ALPHA);
 	PyObject* pd_AXR = PyDict_GetItemString(o_mmrcnst, "AXR");
 	Cnt.AXR = (float)PyFloat_AsDouble(pd_AXR);
-	PyObject* pd_RRING = PyDict_GetItemString(o_mmrcnst, "RE");
-	Cnt.RE = (float)PyFloat_AsDouble(pd_RRING);
 
 	PyObject* pd_TOFBINN = PyDict_GetItemString(o_mmrcnst, "TOFBINN");
 	Cnt.TOFBINN = (int)PyLong_AsLong(pd_TOFBINN);

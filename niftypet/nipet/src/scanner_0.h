@@ -37,7 +37,6 @@ struct Cnst {
 	int MRD;
 
 	float ALPHA;  //angle subtended by a crystal
-	float RE;    //effective ring diameter
 	float AXR;  //axial crystal dim
 
 	float COSUPSMX; //cosine of max allowed scatter angle
@@ -55,6 +54,7 @@ struct Cnst {
 	char LOG; //different levels of verbose/logging like in Python's logging package
 
 
+	// float RE;    //effective ring diameter
 	// float ICOSSTP;
 
 	// short SS_IMZ;

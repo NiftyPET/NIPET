@@ -207,11 +207,24 @@ for ci in range(len(cmd)):
     '''.format(stdout))
 
 
-log.info('---------- error report ----------')
+#-----------------------------------------------------------------------
+#> deal with errors
+error_str = ''
 for ci in range(len(cmd)):
     if errstr[ci] != '_':
-        log.error(' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
-log.info('--------------- end ---------------')
+        error_str.append(' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+
+if error_str == '':
+    error_str = 'No errors found!'
+
+error_rprt = '''---------- error report ----------
+    \r{}
+    \r> -------------- end ---------------
+'''.format(error_str)
+
+log.info(error_rprt)
+#-----------------------------------------------------------------------
+
 
 # come back from build folder
 os.chdir(path_current)
