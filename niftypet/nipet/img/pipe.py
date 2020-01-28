@@ -461,6 +461,9 @@ def mmrchain(datain,        # all input data in a dictionary
         
         #> update output dictionary
         output.update({'impvc':dynpvc})
+        output['fprc'] = petpvc_dic['fprc']
+        output['imprc'] = petpvc_dic['imprc']
+
         if store_img_intrmd: output.update({'fpvc':fpvc})
         if store_rois: output.update({'froi':froi})
     # ----------------------------------------------------------------------

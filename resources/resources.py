@@ -64,6 +64,9 @@ NRNG = 64
 # number of crystals transaxially
 NCRS = 504
 
+#> idealised crystal surface (used for scatter modelling)
+SRFCRS = 0.1695112
+
 # reduced number of crystals by the gaps (dead crystals)
 NCRSR = 448
 
@@ -96,12 +99,6 @@ minrd = np.array([-5,-16, 6,-27,17,-38,28,-49,39,-60,50])
 maxrd = np.array([ 5, -6,16,-17,27,-28,38,-39,49,-50,60])
 #----------
 
-#------------------------------------------------------
-# scatter ring definition
-sct_irng = np.int16([0, 10, 19, 28, 35, 44, 53, 63])
-# number of scatter rings (used for scatter estimation)
-NSRNG = len(sct_irng)
-#------------------------------------------------------
 
 #------------------------------------------------------
 #> transaxial projection parameters (should be in 
@@ -218,6 +215,11 @@ R = 32.8
 #effective ring radius accounting for the depth of interaction
 RE = (R + 0.67)#0.67
 
+RE_2 = float("{0:.6f}".format(RE**2)) 
+
+#> inverse of the radius
+IRE = float("{0:.6f}".format(RE**-1))
+
 #axial crystal width
 AXR = 0.40625
 
@@ -306,9 +308,9 @@ def get_mmr_constants():
         'DCYCRR':DCYCRR,
         'ALPHA':ALPHA,
         'NRNG':NRNG,
-        'NSRNG':NSRNG,
         'NCRS':NCRS,
         'NCRSR':NCRSR,
+        'SRFCRS':SRFCRS,
         'NBCKT':224,
         'NSANGLES':A,
         'NSBINS':W,
@@ -351,12 +353,18 @@ def get_mmr_constants():
         'NTV':NTV,
 
         'NSEG0':SEG0,
-        'RE':RE, #effective ring radius
+        'R_RING':RE, #effective ring radius
+        'R_2':RE_2,
+        'IR_RING':IRE,
         'R':R,
         'SEG':seg,
         'MNRD':minrd,
         'MXRD':maxrd,
-        'SCTRNG':sct_irng,
+
+        #> scatter moved to scatter LUTs script in sct folder
+        #'NSRNG':NSRNG, # number of scatter rings for modelling
+        #'SCTRNG':sct_irng, # scatter ring indexes
+        
         'TGAP':TGAP,
         'OFFGAP':OFFGAP,
         'AXR':AXR,

@@ -59,7 +59,7 @@ def obtain_image(img, Cnt=None, imtype=''):
             output['fim'] = ''
             log.info('using hardware mu-map from numpy array.')
 
-    elif isinstance(img, basestring):
+    elif isinstance(img, str):
         if os.path.isfile(img):
             from niftypet import nimpa
             imdct = nimpa.getnii(img, output='all')

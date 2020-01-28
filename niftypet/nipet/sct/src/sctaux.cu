@@ -65,7 +65,8 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
 		h_scrcdefRng[2 * ir] = (float)isrng[ir];
 		h_scrcdefRng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.LOG <= LOGDEBUG) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)h_scrcdefRng[2 * ir], h_scrcdefRng[2 * ir + 1]);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)h_scrcdefRng[2 * ir], h_scrcdefRng[2 * ir + 1]);
 	}
 	HANDLE_ERROR(cudaMalloc(&d_scrsdef.rng, 2 * Cnt.NSRNG * sizeof(float)));
 	HANDLE_ERROR(cudaMemcpy(d_scrsdef.rng, h_scrcdefRng, 2 * Cnt.NSRNG * sizeof(float), cudaMemcpyHostToDevice));
@@ -77,7 +78,8 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 		h_scrsdefCrs[3 * sc] = scrs[3 * sc];
 		h_scrsdefCrs[3 * sc + 1] = scrs[3 * sc + 1];
 		h_scrsdefCrs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
 	}
 	HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * iscrs * sizeof(float)));
 	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, h_scrsdefCrs, 3 * iscrs * sizeof(float), cudaMemcpyHostToDevice));
@@ -89,7 +91,8 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
 		d_scrsdef.rng[2 * ir] = (float)isrng[ir];
 		d_scrsdef.rng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.LOG <= LOGDEBUG) printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)d_scrsdef.rng[2 * ir], d_scrsdef.rng[2 * ir + 1]);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)d_scrsdef.rng[2 * ir], d_scrsdef.rng[2 * ir + 1]);
 	}
 
 	//transaxial crs to structure
@@ -98,7 +101,8 @@ scrsDEF def_scrs(short * isrng, float *crs, Cnst Cnt)
 		d_scrsdef.crs[3 * sc] = scrs[3 * sc];
 		d_scrsdef.crs[3 * sc + 1] = scrs[3 * sc + 1];
 		d_scrsdef.crs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.LOG <= LOGDEBUG) printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
 	}
 #endif
 
