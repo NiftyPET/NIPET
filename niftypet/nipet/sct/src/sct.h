@@ -22,6 +22,7 @@ scatOUT prob_scatt(
 	int *sctaxR,
 	float *sctaxW,
 	short *offseg,
+	float *scrs,
 	short *isrng,
 	float *crs,
 	short *sn1_rno,
@@ -29,29 +30,40 @@ scatOUT prob_scatt(
 	Cnst Cnt);
 
 
-//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-//## start ##// constants definitions in synch with Python.   DONT MODIFY MANUALLY HERE!
-// SCATTER IMAGE SIZE
-// SS_* are used for the mu-map in scatter calculations
-// SSE_* are used for the emission image in scatter calculations
-#define SS_IMX 172
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+            
+//## start ##// constants definitions in synch with Python.   DO NOT MODIFY!
+
+// SCATTER IMAGE SIZE AND PROPERTIES
+// SS_* are used for the mu-map in scatter calculations
+// SSE_* are used for the emission image in scatter calculations
+// R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+// NCOS is the number of samples for scatter angular sampling
+#define SS_IMX 172
 #define SS_IMY 172
 #define SS_IMZ 63
 #define SSE_IMX 114
 #define SSE_IMY 114
 #define SSE_IMZ 43
+#define NCOS 256
 #define SS_VXY 0.417252f
 #define SS_VXZ 0.409474f
 #define IS_VXZ 2.442157f
 #define SSE_VXY 0.629538f
 #define SSE_VXZ 0.599927f
+#define R_RING 33.47f
+#define R_2 1120.2409f
+#define IR_RING 0.029878f
+#define SRFCRS 0.1695112f
 //## end ##// constants definitions in synch with Python
+
+//number of samples per scattering patch (point) length; used as the power of 2:  2**LSCT2 = patch length
+#define LSCT2 2
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 
 //====================================================
-
-
-// actual radius (radious + DOI)
+/* R_RING: actual radius (radious + DOI)
 #define R_RING (32.8 + 0.67)
 // inverse of the above
 #define IR_RING 0.0298775
@@ -61,11 +73,9 @@ scatOUT prob_scatt(
 //number of samples for scatter angular sampling
 #define NCOS 256
 
-//number of samples per scattering patch (point) length; used as the power of 2:  2**LSCT2 = patch length
-#define LSCT2 2
-
 //detector surface
 #define SRFCRS    0.1695112f //2*math.pi/NCRS*(32.8 + 0.67)*0.40625
+*/
 //====================================================
 
 

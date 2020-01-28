@@ -15,6 +15,8 @@ import numpy as np
 import platform
 import shutil
 
+import textwrap
+
 #-------------------------------------------------------------------------------
 import logging
 log = logging.getLogger(__name__)
@@ -268,30 +270,40 @@ def chck_sct_h(Cnt):
     i1 = sct_h.find('//## end ##//')
     scth = sct_h[i0:i1]
     # list of constants which will be kept in sych from Python
-    cnt_list = ['SS_IMX',  'SS_IMY',  'SS_IMZ', 'SSE_IMX', 'SSE_IMY', 'SSE_IMZ',
-                'SS_VXY',  'SS_VXZ',  'IS_VXZ', 'SSE_VXY', 'SSE_VXZ']
+    cnt_list = ['SS_IMX', 'SS_IMY', 'SS_IMZ',
+                'SSE_IMX', 'SSE_IMY', 'SSE_IMZ', 'NCOS',
+                'SS_VXY',  'SS_VXZ',  'IS_VXZ', 'SSE_VXY', 'SSE_VXZ',
+                'R_RING', 'R_2', 'IR_RING',  'SRFCRS']
     flg = False
-    for s in cnt_list:
+    for i,s in enumerate(cnt_list):
         m = re.search('(?<=#define '+s+')\s*\d*\.*\d*', scth)
-        if s[-3]=='V':
-            #print(s, float(m.group(0)), Cnt[s])
-            if Cnt[s]!=float(m.group(0)):
-                flg = True
-                break
-        else:
+        # if s[-3]=='V':
+        if i<7:
             #print(s, int(m.group(0)), Cnt[s])
             if Cnt[s]!=int(m.group(0)): 
                 flg = True
                 break
+        else:
+            #print(s, float(m.group(0)), Cnt[s])
+            if Cnt[s]!=float(m.group(0)):
+                flg = True
+                break
+            
     # if flag is set then redefine the constants in the sct.h file
     if flg:
-        strNew = '//## start ##// constants definitions in synch with Python.   DON''T MODIFY MANUALLY HERE!\n'+\
-        '// SCATTER IMAGE SIZE\n'+\
-        '// SS_* are used for the mu-map in scatter calculations\n'+\
-        '// SSE_* are used for the emission image in scatter calculations\n'
+        strNew = '''\
+        \r//## start ##// constants definitions in synch with Python.   DO NOT MODIFY!\n
+        \r// SCATTER IMAGE SIZE AND PROPERTIES
+        \r// SS_* are used for the mu-map in scatter calculations
+        \r// SSE_* are used for the emission image in scatter calculations
+        \r// R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+        \r// NCOS is the number of samples for scatter angular sampling
+        \r'''
+
+        strNew = textwrap.dedent(strNew)
         strDef = '#define '
-        for s in cnt_list:
-            strNew += strDef+s+' '+str(Cnt[s])+(s[-3]=='V')*'f' + '\n'
+        for i,s in enumerate(cnt_list):
+            strNew += strDef+s+' '+str(Cnt[s])+(i>6)*'f' + '\n'
 
         scthNew = sct_h[:i0] + strNew + sct_h[i1:] 
         f = open(fpth, 'w')
@@ -326,10 +338,10 @@ def check_constants():
     #===========================
     Cnt = resources.get_mmr_constants()
 
-    # sct_compile = chck_sct_h(Cnt)
-    # def_compile = chck_vox_h(Cnt)
-    sct_compile = False
-    def_compile = False
+    sct_compile = chck_sct_h(Cnt)
+    def_compile = chck_vox_h(Cnt)
+    # sct_compile = False
+    # def_compile = False
 
     if sct_compile or def_compile:
         txt = 'NiftyPET constants were changed: needs CUDA compilation.'

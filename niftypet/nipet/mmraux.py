@@ -678,8 +678,8 @@ def transaxial_lut(Cnt):
         #-tangent point (ring against detector block)
         # ye = RE*np.sin(phi)
         # xe = RE*np.cos(phi)
-        y  =  Cnt['RE']*np.sin(phi)
-        x  =  Cnt['RE']*np.cos(phi)
+        y  =  Cnt['R_RING']*np.sin(phi)
+        x  =  Cnt['R_RING']*np.cos(phi)
         #-vector for the face of crystals
         pv  = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
