@@ -1102,15 +1102,40 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
 
     #------- get positions from the DICOM mu-map file -------
     csamu, dhdr = hdr_mu(datain, Cnt)
-    tmp = re.search('GantryTableHomeOffset(?!_)', csamu)
-    gtostr1  = csamu[ tmp.start():tmp.start()+300 ]
-    gtostr2 = re.sub(r'[^a-zA-Z0-9\-\.]', '', gtostr1)
-    # gantry table offset, through conversion of string to float
-    gtoxyz = re.findall(r'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
-    gtozyx = np.float32(gtoxyz)[::-1]/10
-    #--------------------------------------------------------
+    #> get the indices where the table offset may reside:
+    idxs = [m.start() for m in re.finditer(b'GantryTableHomeOffset(?!_)', csamu)]
+    #> loop over the indices and find those which are correct
+    found_off = False
+    for i in idxs:
+        gtostr1  = csamu[ i:i+300 ]
+        gtostr2 = re.sub(b'[^a-zA-Z0-9\-\.]', b'', gtostr1)
+        # gantry table offset, through conversion of string to float
+        gtoxyz = re.findall(b'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
+        gtozyx = np.float32(gtoxyz)[::-1]/10
+        if len(gtoxyz)>3:
+            log.warning('the gantry table offset got more than 3 entries detected--check needed.')
+            gtozyx = gtozyx[-3:]
+        if abs(gtozyx[0])>20 and abs(gtozyx[1])<20 and abs(gtozyx[2])<2:
+            found_off = True
+            break
 
-    log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
+    if found_off:
+        log.debug('gantry table offset (z,y,x) (cm): {}'.format(gtozyx))
+    else:
+        raise ValueError('Could not find the gantry table offset or the offset is unusual.')
+     #--------------------------------------------------------
+
+    # #------- get positions from the DICOM mu-map file -------
+    # csamu, dhdr = hdr_mu(datain, Cnt)
+    # tmp = re.search('GantryTableHomeOffset(?!_)', csamu)
+    # gtostr1  = csamu[ tmp.start():tmp.start()+300 ]
+    # gtostr2 = re.sub(r'[^a-zA-Z0-9\-\.]', '', gtostr1)
+    # # gantry table offset, through conversion of string to float
+    # gtoxyz = re.findall(r'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
+    # gtozyx = np.float32(gtoxyz)[::-1]/10
+    # #--------------------------------------------------------
+
+    # log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
 
     ## ----
     ## old II
