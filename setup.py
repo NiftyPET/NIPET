@@ -14,7 +14,7 @@ import platform
 from subprocess import run, PIPE
 import logging
 
-if 'DISPLAY' in os.environ:
+if os.getenv('DISPLAY', False):
     from tkinter import Tk
     from tkinter.filedialog import askdirectory
 else:
@@ -130,9 +130,9 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
     # if not installed ask for the folder through GUI
     # otherwise the path will have to be filled manually
     if not hmu_flg:
-        prompt = dict(title='Folder for hardware mu-maps',
+        prompt = dict(title='Folder for hardware mu-maps: ',
                       initialdir=os.path.expanduser('~'))
-        if 'DISPLAY' in os.environ:
+        if os.getenv('DISPLAY', False):
             Tk().withdraw()
         else:
             prompt['name'] = 'HMUDIR'
