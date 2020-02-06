@@ -15,10 +15,10 @@ set(PYTHON_PREFIX_PATH)
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/dinf)
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
-#add_subdirectory(${CMAKE_PROJECT_NAME}/lm_1)
+add_subdirectory(${CMAKE_PROJECT_NAME}/lm_sig)
 add_subdirectory(${CMAKE_PROJECT_NAME}/prj)
 add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
-# add_subdirectory(${CMAKE_PROJECT_NAME}/lms)
+
 
 
 

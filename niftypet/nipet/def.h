@@ -91,33 +91,6 @@
 #define NCRS_S 448
 
 
-typedef struct{
-  char *fname;
-  size_t *atag;
-  size_t *btag;
-  int *ele4chnk;
-  int *ele4thrd;
-  size_t ele;
-  int nchnk;
-  int nitag;
-  int toff;
-  int last_ttag;
-  int tstart;
-  int tstop;
-  int tmidd;
-  int flgs; //write out sinos in span-11
-  int span; //choose span (1, 11 or SSRB)
-  int nfrm; //output dynamic sinos in span-11
-  int flgf; //do fan-sums calculations and output by randoms estimation
-  int nfrm2;
-  short *t2dfrm;
-  int frmoff; //frame offset to account for the splitting of the dynamic data into two
-
-  int bpe; //number of bytes per event (used for GE Signa)
-  int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
-} LMprop; //properties of LM data file and its breaking up into chunks of data.
-
-
 #define PI 3.1415926535f
 
 #define L21  0.001f   // threshold for special case when finding Siddon intersections

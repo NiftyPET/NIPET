@@ -33,11 +33,12 @@ except ImportError as ie:
 #===========================
 
 
-from . import mmrnorm
+
 from . import prj
 from . import img
 
 #> Siemens Biograph mMR
+from . import mmrnorm
 from . import mmraux
 from .mmraux import explore_input as classify_input
 from .mmraux import mMR_params as get_mmrparams
@@ -77,8 +78,8 @@ if resources.ENBLXNAT:
 
 
 #> GE Signa
-# from . import aux_1
+from . import aux_sig
 
-# from . import lm_1
-# from .lm_1.hst_1 import lminfo_sig
+from . import lm_sig
+from .lm_sig.hst_sig import lminfo_sig
 

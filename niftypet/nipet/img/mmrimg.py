@@ -627,7 +627,7 @@ def align_mumap(
             # change to NIfTI if the UTE sequence is in DICOM files (folder)
             if os.path.isdir(datain[ute_name]):
                 fnew =  os.path.basename(datain[ute_name])
-                run( [ Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name] ] )
+                run([Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name]])
                 fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
@@ -773,7 +773,7 @@ def align_mumap(
     # return image dictionary with the image itself and other parameters
     mu_dct['im'] = mu
     mu_dct['affine'] = A
-    mu_dct['faff'] = faff
+    mu_dct['faff'] = faff_mrpet
 
     if store or store_npy:
         nimpa.create_dir(opth)
@@ -847,7 +847,7 @@ def pct_mumap(
         # histogram the list data if needed
         if not hst:
             from niftypet.nipet.lm import mmrhist
-            hst = mmrhist.mmrhist(datain, scanner_params, t0=t0, t1=t1)
+            hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
 
     # get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
