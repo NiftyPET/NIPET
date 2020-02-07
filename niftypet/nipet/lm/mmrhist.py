@@ -14,6 +14,7 @@ import pickle
 from . import mmr_lmproc
 
 from niftypet import nimpa
+from .. import mmraux
 
 #-------------------------------------------------------------------------------
 import logging

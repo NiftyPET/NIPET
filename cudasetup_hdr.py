@@ -68,7 +68,7 @@ def find_cuda():
     '''Locate the CUDA environment on the system.'''
     # search the PATH for NVCC
     for fldr in os.environ['PATH'].split(os.pathsep):
-        cuda_path = join(fldr, 'nvcc')
+        cuda_path = os.path.join(fldr, 'nvcc')
         if os.path.exists(cuda_path):
             cuda_path = os.path.dirname(os.path.dirname(cuda_path))
             break

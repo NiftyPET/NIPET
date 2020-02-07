@@ -65,7 +65,7 @@ def trnx_prj(scanner_params, sino=None, im=None):
     tv = np.zeros(Cnt['NTV']*Cnt['Naw'], dtype=np.uint8)
     tt = np.zeros(Cnt['NTT']*Cnt['Naw'], dtype=np.float32)
 
-    nipet.prj.petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
+    petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
 
     return {'tv':tv, 'tt':tt}
 
@@ -161,6 +161,7 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
         isub -- array of transaxial indices of all sinograms (angles x bins) used for subsets;
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
     '''
+    log = logging.getLogger(__name__)
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
