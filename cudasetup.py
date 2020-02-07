@@ -207,7 +207,7 @@ def chck_vox_h(Cnt):
                 'TFOV2',  'SZ_VOXY', 'SZ_VOXZ', 'SZ_VOXZi']
     flg = False
     for s in cnt_list:
-        m = re.search('(?<=#define '+s+')\s*\d*\.*\d*', defh)
+        m = re.search('(?<=#define ' + s + r')\s*\d*\.*\d*', defh)
         if s[3]=='V':
             #print(s, float(m.group(0)), Cnt[s])
             if Cnt[s]!=float(m.group(0)):
@@ -259,7 +259,7 @@ def chck_sct_h(Cnt):
                 'R_RING', 'R_2', 'IR_RING',  'SRFCRS']
     flg = False
     for i,s in enumerate(cnt_list):
-        m = re.search('(?<=#define '+s+')\s*\d*\.*\d*', scth)
+        m = re.search('(?<=#define ' + s + r')\s*\d*\.*\d*', scth)
         # if s[-3]=='V':
         if i<7:
             #print(s, int(m.group(0)), Cnt[s])
