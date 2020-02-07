@@ -88,6 +88,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
     '''
+    log = logging.getLogger(__name__)
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
