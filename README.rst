@@ -53,7 +53,7 @@ Licence
 
   - `Casper O. da Costa-Luis <https://github.com/casperdcl>`__ @ King's College London
 
-Copyright 2018-19
+Copyright 2018-20
 
 .. |Docs| image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
    :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
