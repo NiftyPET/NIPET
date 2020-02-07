@@ -36,7 +36,6 @@ log = logging.getLogger('nipet.setup')
 ch = logging.StreamHandler()
 formatter = logging.Formatter('\n%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
 ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
 log.addHandler(ch)
 
 
@@ -265,8 +264,13 @@ setup(
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=['nimpa>=2.0.0', 'pydicom>=1.0.2,<=1.2.2',
-      'nibabel>=2.2.1, <=2.3.1', 'tqdm>=4.27', 'numpy>=1.14'],
+    install_requires=[
+        'nibabel>=2.2.1,<=2.3.1',
+        'nimpa>=2.0.0',
+        'numpy>=1.14',
+        'pydicom>=1.0.2,<=1.2.2',
+        'tqdm>=4.27',
+    ],
     python_requires='>=3.4',
     packages=find_packages(exclude=['docs']),
     package_data={
