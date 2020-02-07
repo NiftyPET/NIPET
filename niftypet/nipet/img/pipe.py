@@ -1,39 +1,24 @@
 """module for pipelined image reconstruction and analysis"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#------------------------------------------------------------------------------
+import logging
+from numbers import Integral
+import os
+from subprocess import call
+import sys
 
 import numpy as np
-import sys
-import os
 import scipy.ndimage as ndi
-from subprocess import call
 
+from . import obtain_image
+from ..lm import dynamic_timings
+from ..lm.mmrhist import mmrhist
+from .mmrimg import image_affine
 from niftypet import nimpa
-
-from niftypet.nipet.lm import dynamic_timings
-from niftypet.nipet.prj import mmrrec
-from niftypet.nipet.img import obtain_image
-from niftypet.nipet.img.mmrimg import image_affine
-from niftypet.nipet.lm.mmrhist import mmrhist
-
-integers = (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)
-
-#-------------------------------------------------------------------------------
-import logging
+from ..prj import mmrrec
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
-#-------------------------------------------------------------------------------
 
 
-#------------------------------------------------------------------------------
 def mmrchain(datain,        # all input data in a dictionary
             scanner_params, # all scanner parameters in one dictionary
                             # containing constants, transaxial and axial
@@ -80,14 +65,10 @@ def mmrchain(datain,        # all input data in a dictionary
                             # the list.  ignored if the list is empty.
             del_img_intrmd=False):
 
-
     # decompose all the scanner parameters and constants
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
 
     # -------------------------------------------------------------------------
     # FRAMES
@@ -116,7 +97,7 @@ def mmrchain(datain,        # all input data in a dictionary
             t_frms = dfrms[1:]
 
         # if 1D:
-        elif all([isinstance(t, integers) for t in frames]):
+    elif all([isinstance(t, Integral) for t in frames]):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
             t_frms = dfrms[1:]
@@ -415,7 +396,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 if isinstance(psfkernel, (np.ndarray, np.generic)) and psfkernel.shape!=(3, 17):
                     log.error('the PSF kernel has to be an numpy array with the shape of (3, 17)!')
                     raise IndexError('PSF: wrong shape or not a matrix')
-        
+
         #> file names for NIfTI images of PVC ROIs and PVC corrected PET
         froi = []
         fpvc = []
@@ -456,9 +437,9 @@ def mmrchain(datain,        # all input data in a dictionary
             else:
                 dynpvc = petpvc_dic['im']
             fpvc.append(petpvc_dic['fpet'])
-            
+
             if store_rois: froi.append(petpvc_dic['froi'])
-        
+
         #> update output dictionary
         output.update({'impvc':dynpvc})
         output['fprc'] = petpvc_dic['fprc']

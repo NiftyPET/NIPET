@@ -1,43 +1,28 @@
 """Simulations for image reconstruction with recommended reduced axial field of view"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018, University College London"
-
-import numpy as np
 import logging
 
-from niftypet import nimpa
+import numpy as np
+from tqdm.auto import trange
 
+from ..img import mmrimg
+from . import mmraux
 from . import mmrprj
 from . import mmrrec
 from . import petprj
-
-from niftypet.nipet import mmraux
-from niftypet.nipet.img import mmrimg
-
-from tqdm.auto import trange
-
-
-#-------------------------------------------------------------------------------
-import logging
+from niftypet import nimpa
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
-#-------------------------------------------------------------------------------
 
 
 def simulate_sino(
-        petim,
-        ctim,
-        scanner_params,
-        simulate_3d = False,
-        slice_idx=-1,
-        mu_input = False):
+    petim,
+    ctim,
+    scanner_params,
+    simulate_3d = False,
+    slice_idx=-1,
+    mu_input = False,
+):
     '''
     Simulate the measured sinogram with photon attenuation.
 
@@ -51,7 +36,6 @@ def simulate_sino(
     mu_input  : if True, the values are representative of a mu-map in [1/cm],
         otherwise it represents the CT in [HU].
     '''
-
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
 
@@ -131,18 +115,17 @@ def simulate_sino(
 
 
 def simulate_recon(
-        measured_sino,
-        ctim,
-        scanner_params,
-        simulate_3d = False,
-        nitr = 60,
-        slice_idx = -1,
-        randoms=None,
-        scatter=None,
-        mu_input = False,
-        msk_radius = 29.
-    ):
-
+    measured_sino,
+    ctim,
+    scanner_params,
+    simulate_3d = False,
+    nitr = 60,
+    slice_idx = -1,
+    randoms=None,
+    scatter=None,
+    mu_input = False,
+    msk_radius = 29.,
+):
     '''
     Reconstruct PET image from simulated input data
     using the EM-ML (2D) or OSEM (3D) algorithm.
@@ -157,12 +140,10 @@ def simulate_recon(
         axial and transaxial look up tables (LUTs)
     randoms  : randoms and scatter events (optional)
     '''
-
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
 
     if simulate_3d:
         if ctim.ndim!=3 \
@@ -228,14 +209,13 @@ def simulate_recon(
         rsng = mmraux.remgaps(randoms, txLUT, Cnt)
     else:
         rsng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
-    
+
     if isinstance(scatter, np.ndarray) and measured_sino.shape==scatter.shape:
         ssng = mmraux.remgaps(scatter, txLUT, Cnt)
     else:
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
-    
 
-    log = logging.getLogger(__name__)
+
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
 

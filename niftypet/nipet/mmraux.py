@@ -1,59 +1,38 @@
 """auxilary functions for raw PET data processing."""
-
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2019"
-
-#-------------------------------------------------------------------------------
-
-import numpy as np
-from math import pi
-import sys
-import os
-pjoin = os.path.join
 import glob
-
-import scipy.ndimage as ndi
+import logging
+from math import pi
+import os
+from os.path import join as pjoin
 from pkg_resources import resource_filename
+import re
+import sys
 
 import nibabel as nib
+import numpy as np
 import pydicom as dcm
-import re
+import scipy.ndimage as ndi
 
-from niftypet import nimpa
-
-import resources
 from . import mmr_auxe
-
-#-------------------------------------------------------------------------------
-import logging
+from niftypet import nimpa
+import resources
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('\n%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
-#-------------------------------------------------------------------------------
 
 
-#=================================================================================================
 def create_dir(pth):
-    if not os.path.exists(pth):    
+    if not os.path.exists(pth):
         os.makedirs(pth)
+
 
 def fwhm2sig(fwhm):
     Cnt = resources.get_mmr_constants()
     return (fwhm/Cnt['SZ_VOXY']) / (2*(2*np.log(2))**.5)
 
-#=================================================================================================
+
 def lm_pos(datain, Cnt):
     '''get the position of table and gantry offset from the DICOM list-mode file'''
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
-
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
         dhdr = dcm.read_file(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
@@ -81,8 +60,7 @@ def lm_pos(datain, Cnt):
             log.error(' DICOM field [0x29,0x1020] not found!')
             return None
     else:
-        log.error('unknown scanner software version!')
-        sys.exit()
+        raise ValueError('unknown scanner software version!')
 
     fi = re.search(b'GantryOffset(?!_)', csainfo).start() #csainfo.find('GantryOffset')
     #regular expression for the needed three numbers
@@ -109,13 +87,9 @@ def lm_pos(datain, Cnt):
 
     return goff, tpozyx
 
-#=================================================================================================
+
 def hdr_lm(datain, Cnt):
     '''Get the headers from DICOM list-mode data file'''
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
-    
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
         dhdr = dcm.read_file(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
@@ -124,7 +98,7 @@ def hdr_lm(datain, Cnt):
         log.error('DICOM list-mode data not found!')
         return None
 
-    # list possible DICOM locations for list-mode interfile header 
+    # list possible DICOM locations for list-mode interfile header
     lmhdr_locations = [[0x29,0x1010], [0x29,0x1110]]
 
     # for newer scanner software
@@ -144,10 +118,10 @@ def hdr_lm(datain, Cnt):
         else:
             log.error('DICOM field [0x29,0x1120] not found!')
             return lmhdr, None
-    
+
     # for older scanner software
     elif dhdr[0x0018, 0x1020].value == 'syngo MR B18P':
-        
+
         # find interfile header
         found_lmhdr = False
         for loc in lmhdr_locations:
@@ -159,10 +133,10 @@ def hdr_lm(datain, Cnt):
                         \r[{}, {}]'''.format(hex(loc[0]), hex(loc[1])))
                     found_lmhdr = True
                     break
-        if not found_lmhdr:            
+        if not found_lmhdr:
             log.warning('DICOM field with LM interfile header has not been found!')
             lmhdr = None
-        
+
         #CSA Series Header Info
         if [0x29,0x1020] in dhdr:
             csahdr = dhdr[0x29,0x1020].value
@@ -175,6 +149,7 @@ def hdr_lm(datain, Cnt):
             return lmhdr, None
 
     return lmhdr.decode('ascii'), csahdr
+
 
 def vh_bedpos(datain, Cnt):
     ihdr, csainfo = hdr_lm(datain, Cnt)
@@ -193,8 +168,9 @@ def vh_bedpos(datain, Cnt):
 
     return vbedpos, hbedpos
 
+
 def hmu_resample0(hmupos, parts ,Cnt):
-    
+
     #output image sampling
     Cim = {
         'VXSRx':Cnt['SO_VXX'],
@@ -253,13 +229,9 @@ def hmu_resample0(hmupos, parts ,Cnt):
             imr += nimpa.prc.improc.resample(hmupos[i]['img'], A, Cim)
 
     return imr
-    
-    
 
 
-#=================================================================================================
 def time_diff_norm_acq(datain):
-
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
         l = dcm.read_file(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
@@ -267,7 +239,7 @@ def time_diff_norm_acq(datain):
     else:
         log.error('dicom header of list-mode data does not exist.')
         return None
-    
+
     # acq date
     s = l[0x08,0x21].value
     y = int(s[:4])
@@ -314,7 +286,6 @@ def timings_from_list(flist, offset=0):
     out['timings'] = [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
     out['total'] = total time
     out['frames'] = array([ 15,  15,  15,  15,  30,  30,  30,  30, ...])
-
     '''
     if not isinstance(flist, list):
         raise TypeError('Wrong type of frame data input')
@@ -366,18 +337,12 @@ def timings_from_list(flist, offset=0):
     # prepare the output dictionary
     out = {'total':tsum, 'frames':frms, 'timings':t_frames}
     return out
-#=================================================================================================
 
 
-
-
-    
-#=================================================================================================
 def axial_lut(Cnt):
     ''' Creates lookup tables (LUT) for linear indexes along the diagonals of Michelogram
     for span-11 calculations done on GPU.
     '''
-
     NRNG = Cnt['NRNG']
 
     if Cnt['SPN']==1:
@@ -385,7 +350,7 @@ def axial_lut(Cnt):
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         NSN1_c = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
         if NRNG_c==64:
             NSN1_c -= 12
         SEG0_c = 2*NRNG_c-1
@@ -396,7 +361,6 @@ def axial_lut(Cnt):
             log.error('the reduced axial FOV only works in span-1!')
             return None
 
-    
     #ring dimensions
     rng = np.zeros((NRNG,2), dtype = np.float32)
     z = -.5*NRNG*Cnt['AXR']
@@ -414,9 +378,8 @@ def axial_lut(Cnt):
         for iseg in range(len(Cnt['MNRD'])):
             if ( rd[i]>=Cnt['MNRD'][iseg] ) and ( rd[i]<=Cnt['MXRD'][iseg] ):
                 rd2sg[i,:] = np.array([rd[i], iseg])
-    #--
 
-    #create two Michelograms for segments (Mseg) 
+    #create two Michelograms for segments (Mseg)
     #and absolute axial position for individual sinos (Mssrb) which is single slice rebinning
     Mssrb = -1*np.ones((NRNG,NRNG), dtype=np.int32)
     Mseg = -1*np.ones((NRNG,NRNG), dtype=np.int32)
@@ -427,12 +390,11 @@ def axial_lut(Cnt):
             ssp = r0+r1  #segment sino position (axially: 0-126)
             rd = r1-r0
             jseg = rd2sg[rd2sg[:,0]==rd, 1]
-            Mssrb[r1,r0] = ssp 
+            Mssrb[r1,r0] = ssp
             Mseg[r1,r0] = jseg #negative segments are on top diagonals
 
     # np.savetxt("Mssrb.csv", Mssrb, delimiter=",", fmt='%d')
     # np.savetxt("Mseg.csv", Mseg, delimiter=",", fmt='%d')
-
 
     #create a Michelogram map from rings to sino number in span-11 (1..837)
     Msn = -1*np.ones((NRNG,NRNG), dtype=np.int32)
@@ -451,7 +413,6 @@ def axial_lut(Cnt):
             i += 1
     # np.savetxt("Mnos.csv", Mnos, delimiter=",", fmt='%d')
     # np.savetxt("Msn.csv", Msn, delimiter=",", fmt='%d')
-    
 
     #====full LUT
     sn1_rno = np.zeros((NSN1_c,2), dtype=np.int16)
@@ -494,7 +455,7 @@ def axial_lut(Cnt):
                 sni += 1
 
     #span-11 sino to SSRB
-    sn11_ssrb = np.zeros(Cnt['NSN11'], dtype=np.int32); 
+    sn11_ssrb = np.zeros(Cnt['NSN11'], dtype=np.int32);
     sn11_ssrb[:] -= 1
     sn1_ssrno = np.zeros(Cnt['NSEG0'], dtype=np.int8)
     for i in range(NSN1_c):
@@ -507,14 +468,14 @@ def axial_lut(Cnt):
 
     sn1_ssrno  =  sn1_ssrno[np.unique(sn1_ssrb)]
     sn11_ssrno = sn11_ssrno[np.unique(sn1_ssrb)]
-    sn11_ssrb = sn11_ssrb[sn11_ssrb>=0] 
+    sn11_ssrb = sn11_ssrb[sn11_ssrb>=0]
 
     #---------------------------------------------------------------------
     #linear index (along diagonals of Michelogram) to rings
     # the number of Michelogram elements considered in projection calculations
     NLI2R_c = int(NRNG_c**2/2. + NRNG_c/2.)
     # if the whole scanner is used then account for the MRD and subtract 6 ring permutations
-    if NRNG_c==NRNG: 
+    if NRNG_c==NRNG:
         NLI2R_c -= 6
 
     li2r   = np.zeros((NLI2R_c,2), dtype=np.int8)
@@ -541,19 +502,19 @@ def axial_lut(Cnt):
                 continue
             # li2r[0, dli] = r0
             # li2r[1, dli] = r1
-            # #--            
+            # #--
             # li2rng[0, dli] = rng[r0,0];
             # li2rng[1, dli] = rng[r1,0];
-            # #-- 
+            # #--
             # li2sn[0, dli] = Msn[r0,r1]
             # li2sn[1, dli] = Msn[r1,r0]
 
             li2r[dli,0] = r0
             li2r[dli,1] = r1
-            #--            
+            #--
             li2rng[dli,0] = rng[r0,0]
             li2rng[dli,1] = rng[r1,0]
-            #-- 
+            #--
             li2sn[dli, 0] = Msn[r0,r1]
             li2sn[dli, 1] = Msn[r1,r0]
 
@@ -570,20 +531,17 @@ def axial_lut(Cnt):
     #---------------------------------------------------------------------
 
 
-    axLUT = {'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn1, 'li2nos':li2nos, 'li2rng':li2rng, 
+    axLUT = {'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn1, 'li2nos':li2nos, 'li2rng':li2rng,
              'sn1_rno':sn1_rno, 'sn1_ssrb':sn1_ssrb, 'sn1_sn11':sn1_sn11, 'sn1_sn11no':sn1_sn11no,
-             'sn11_ssrb':sn11_ssrb, 'sn1_ssrno':sn1_ssrno, 'sn11_ssrno':sn11_ssrno, 
+             'sn11_ssrb':sn11_ssrb, 'sn1_ssrno':sn1_ssrno, 'sn11_ssrno':sn11_ssrno,
              'Msn11':Msn, 'Msn1':Msn1, 'Mnos':Mnos, 'rng':rng}
-    
-    if Cnt['VERBOSE']:
-        log.info('axial LUTs done.')
-    
+
+    log.debug('axial LUTs done.')
+
     return axLUT
 
 
-#=================================================================================================
 def sino2ssr(sino, axLUT, Cnt):
-
     if Cnt['SPN']==1:
         slut = axLUT['sn1_ssrb']
         snno = Cnt['NSN1']
@@ -601,12 +559,13 @@ def sino2ssr(sino, axLUT, Cnt):
 
     return ssr
 
-#=================================================================================================
+
 def reduce_rings(pars, rs=0, re=64):
-    ''' Reduce the axial rings for faster reconstructions, particularly simulations.
-        This function customises axial FOV for reduced rings in range(rs,re).
-        Note it only works in span-1 and ring re is not included in the reduced rings.
-        Arguments:
+    '''
+    Reduce the axial rings for faster reconstructions, particularly simulations.
+    This function customises axial FOV for reduced rings in range(rs,re).
+    Note it only works in span-1 and ring re is not included in the reduced rings.
+    Arguments:
         pars -- scanner parameters: constants, LUTs
         rs -- start ring
         re -- end ring (not included in the resulting reduced rings)
@@ -635,7 +594,7 @@ def reduce_rings(pars, rs=0, re=64):
     # number of reduced sinos in span-1
     rNSN1 = rNRNG**2
     pars['Cnt']['rNSN1'] = rNSN1
-    # correct for the limited max. ring difference in the full axial extent. 
+    # correct for the limited max. ring difference in the full axial extent.
     # don't use ring range (1,63) as for this case no correction
     if rNRNG==64:  rNSN1 -= 12
     # apply the new ring subset to axial LUTs
@@ -651,13 +610,13 @@ def reduce_rings(pars, rs=0, re=64):
     pars['axLUT'] = raxLUT
 
 
-#=================================================================================================
 def transaxial_lut(Cnt):
-    "Creates a template 2D sino with gaps represented by 0; othterwise any valid bin is"
-    "represented as 1."
-    "Also creates linear index for the whole sino with only valid bins.  Angle index of"
-    "of the sino is used as the primary index (fast changing)."
-
+    """
+    Creates a template 2D sino with gaps represented by 0;
+    otherwise any valid bin is represented as 1.
+    Also creates linear index for the whole sino with only valid bins.
+    Angle index of the sino is used as the primary index (fast changing).
+    """
     # #---visualisation of the crystal ring in trasaxial view
     # p = 8 #pixel density of the visualiastion
     # VISXY = 344*p
@@ -721,75 +680,74 @@ def transaxial_lut(Cnt):
     return txLUT
 
 
-
 #=================================================================================================
 # Explore files in folder with raw PET/MR data
 #-------------------------------------------------------------------------------------------------
-def get_npfiles(dfile, datain, v):
-    if v:
-        log.info('''\
-            \r------------------------------------------------------------------
-            file: {}
-            \r------------------------------------------------------------------
-            '''.format(dfile))
+
+
+def get_npfiles(dfile, datain, v=False):
+    logger = log.info if v else log.debug
+    logger('''\
+        \r------------------------------------------------------------------
+        file: {}
+        \r------------------------------------------------------------------
+        '''.format(dfile))
 
     # pCT mu-map
     if os.path.basename(dfile)=='mumap_pCT.npy':
         datain['mumapCT'] = dfile
-        if v: print('mu-map for the object.')
+        logger('mu-map for the object.')
 
     # DICOM UTE/Dixon mu-map
     if os.path.basename(dfile)=='mumap-from-DICOM.npy':
         datain['mumapNPY'] = dfile
-        if v: print('mu-map for the object.')
+        logger('mu-map for the object.')
 
     if os.path.basename(dfile)=='hmumap.npy':
         datain['hmumap'] = dfile
-        if v: print('mu-map for hardware.')
+        logger('mu-map for hardware.')
 
     if os.path.basename(dfile)[:8]=='sinos_s1':
         datain['sinos'] = dfile
-        if v: print('prompt sinogram data.')
+        logger('prompt sinogram data.')
 
     # if os.path.basename(dfile)[:9]=='sinos_s11':
     #     datain['sinos11'] = dfile
-    #     if v: print('prompt sinogram data in span-11.')
+    #     logger('prompt sinogram data in span-11.')
 
 
-def get_niifiles(dfile, datain, v):
-    if v:
-        log.info('''\
-            \r------------------------------------------------------------------
-            file: {}
-            \r------------------------------------------------------------------
-            '''.format(dfile))
-
+def get_niifiles(dfile, datain, v=False):
+    logger = log.info if v else log.debug
+    logger('''\
+        \r------------------------------------------------------------------
+        file: {}
+        \r------------------------------------------------------------------
+        '''.format(dfile))
 
     #> NIfTI file of converted MR-based mu-map from DICOMs
     if os.path.basename(dfile).split('.nii')[0]=='mumap-from-DICOM':
         datain['mumapNII'] = dfile
-        if v: print('mu-map for the object.')
-
+        logger('mu-map for the object.')
 
     #> NIfTI file of pseudo CT
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_synth.nii*') )
     if len(fpct)>0:
         datain['pCT'] = fpct[0]
-        if v: log.info('pseudoCT of the object.')
+        logger('pseudoCT of the object.')
 
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*') )
     if len(fpct)>0:
         datain['pCT'] = fpct[0]
-        if v: log.info('pseudoCT of the object.')
+        logger('pseudoCT of the object.')
 
-    #MR T1 
+    #MR T1
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )
     if len(fmri)==1:
         bnm = os.path.basename(fmri[0]).lower()
         if not 'giflabels' in bnm and not 'parcellation' in bnm \
         and not 'pct' in bnm and not 'n4bias' in bnm:
             datain['T1nii'] = fmri[0]
-            if v: log.info('NIfTI for T1w of the object.')
+            logger('NIfTI for T1w of the object.')
     elif len(fmri)>1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
@@ -807,7 +765,7 @@ def get_niifiles(dfile, datain, v):
         if not 'giflabels' in bnm and not 'parcellation' in bnm \
         and not 'pct' in bnm:
             datain['T1N4'] = fmri[0]
-            if v: log.info('NIfTI for T1w of the object.')
+            logger('NIfTI for T1w of the object.')
     elif len(fmri)>1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
@@ -823,45 +781,42 @@ def get_niifiles(dfile, datain, v):
     fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*gifbc.nii*') )
     if len(fbc)==1:
         datain['T1bc'] = fbc[0]
-        if v: log.info('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
+        logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
     fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*BiasCorrected.nii*') )
     if len(fbc)==1:
         datain['T1bc'] = fbc[0]
-        if v: log.info('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
+        logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
 
     #T1-based labels after parcellation
     flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*giflabels.nii*') )
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
-        if v: log.info('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
+        logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
     flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*') )
     if len(flbl)==1:
         datain['T1lbl'] = flbl[0]
-        if v: log.info('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
+        logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
 
     #reconstructed emission data without corrections, minimum 2 osem iter
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*__ACbed.nii*') )
     if len(fpct)>0:
         datain['em_nocrr'] = fpct[0]
-        if v: log.info('pseudoCT of the object.')
+        logger('pseudoCT of the object.')
 
     #reconstructed emission data with corrections, minimum 3 osem iter
     fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*QNT*.nii*') )
     if len(fpct)>0:
         datain['em_crr'] = fpct[0]
-        if v: log.info('pseudoCT of the object.')
+        logger('pseudoCT of the object.')
 
 
-# =======================================================================================
 def get_dicoms(dfile, datain, Cnt):
-
-    v = Cnt['VERBOSE']
-    if v:
-        log.info('''\
-            \r------------------------------------------------------------------
-            file: {}
-            \r------------------------------------------------------------------
-            '''.format(dfile))
+    # v = Cnt['VERBOSE']
+    log.debug('''\
+        \r------------------------------------------------------------------
+        file: {}
+        \r------------------------------------------------------------------
+        '''.format(dfile))
 
     d = dcm.dcmread(dfile)
     dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])
@@ -870,7 +825,7 @@ def get_dicoms(dfile, datain, Cnt):
     if 'mmr' in dcmtype and 'norm' in dcmtype:
         if os.path.splitext(dfile)[-1].lower()=='.dcm':
             datain['nrm_dcm'] = dfile
-            
+
             #> check if the binary file exists
             if os.path.isfile(dfile[:-4]+'.bf'):
                 datain['nrm_bf'] = dfile[:-4]+'.bf'
@@ -888,9 +843,9 @@ def get_dicoms(dfile, datain, Cnt):
             with open(bf, 'wb') as f:
                 f.write(nrm)
             datain['nrm_bf'] = bf
-            if Cnt['VERBOSE']: log.info('saved component norm data to binary file: \n{}'.format(bf))
+            log.debug('saved component norm data to binary file: \n{}'.format(bf))
 
-    #--- check if it is list-mode file     
+    #--- check if it is list-mode file
     elif 'mmr' in dcmtype and 'list' in dcmtype:
         if os.path.splitext(dfile)[-1]=='.dcm':
             datain['lm_dcm'] = dfile
@@ -909,14 +864,14 @@ def get_dicoms(dfile, datain, Cnt):
                 with open(bf, 'wb') as f:
                     f.write(lm)
                 datain['lm_bf'] = bf
-                if Cnt['VERBOSE']: log.info('saved list-mode data to binary file: \n{}'.format(bf))
+                log.debug('saved list-mode data to binary file: \n{}'.format(bf))
             elif os.path.isfile(bf):
-                if Cnt['VERBOSE']: log.info('the binary list-mode data was already extracted from the IMA DICOM file.')
+                log.debug('the binary list-mode data was already extracted from the IMA DICOM file.')
                 datain['lm_bf'] = bf
             else:
                 log.error('could not find binary list-mode data in the IMA DICOM file.')
                 return None
-        
+
         #> get info about the PET tracer being used
         lmhdr, csahdr = hdr_lm(datain, Cnt)
 
@@ -925,7 +880,7 @@ def get_dicoms(dfile, datain, Cnt):
             f0 = lmhdr.find('isotope name')
         else:
             f0 = -1
-        
+
         if f0>=0:
             f1 = f0+lmhdr[f0:].find('\n')
             #regular expression for the isotope symbol
@@ -938,7 +893,7 @@ def get_dicoms(dfile, datain, Cnt):
         #> if no info in interfile header than look in the CSA header
         else:
             f0 = csahdr.find('RadionuclideCodeSequence')
-            if f0<0: 
+            if f0<0:
                 print('w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']')
                 return None
             istp_coded = re.search('(?<=CodeValue:)\S*', csahdr[f0:f0+100]).group()
@@ -947,7 +902,7 @@ def get_dicoms(dfile, datain, Cnt):
             elif istp_coded=='C-B1038':   Cnt['ISOTOPE'] = 'O15'
             elif istp_coded=='C-128A2':   Cnt['ISOTOPE'] = 'Ge68'
             elif istp_coded=='C-131A3':   Cnt['ISOTOPE'] = 'Ga68'
-            else:   
+            else:
                 print('w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']')
                 return None
         #---
@@ -990,12 +945,11 @@ def get_dicoms(dfile, datain, Cnt):
         else:
             datain['#UTE1'] += 1
 
-    
+
     if Cnt['VERBOSE']: print('')
 
-#-------------------------------------------------------------------------------------------------
-def explore_input(fldr, params, print_paths=False):
 
+def explore_input(fldr, params, print_paths=False):
     # two ways of passing Cnt are here decoded
     if 'Cnt' in params:
         Cnt = params['Cnt']
@@ -1035,7 +989,7 @@ def explore_input(fldr, params, print_paths=False):
                         get_niifiles( pjoin(sfldr,sf), datain, Cnt['VERBOSE'])
                     elif sf.endswith(".npy") or sf.endswith(".dic"):
                         get_npfiles(  pjoin(sfldr,sf), datain, Cnt['VERBOSE'])
-    
+
     if print_paths:
         print('--------------------------------------------------')
         for x in datain:
@@ -1044,7 +998,7 @@ def explore_input(fldr, params, print_paths=False):
 
     return datain
 
-#=====================================================================================
+
 def putgaps(s, txLUT, Cnt, sino_no=0):
 
     #number of sino planes (2D sinos) depends on the span used
@@ -1053,7 +1007,7 @@ def putgaps(s, txLUT, Cnt, sino_no=0):
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
         if NRNG_c==64:
             nsinos -= 12
 
@@ -1068,6 +1022,7 @@ def putgaps(s, txLUT, Cnt, sino_no=0):
 
     return sino.astype(s.dtype)
 
+
 def remgaps(sino, txLUT, Cnt):
 
     # number of sino planes (2D sinos) depends on the span used
@@ -1080,7 +1035,6 @@ def remgaps(sino, txLUT, Cnt):
 
     # return in the same data type as the input sino
     return s.astype(sino.dtype)
-#================================================================================================
 
 
 def mmrinit():

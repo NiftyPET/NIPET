@@ -1,46 +1,27 @@
 """Image reconstruction from raw PET data"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#------------------------------------------------------------------------------
-
-import numpy as np
+from collections import namedtuple
+import logging
+import os
 import random
 import sys
-import os
-import scipy.ndimage as ndi
-from collections import namedtuple
 import time
+
+import numpy as np
+import scipy.ndimage as ndi
 from tqdm.auto import trange
 
-from niftypet import nimpa
-
-from . import petprj
 from ..img import mmrimg
-from .. import mmrnorm
 from .. import mmraux
-from ..lm.mmrhist import randoms
-
-
-from ..sct import vsm
+from .. import mmrnorm
+from . import petprj
 #from ..lm import mmrhist
-
-
-# for isotope info
-import resources
-import logging
-
-#-------------------------------------------------------------------------------
-def get_logger(name):
-    log = logging.getLogger(name)
-
-    #> console handler
-    ch = logging.StreamHandler()
-    formatter = logging.Formatter('\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s')
-    ch.setFormatter(formatter)
-    # ch.setLevel(logging.ERROR)
-    log.addHandler(ch)
-    return log
-#-------------------------------------------------------------------------------
+from ..lm.mmrhist import randoms
+from niftypet import nimpa
+import resources  # for isotope info
+from ..sct import vsm
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
 
 
 #reconstruction mode:
@@ -59,9 +40,10 @@ def fwhm2sig(fwhm, Cnt):
 #=========================================================================
 # OSEM RECON
 #-------------------------------------------------------------------------
+
+
 def get_subsets14(n, params):
-    '''Define the n-th subset out of 14 in the transaxial projection space
-    '''
+    '''Define the n-th subset out of 14 in the transaxial projection space'''
     Cnt = params['Cnt']
     txLUT = params['txLUT']
 
@@ -110,10 +92,8 @@ def get_subsets14(n, params):
     iprj = iprj[iprj>=0]
 
     return iprj, S
-#---------------------------------------------------------------------------------------
 
-#---------------------------------------------------------------------------------------------------------#
-#=== OSEM image reconstruction with several modes (with/without scatter and/or attenuation correction) ===#
+
 def osemone(datain, mumaps, hst, scanner_params,
             recmod=3, itr=4, fwhm=0., mask_radius=29.,
             sctsino=np.array([]),
@@ -125,15 +105,14 @@ def osemone(datain, mumaps, hst, scanner_params,
             attnsino = None,
             randsino = None,
             normcomp = None):
-
+    """
+    OSEM image reconstruction with several modes
+    (with/without scatter and/or attenuation correction)
+    """
     #> Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    #> set the logging and its level of verbose
-    log = get_logger(__name__)
-    log.setLevel(Cnt['LOG'])
 
     #---------- sort out OUTPUT ------------
     #-output file name for the reconstructed image, initially assume n/a
@@ -153,9 +132,6 @@ def osemone(datain, mumaps, hst, scanner_params,
         return_mask = False
 
     #----------
-
-
-    
 
     log.info('reconstruction in mode:%d' % recmod)
 
@@ -298,7 +274,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     with trange(itr, desc="OSEM",
         disable=log.getEffectiveLevel() > logging.INFO,
         leave=log.getEffectiveLevel() <= logging.INFO) as pbar:
-      
+
         for k in pbar:
             petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
             if np.nansum(img) < 0.1:
@@ -400,14 +376,6 @@ def osemone(datain, mumaps, hst, scanner_params,
         recout = RecOut(im, fout, B)
 
     return recout
-
-
-
-
-
-
-
-
 
 
 #===============================================================================
@@ -562,9 +530,6 @@ def osemone(datain, mumaps, hst, scanner_params,
 #         recout = RecOut(im, fout, B)
 
 #     return recout
-
-
-
 
 
 #=============================================================================

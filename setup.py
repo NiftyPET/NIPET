@@ -1,19 +1,14 @@
 #!/usr/bin/env python
-""" Compile CUDA source code and setup Python package 'nipet'
-    for namespace package 'niftypet'.
 """
-__author__      = "Pawel J. Markiewicz"
-__copyright__   = "Copyright 2020"
-# ---------------------------------------------------------------------------------
-
-from setuptools import setup, find_packages
-
-import os
-import sys
-import platform
-from subprocess import run, PIPE
+Compile CUDA source code and setup Python package 'nipet'
+for namespace package 'niftypet'.
+"""
 import logging
-
+import os
+import platform
+from setuptools import setup, find_packages
+from subprocess import run, PIPE
+import sys
 if os.getenv('DISPLAY', False):
     from tkinter import Tk
     from tkinter.filedialog import askdirectory
@@ -29,13 +24,13 @@ else:
             return initialdir
         return path
 
-
 import cudasetup_hdr as cs
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+__licence__ = __license__ = "Apache 2.0"
 
-#-------------------------------------------------------------------------------
-import logging
-log = logging.getLogger('NIPET')
-log.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger('nipet.setup')
 
 #> console handler
 ch = logging.StreamHandler()
@@ -43,15 +38,15 @@ formatter = logging.Formatter('\n%(asctime)s - %(name)s - %(levelname)s \n> %(me
 ch.setFormatter(formatter)
 # ch.setLevel(logging.ERROR)
 log.addHandler(ch)
-#-------------------------------------------------------------------------------
 
 
 #-------------------------------------------------------------------------
 # The below function is a copy of the same function in install_tools.py
 # in NIMPA
+
+
 def update_resources(Cnt):
-    '''Update resources.py with the paths to the new installed apps.
-    '''
+    '''Update resources.py with the paths to the new installed apps.'''
     # list of path names which will be saved
     key_list = ['PATHTOOLS', 'RESPATH', 'REGPATH', 'DCM2NIIX', 'HMUDIR']
 
@@ -85,7 +80,7 @@ def update_resources(Cnt):
         f.close()
 
     return Cnt
-#-------------------------------------------------------------------------
+
 
 if 'Windows' not in platform.system() and 'Linux' not in platform.system():
     log.error('the current operating system is not supported.')
@@ -96,7 +91,6 @@ if 'Windows' not in platform.system() and 'Linux' not in platform.system():
 log.info('setting up CUDA...')
 gpuarch = cs.resources_setup()
 #----------------------------------------------------
-
 
 
 #===============================================================
@@ -263,11 +257,11 @@ elif platform.system() == 'Windows' :
 #----------------------------
 setup(
     name='nipet',
-    license = 'Apache 2.0',
+    license=__licence__,
     version='1.1.19',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
-    author='Pawel J. Markiewicz',
+    author=__author__[0],
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
@@ -290,12 +284,14 @@ setup(
         'Intended Audience :: Healthcare Industry',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
-        'Operating System :: POSIX :: Linux',
         'Operating System :: Microsoft :: Windows',
+        'Operating System :: POSIX :: Linux',
         'Programming Language :: C',
         'Programming Language :: C++',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
         'Topic :: Scientific/Engineering :: Medical Science Apps.',
+
     ],
     # namespace_packages=['niftypet'],
 )
