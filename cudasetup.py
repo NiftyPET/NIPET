@@ -9,7 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
-import textwrap
+from textwrap import dedent
 
 import numpy as np
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
@@ -31,13 +31,13 @@ def path_niftypet_local():
     else:
         env = ''
     # create the path for the resources files according to the OS platform
-    if platform.system() == 'Linux' :
-        path_resources = os.path.join( os.path.join(os.path.expanduser('~'),   '.niftypet'), env )
+    if platform.system() in ('Linux', 'Darwin'):
+        path_resources = os.path.expanduser('~')
     elif platform.system() == 'Windows' :
-        path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
+        path_resources = os.getenv('LOCALAPPDATA')
     else:
-        log.info('only Linux and Windows operating systems are supported!')
-        return None
+        raise ValueError('Unknown operating system: {}'.format(platform.system()))
+    path_resources = os.path.join(path_resources, '.niftypet', env)
 
     return path_resources
 
@@ -53,16 +53,16 @@ def find_cuda():
         cuda_path = None
 
     if cuda_path is None:
-        log.info('w> nvcc compiler could not be found from the PATH!')
+        log.warning('nvcc compiler could not be found from the PATH!')
         return None
 
     # serach for the CUDA library path
     lcuda_path = os.path.join(cuda_path, 'lib64')
-    if 'LD_LIBRARY_PATH' in list(os.environ.keys()):
+    if 'LD_LIBRARY_PATH' in os.environ:
         if lcuda_path in os.environ['LD_LIBRARY_PATH'].split(os.pathsep):
-            log.info('found CUDA lib64 in LD_LIBRARY_PATH:\n{}'.format(lcuda_path))
+            log.info('found CUDA lib64 in LD_LIBRARY_PATH: {}'.format(lcuda_path))
     elif os.path.isdir(lcuda_path):
-        log.info('found CUDA lib64 in:\n{}'.format(lcuda_path))
+        log.info('found CUDA lib64 in: {}'.format(lcuda_path))
     else:
         log.warning('folder for CUDA library (64-bit) could not be found!')
 
@@ -79,14 +79,13 @@ def dev_setup():
         try:
             import resources
         except ImportError as ie:
-            log.error('''\
-                \r--------------------------------------------------------------------------
-                \rNiftyPET resources file <resources.py> could not be imported.
-                \rIt should be in ~/.niftypet/resources.py (Linux) or
-                \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
-                \rbut likely it does not exists.
-                \r--------------------------------------------------------------------------
-            ''')
+            log.error(dedent('''\
+                --------------------------------------------------------------------------
+                NiftyPET resources file <resources.py> could not be imported.
+                It should be in ~/.niftypet/resources.py (Linux) or
+                in //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+                but likely it does not exists.
+                --------------------------------------------------------------------------'''))
     else:
         log.error('resources file not found/installed.')
         return None
@@ -111,27 +110,31 @@ def dev_setup():
     # copy the device_info module to the resources folder within the installation package
     shutil.copytree( path_dinf, path_tmp_dinf)
     # create a build using cmake
-    if platform.system()=='Windows':
-        path_tmp_build = os.path.join(path_tmp_dinf, 'build')
-    elif platform.system()=='Linux':
-        path_tmp_build = os.path.join(path_tmp_dinf, 'build')
-
+    path_tmp_build = os.path.join(path_tmp_dinf, 'build')
     os.makedirs(path_tmp_build)
     os.chdir(path_tmp_build)
     if platform.system()=='Windows':
-        subprocess.call(['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr, '-DPYTHON_PREFIX_PATH='+prefix, '-G', Cnt['MSVC_VRSN']])
+        subprocess.call(
+            ['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr,
+             '-DPYTHON_PREFIX_PATH='+prefix, '-G', Cnt['MSVC_VRSN']]
+        )
         subprocess.call(['cmake', '--build', './', '--config', 'Release'])
         path_tmp_build = os.path.join(path_tmp_build, 'Release')
-    elif platform.system()=='Linux':
-        subprocess.call(['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr, '-DPYTHON_PREFIX_PATH='+prefix])
+
+    elif platform.system() in ['Linux', 'Darwin']:
+        subprocess.call(
+            ['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr,
+             '-DPYTHON_PREFIX_PATH='+prefix]
+        )
         subprocess.call(['cmake', '--build', './'])
     else:
-        log.error('the operating system {} is not supported for GPU'.format(platform.system()))
+        log.error('Unknown operating system: {}'.format(platform.system()))
         return None
 
     # import the new module for device properties
     sys.path.insert(0, path_tmp_build)
     import dinf
+
     # get the list of installed CUDA devices
     Ldev = dinf.dev_info(0)
     if len(Ldev)==0:
@@ -140,7 +143,7 @@ def dev_setup():
     cclist = [int(str(e[2])+str(e[3])) for e in Ldev]
     # get the list of supported CUDA devices (with minimum compute capability)
     spprtd = [str(cc) for cc in cclist if cc>=mincc]
-    if len(spprtd)==0:
+    if not spprtd:
         log.error('installed devices have the compute capability of: {}'.format(spprtd))
         raise IOError('No supported CUDA devices have been found.')
     # best for the default CUDA device
@@ -235,8 +238,9 @@ def chck_vox_h(Cnt):
 
 
 def chck_sct_h(Cnt):
-    ''' check if voxel size for scatter correction changed and adjust
-        the CUDA header files accordingly.
+    '''
+    check if voxel size for scatter correction changed and adjust
+    the CUDA header files accordingly.
     '''
     rflg = False
     fpth = resource_filename(__name__, 'niftypet/nipet/sct/src/sct.h')
@@ -270,16 +274,15 @@ def chck_sct_h(Cnt):
 
     # if flag is set then redefine the constants in the sct.h file
     if flg:
-        strNew = '''\
-        \r//## start ##// constants definitions in synch with Python.   DO NOT MODIFY!\n
-        \r// SCATTER IMAGE SIZE AND PROPERTIES
-        \r// SS_* are used for the mu-map in scatter calculations
-        \r// SSE_* are used for the emission image in scatter calculations
-        \r// R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
-        \r// NCOS is the number of samples for scatter angular sampling
-        \r'''
+        strNew = dedent('''\
+            //## start ##// constants definitions in synch with Python.   DO NOT MODIFY!\n
+            // SCATTER IMAGE SIZE AND PROPERTIES
+            // SS_* are used for the mu-map in scatter calculations
+            // SSE_* are used for the emission image in scatter calculations
+            // R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+            // NCOS is the number of samples for scatter angular sampling
+            ''')
 
-        strNew = textwrap.dedent(strNew)
         strDef = '#define '
         for i,s in enumerate(cnt_list):
             strNew += strDef+s+' '+str(Cnt[s])+(i>6)*'f' + '\n'
@@ -303,14 +306,13 @@ def check_constants():
     try:
         import resources
     except ImportError as ie:
-        log.error('''\
-            \r--------------------------------------------------------------------------
-            \rNiftyPET resources file <resources.py> could not be imported.
-            \rIt should be in ~/.niftypet/resources.py (Linux) or
-            \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
-            \rbut likely it does not exists.
-            \r--------------------------------------------------------------------------
-        ''')
+        log.error(dedent('''\
+            --------------------------------------------------------------------------
+            NiftyPET resources file <resources.py> could not be imported.
+            It should be in ~/.niftypet/resources.py (Linux) or
+            in //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+            but likely it does not exists.
+            --------------------------------------------------------------------------'''))
         raise ImportError('Could not find resources.py')
     #===========================
     Cnt = resources.get_mmr_constants()
@@ -325,14 +327,14 @@ def check_constants():
     else:
         txt = '- - . - -'
 
-    log.info('''\
-        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        \rchanged sct.h: {}
-        \rchanged def.h: {}
-        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        \r{}
-        \r~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        '''.format(sct_compile, def_compile, txt))
+    log.info(dedent('''\
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        changed sct.h: {}
+        changed def.h: {}
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        {}
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~''').format(
+        sct_compile, def_compile, txt))
 
 
 def resources_setup():
@@ -366,14 +368,13 @@ def resources_setup():
         try:
             import resources
         except ImportError as ie:
-            log.error('''\
-                \r--------------------------------------------------------------------------
-                \rNiftyPET resources file <resources.py> could not be imported.
-                \rIt should be in ~/.niftypet/resources.py (Linux) or
-                \rin //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
-                \rbut likely it does not exists.
-                \r--------------------------------------------------------------------------
-            ''')
+            log.error(dedent('''\
+                --------------------------------------------------------------------------
+                NiftyPET resources file <resources.py> could not be imported.
+                It should be in ~/.niftypet/resources.py (Linux) or
+                in //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+                but likely it does not exists.
+                --------------------------------------------------------------------------'''))
 
     # check and update the constants in C headers according to resources.py
     check_constants()

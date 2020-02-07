@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
-Compile CUDA source code and setup Python package 'nipet'
-for namespace package 'niftypet'.
+Compile CUDA source code and setup Python 3 package 'nipet'
+for namespace 'niftypet'.
 """
 import logging
 import os
@@ -24,7 +24,7 @@ else:
             return initialdir
         return path
 
-import cudasetup_hdr as cs
+import cudasetup as cs
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
