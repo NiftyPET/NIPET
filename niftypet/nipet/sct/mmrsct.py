@@ -18,8 +18,7 @@ from .. import mmraux
 from .. import mmr_auxe
 from .. import mmrnorm
 from . import nifty_scatter
-from ..prj import mmrprj, petprj
-from ..prj import petprj
+from ..prj import mmrprj, petprj, mmrrec
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
@@ -234,7 +233,6 @@ def get_sctLUT(scanner_params):
                 mich2[r1,r0] =  mich[bd,bl]*sctaxW[sni,0]+ mich[bd,br]*sctaxW[sni,1] + mich[bu,bl]*sctaxW[sni,2] + mich[bu,br]*sctaxW[sni,3]
 
     # plt.figure(65), plt.imshow(mich2, interpolation='none')
-
 
     sctLUT = {
         'sctaxR':sctaxR,

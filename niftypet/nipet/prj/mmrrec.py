@@ -152,7 +152,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     #=========================================================================
     # GET NORM
     #-------------------------------------------------------------------------
-    if normcomp == None:
+    if normcomp is None:
         ncmp, _ = mmrnorm.get_components(datain, Cnt)
     else:
         ncmp = normcomp

@@ -12,12 +12,12 @@ from tqdm.auto import tqdm
 
 
 class LogHandler(logging.StreamHandler):
-    def __init__(*args, **kwargs):
+    """Custom formatting and tqdm-compatibility"""
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         fmt = logging.Formatter(
-            '%(asctime)s:%(levelname)s:%(name)s\n%(message)s',
-            '%Y-%m-%d %H:%M:%S')
-        self.setFormatter(formatter)
+            '%(asctime)s:%(levelname)s:%(name)s\n%(message)s')
+        self.setFormatter(fmt)
 
     def handleError(self, record):
         super().handleError(record)
@@ -37,8 +37,10 @@ class LogHandler(logging.StreamHandler):
 
 
 log = logging.getLogger(__name__)
+# technically bad practice to add handlers
+# https://docs.python.org/3/howto/logging.html#library-config
+# but we'll do it anyway for convenience
 log.addHandler(LogHandler())
-
 
 # if using conda put the resources in the folder with the environment name
 if 'CONDA_DEFAULT_ENV' in os.environ:
@@ -84,7 +86,7 @@ from .lm.mmrhist import dynamic_timings, mmrhist, randoms
 
 from .dinf import gpuinfo, dev_info
 
-from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap, align_mumap,
+from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap, align_mumap
 from .img.mmrimg import convert2e7 as im_dev2e7
 from .img.mmrimg import convert2dev as im_e72dev
 from .img.pipe import mmrchain

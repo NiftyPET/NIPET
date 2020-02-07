@@ -65,7 +65,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
 
     log.debug('histograming with span {} and {} dynamic frames.'.format(Cnt['SPN'], nfrm))
 
-    if (use_stored==True and 'sinos' in datain and
+    if (use_stored is True and 'sinos' in datain and
         os.path.basename(datain['sinos']) == (
             'sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy'
     )):

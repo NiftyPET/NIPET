@@ -27,12 +27,12 @@ def trnx_prj(scanner_params, sino=None, im=None):
 
     # if sino==None and im==None:
     #     raise ValueError('Input sinogram or image has to be given.')
-    if sino!=None and im!=None:
+    if sino is not None and im is not None:
         raise ValueError('Only one input should be given: sinogram or image.')
 
-    if sino==None:
+    if sino is None:
         sino = np.zeros((txLUT['Naw'], ), dtype=np.float32)
-    if im==None:
+    if im is None:
         im = np.zeros((Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
 
     tv = np.zeros(Cnt['NTV']*Cnt['Naw'], dtype=np.uint8)

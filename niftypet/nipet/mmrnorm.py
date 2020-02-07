@@ -1,27 +1,25 @@
 """mmraux.py: auxilary functions for PET list-mode data processing."""
-
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2019"
-
-#-------------------------------------------------------------------------------
-import numpy as np
-import sys
 import os
-import pydicom as dcm
-import re
 from pkg_resources import resource_filename
+import re
+import sys
 
+import numpy as np
+import pydicom as dcm
 
-#> auxiliary functions through Python extensions in CUDA
-from . import mmr_auxe
+from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 
 
 #=================================================================================================
 # GET NORM COMPONENTS
 #=================================================================================================
+
+
 def get_components(datain, Cnt):
     "Return the normalisation components from provided file."
-    
+
     if 'nrm_ima' in datain and os.path.isfile(datain['nrm_ima']):
         fnrm_dat = datain['nrm_bf']
         fnrm_hdr = datain['nrm_ima']
@@ -98,7 +96,7 @@ def get_components(datain, Cnt):
                 found_nhdr = True
                 break
     if not found_nhdr:
-        raise ValueError('DICOM field with normalisation interfile header has not been found!')        
+        raise ValueError('DICOM field with normalisation interfile header has not been found!')
 
     f0 = nhdr.find('scanner quantification factor')
     f1 = f0+nhdr[f0:].find('\n')
@@ -112,9 +110,9 @@ def get_components(datain, Cnt):
 
     nrmcmp = {'qf':qf, 'qf_loc':qf_loc, 'geo':geo, 'cinf':crs_intf, 'ceff':crs_eff,
                 'axe1':ax_eff1, 'dtp':rng_dtp, 'dtnp':rng_dtnp,
-                'dtc':crs_dt, 'axe2':ax_eff2, 'axf1':ax_f1, 
+                'dtc':crs_dt, 'axe2':ax_eff2, 'axf1':ax_f1,
                 'sax_f11':sax_f11, 'sax_f1':sax_f1}
-    
+
 
     return nrmcmp, nhdr
 
@@ -122,7 +120,7 @@ def get_components(datain, Cnt):
 def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
     #get the normalisation components
-    if normcomp==None:
+    if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
 
     #number of sino planes (2D sinos) depends on the span used
@@ -158,6 +156,7 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
 
     return sino
 
+
 def get_norm_sino(datain, scanner_params, hst):
 
     Cnt = scanner_params['Cnt']
@@ -166,7 +165,7 @@ def get_norm_sino(datain, scanner_params, hst):
 
     # if not hst:
     #     hst = mmrhist.mmrhist(datain, scanner_params)
-        
+
     #number of sino planes (2D sinos) depends on the span used
     if Cnt['SPN']==1:
         nsinos = Cnt['NSN1']

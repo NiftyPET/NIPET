@@ -44,7 +44,6 @@ def obtain_image(img, Cnt=None, imtype=''):
 
     elif isinstance(img, str):
         if os.path.isfile(img):
-            from niftypet import nimpa
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']

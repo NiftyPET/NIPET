@@ -69,7 +69,7 @@ def simulate_sino(
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
-        if not 'rSZ_IMZ' in Cnt:
+        if 'rSZ_IMZ' not in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
 
     # import pdb; pdb.set_trace()
@@ -169,7 +169,7 @@ def simulate_recon(
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
-        if not 'rSZ_IMZ' in Cnt:
+        if 'rSZ_IMZ' not in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
 
     #--------------------
@@ -280,6 +280,7 @@ def simulate_recon(
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
 
+        rndsct = rsng + ssng
         for i in trange(nitr, desc="MLEM",
               disable=log.getEffectiveLevel() > logging.INFO,
               leave=log.getEffectiveLevel() < logging.INFO):

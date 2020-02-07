@@ -56,7 +56,7 @@ def convert2dev(im, Cnt):
 
     if 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['rSZ_IMZ']:
         log.warning('the axial number of voxels does not match the reduced rings.')
-    elif not 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
+    elif 'rSZ_IMZ' not in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
         log.warning('the axial number of voxels does not match the rings.')
 
     im_sqzd = np.zeros((im.shape[0], Cnt['SZ_IMY'], Cnt['SZ_IMX']), dtype=np.float32)
@@ -346,7 +346,7 @@ def obj_mumap(
     nimpa.array2nii(im, B, fmuref)
 
     # check if the object dicom files for MR-based mu-map exists
-    if not 'mumapDCM' in datain or not os.path.isdir(datain['mumapDCM']):
+    if 'mumapDCM' not in datain or not os.path.isdir(datain['mumapDCM']):
         log.error('DICOM folder for the mu-map does not exist.')
         return None
 
@@ -527,8 +527,7 @@ def align_mumap(
         raise IOError('Could not find the hardware mu-map!')
     #=========================================================
     #-check if T1w image is available
-    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain \
-    and not 'T1N4' in datain:
+    if not {'MRT1W#', 'T1nii', 'T1bc', 'T1N4'}.intersection(datain):
         log.error('no MR T1w images required for co-registration!')
         raise IOError('T1w image could not be obtained!')
     #=========================================================
@@ -823,7 +822,7 @@ def pct_mumap(
         log.error('The hardware mu-map is required first.')
         raise IOError('Could not find the hardware mu-map!')
 
-    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain:
+    if not {'MRT1W#', 'T1nii', 'T1bc'}.intersection(datain):
         log.error('no MR T1w images required for co-registration!')
         raise IOError('Missing MR data')
     # ----------------------------------
@@ -1102,7 +1101,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     #table position origin
     fi = csainfo.find(b'TablePositionOrigin')
     tpostr = csainfo[fi:fi+200]
-    tpo = re.sub(b'[^a-zA-Z0-9\-\.]', b'', tpostr).split(b'M')
+    tpo = re.sub(b'[^a-zA-Z0-9.\\-]', b'', tpostr).split(b'M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])]) / 10
     log.info('table position (z,y,x) (cm): {}'.format(tpozyx))
     #--------------------------------------------------------
@@ -1115,9 +1114,9 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     found_off = False
     for i in idxs:
         gtostr1  = csamu[ i:i+300 ]
-        gtostr2 = re.sub(b'[^a-zA-Z0-9\-\.]', b'', gtostr1)
+        gtostr2 = re.sub(b'[^a-zA-Z0-9.\\-]', b'', gtostr1)
         # gantry table offset, through conversion of string to float
-        gtoxyz = re.findall(b'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
+        gtoxyz = re.findall(b'(?<=M)-*[\\d]{1,4}\\.[\\d]{6,9}', gtostr2)
         gtozyx = np.float32(gtoxyz)[::-1]/10
         if len(gtoxyz)>3:
             log.warning('the gantry table offset got more than 3 entries detected--check needed.')

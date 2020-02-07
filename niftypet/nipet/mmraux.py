@@ -64,7 +64,7 @@ def lm_pos(datain, Cnt):
 
     fi = re.search(b'GantryOffset(?!_)', csainfo).start() #csainfo.find('GantryOffset')
     #regular expression for the needed three numbers
-    p = re.compile(b'-?\d.\d{4,10}')
+    p = re.compile(b'-?\\d.\\d{4,10}')
     xyz = p.findall(csainfo[fi:fi+200])
     #offset in cm
     # xoff = float(xyz[0])/10
@@ -81,7 +81,7 @@ def lm_pos(datain, Cnt):
     fi = csainfo.find(b'TablePositionOrigin')
     #regular expression for the needed three numbers
     tpostr = csainfo[fi:fi+200]
-    tpo = re.sub(b'[^a-zA-Z0-9\-]', b'', tpostr).split(b'M')
+    tpo = re.sub(b'[^a-zA-Z0-9\\-]', b'', tpostr).split(b'M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])])
     log.info('table position origin from DICOM:\n{}'.format(tpozyx))
 
@@ -744,15 +744,13 @@ def get_niifiles(dfile, datain, v=False):
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )
     if len(fmri)==1:
         bnm = os.path.basename(fmri[0]).lower()
-        if not 'giflabels' in bnm and not 'parcellation' in bnm \
-        and not 'pct' in bnm and not 'n4bias' in bnm:
+        if not {'giflabels', 'parcellation', 'pct', 'n4bias'}.intersection(bnm):
             datain['T1nii'] = fmri[0]
             logger('NIfTI for T1w of the object.')
     elif len(fmri)>1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
-            if not 'giflabels' in bnm and not 'parcellation' in bnm\
-            and not 'pct' in bnm and not 'n4bias' in bnm:
+            if not {'giflabels', 'parcellation', 'pct', 'n4bias'}.intersection(bnm):
                 if 'preferred' in bnm:
                     datain['T1nii'] = fg
                 elif 'usable' in bnm:
@@ -762,15 +760,13 @@ def get_niifiles(dfile, datain, v=False):
     fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*[nN]4bias*.nii*') )
     if len(fmri)==1:
         bnm = os.path.basename(fmri[0]).lower()
-        if not 'giflabels' in bnm and not 'parcellation' in bnm \
-        and not 'pct' in bnm:
+        if not {'giflabels', 'parcellation', 'pct'}.intersection(bnm):
             datain['T1N4'] = fmri[0]
             logger('NIfTI for T1w of the object.')
     elif len(fmri)>1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
-            if not 'giflabels' in bnm and not 'parcellation' in bnm\
-            and not 'pct' in bnm:
+            if not {'giflabels', 'parcellation', 'pct'}.intersection(bnm):
                 if 'preferred' in bnm:
                     datain['T1N4'] = fg
                 elif 'usable' in bnm:
@@ -876,7 +872,7 @@ def get_dicoms(dfile, datain, Cnt):
         lmhdr, csahdr = hdr_lm(datain, Cnt)
 
         #> if there is interfile header get the info from there
-        if lmhdr!=None:
+        if lmhdr is not None:
             f0 = lmhdr.find('isotope name')
         else:
             f0 = -1
@@ -896,7 +892,7 @@ def get_dicoms(dfile, datain, Cnt):
             if f0<0:
                 print('w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']')
                 return None
-            istp_coded = re.search('(?<=CodeValue:)\S*', csahdr[f0:f0+100]).group()
+            istp_coded = re.search(r'(?<=CodeValue:)\S*', csahdr[f0:f0+100]).group()
             if   istp_coded=='C-111A1':   Cnt['ISOTOPE'] = 'F18'
             elif istp_coded=='C-105A1':   Cnt['ISOTOPE'] = 'C11'
             elif istp_coded=='C-B1038':   Cnt['ISOTOPE'] = 'O15'
