@@ -5,13 +5,17 @@ __copyright__   = "Copyright 2019"
 # ---------------------------------------------------------------------------------
 
 import os
+import re
 import sys
 import platform
 
 # if using conda put the resources in the folder with the environment name
 if 'CONDA_DEFAULT_ENV' in os.environ:
-    env = os.environ['CONDA_DEFAULT_ENV']
-    print('i> conda environment found:', env)
+    try:
+        env = re.findall('envs/(.*)/bin/python', sys.executable)[0]
+    except IndexError:
+        env = os.environ['CONDA_DEFAULT_ENV']
+    print('init> conda environment found:', env)
 else:
     env = ''
 # create the path for the resources files according to the OS platform
