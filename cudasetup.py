@@ -14,7 +14,7 @@ from textwrap import dedent
 import numpy as np
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
-log = logging.getLogger(__name__)
+log = logging.getLogger('nipet.cudasetup')
 
 prefix = sys.prefix
 pyhdr = get_python_inc()  # Python header paths

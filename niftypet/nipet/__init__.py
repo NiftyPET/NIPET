@@ -16,7 +16,7 @@ class LogHandler(logging.StreamHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         fmt = logging.Formatter(
-            '%(asctime)s:%(levelname)s:%(name)s\n%(message)s')
+            '%(levelname)s:%(asctime)s:%(name)s:%(funcName)s\n> %(message)s')
         self.setFormatter(fmt)
 
     def handleError(self, record):

@@ -30,13 +30,13 @@ __copyright__   = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
 
 logging.basicConfig(level=logging.INFO)
+logroot = logging.getLogger('nipet')
+hand = logging.StreamHandler()
+formatter = logging.Formatter(
+    '%(levelname)s:%(asctime)s:%(name)s:%(funcName)s\n> %(message)s')
+hand.setFormatter(formatter)
+logroot.addHandler(hand)
 log = logging.getLogger('nipet.setup')
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('\n%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-log.addHandler(ch)
 
 
 #-------------------------------------------------------------------------
