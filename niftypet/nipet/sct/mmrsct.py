@@ -78,7 +78,7 @@ def get_scrystals(scanner_params):
                 '''.format(iscrs, c, scrs[-1][1], scrs[-1][2])
             iscrs += 1
 
-    log.info('transaxial scatter crystal definitions:\n\n'+logtxt)
+    log.debug('transaxial scatter crystal definitions:\n\n'+logtxt)
 
     #> convert the scatter crystal table to Numpy array
     scrs = np.array(scrs, dtype=np.float32)

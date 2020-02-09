@@ -5,7 +5,7 @@ import numpy as np
 from tqdm.auto import trange
 
 from ..img import mmrimg
-from . import mmraux
+from .. import mmraux
 from . import mmrprj
 from . import mmrrec
 from . import petprj
