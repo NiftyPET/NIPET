@@ -265,7 +265,7 @@ setup(
     url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
     install_requires=[
-        'nibabel>=2.2.1,<=2.3.1',
+        'nibabel>=2.4.0',
         'nimpa>=2.0.0',
         'numpy>=1.14',
         'pydicom>=1.0.2,<=1.2.2',
