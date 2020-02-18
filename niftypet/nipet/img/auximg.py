@@ -1,30 +1,14 @@
 """auxilary imaging functions for PET image reconstruction and analysis."""
-
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-
-
-import numpy as np
 import os
 import logging
+
+import numpy as np
+
 from niftypet import nimpa
-
-#-------------------------------------------------------------------------------
-import logging
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
-#-------------------------------------------------------------------------------
-
-
-
-#===============================================================================
 
 def obtain_image(img, Cnt=None, imtype=''):
     '''
@@ -32,7 +16,6 @@ def obtain_image(img, Cnt=None, imtype=''):
     numpy array, dictionary or empty list (assuming blank then).
     The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
-
     #> establishing what and if the image object has been provided
     #> all findings go to the output dictionary
     output = {}
@@ -61,7 +44,6 @@ def obtain_image(img, Cnt=None, imtype=''):
 
     elif isinstance(img, str):
         if os.path.isfile(img):
-            from niftypet import nimpa
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']
@@ -83,8 +65,6 @@ def obtain_image(img, Cnt=None, imtype=''):
     #------------------------------------------------------------------------
     return output
 
-
-#==============================================================================
 
 def dynamic_timings(flist, offset=0):
     '''
@@ -149,4 +129,3 @@ def dynamic_timings(flist, offset=0):
     # prepare the output dictionary
     out = {'total':tsum, 'frames':frms, 'timings':t_frames}
     return out
-#=================================================================================================

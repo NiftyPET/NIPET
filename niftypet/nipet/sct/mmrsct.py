@@ -1,74 +1,47 @@
 """Voxel-driven scatter modelling for PET data"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#-------------------------------------------------------------------------------
-
-import numpy as np
-from math import pi
-import random
-import sys
-import os
-import scipy.ndimage as ndi
-
-import scipy.spatial.qhull as qhull
-from scipy.interpolate import CloughTocher2DInterpolator
-
 from concurrent.futures import ThreadPoolExecutor
+import logging
+from math import pi
+import os
+import random
+import re
+import scipy.ndimage as ndi
+import sys
 
 import nibabel as nib
-import re
-
-from . import nifty_scatter
-from ..prj import petprj
-from ..prj import mmrprj, petprj
+import numpy as np
+from scipy.interpolate import CloughTocher2DInterpolator
+import scipy.spatial.qhull as qhull
 
 from ..img import mmrimg
-from .. import mmrnorm
 from .. import mmraux
 from .. import mmr_auxe
+from .. import mmrnorm
+from . import nifty_scatter
+from ..prj import mmrprj, petprj, mmrrec
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
 
 
-#-------------------------------------------------------------------------------
-# LOGGING
-#-------------------------------------------------------------------------------
-import logging
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter(
-    '\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s'
-    )
-ch.setFormatter(formatter)
-logging.getLogger(__name__).addHandler(ch)
-
-def get_logger(name):
-    return logging.getLogger(name)
-#-------------------------------------------------------------------------------
-
-
-
-# ------------------------------------
 def fwhm2sig (fwhm, Cnt):
     return (fwhm/Cnt['SO_VXY']) / (2*(2*np.log(2))**.5)
-# ------------------------------------
+
 
 #=================================================================================================
 # S C A T T E R
 #-------------------------------------------------------------------------------------------------
 
-#> get table of selected transaxial and axial (ring) crystals for scatter modelling
+
 def get_scrystals(scanner_params):
-
-
+    """
+    get table of selected transaxial and axial (ring) crystals
+    for scatter modelling
+    """
     #> decompose constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    #> set the logger and its level of verbose
-    log = get_logger(__name__)
-    log.setLevel(Cnt['LOG'])
-
 
     #------------------------------------------------------
     #> transaxial crystals definitions
@@ -105,7 +78,7 @@ def get_scrystals(scanner_params):
                 '''.format(iscrs, c, scrs[-1][1], scrs[-1][2])
             iscrs += 1
 
-    log.info('transaxial scatter crystal definitions:\n\n'+logtxt)
+    log.debug('transaxial scatter crystal definitions:\n\n'+logtxt)
 
     #> convert the scatter crystal table to Numpy array
     scrs = np.array(scrs, dtype=np.float32)
@@ -119,21 +92,12 @@ def get_scrystals(scanner_params):
     NSRNG = len(sct_irng)
     #------------------------------------------------------
 
-
     return dict(SCTRNG=sct_irng, NSRNG=NSRNG, SCTCRS=scrs)
 
 
-
-#> get Klein-Nishina LUTs
 def get_knlut(Cnt):
-
-    log = get_logger(__name__)
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
-
+    """get Klein-Nishina LUTs"""
     from scipy.special import erfc
-
     SIG511 = Cnt['ER']*Cnt['E511']/2.35482
 
     CRSSavg = (2*(4/3.0-np.log(3)) + .5*np.log(3)-4/9.0)
@@ -160,15 +124,18 @@ def get_knlut(Cnt):
 
     return knlut
 
+
 #==================================================================================================
 # GET SCATTER LUTs
 #--------------------------------------------------------------------------------------------------
+
+
 def rd2sni(offseg, r1, r0):
     rd = np.abs(r1-r0)
     rdi = (2*rd - 1*(r1>r0))
     sni = offseg[rdi] + np.minimum(r0,r1)
     return sni
-#--------------------------------------------------------------------------------------------------
+
 
 def get_sctLUT(scanner_params):
 
@@ -225,16 +192,16 @@ def get_sctLUT(scanner_params):
 
             #see: https://en.wikipedia.org/wiki/Bilinear_interpolation
             if (br==bl)and(bu!=bd):
-                
+
                 sctaxR[sni,0] = rd2sni(offseg, bd, r0)
                 sctaxW[sni,0] = (r1-bu)/float(bd-bu)
                 sctaxR[sni,1] = rd2sni(offseg, bu, r0)
                 sctaxW[sni,1] = (bd-r1)/float(bd-bu)
 
-                mich2[r1,r0] = mich[bd,r0]*sctaxW[sni,0]  +  mich[bu,r0]*sctaxW[sni,1] 
+                mich2[r1,r0] = mich[bd,r0]*sctaxW[sni,0]  +  mich[bu,r0]*sctaxW[sni,1]
 
             elif (bu==bd)and(br!=bl):
-                
+
                 sctaxR[sni,0] = rd2sni(offseg, r1, bl)
                 sctaxW[sni,0] = (br-r0)/float(br-bl)
                 sctaxR[sni,1] = rd2sni(offseg, r1, br)
@@ -267,7 +234,6 @@ def get_sctLUT(scanner_params):
 
     # plt.figure(65), plt.imshow(mich2, interpolation='none')
 
-
     sctLUT = {
         'sctaxR':sctaxR,
         'sctaxW':sctaxW,
@@ -278,7 +244,6 @@ def get_sctLUT(scanner_params):
         **scrs_def,
         'NSCRS':scrs_def['SCTCRS'].shape[0]}
 
-
     return sctLUT
 
 
@@ -288,16 +253,11 @@ def get_sctLUT(scanner_params):
 
 
 def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
-    ''' perform 2D interpolation for all scatter sinograms
-        to form a 3D scatter sionogram.
     '''
-
-    #> set the logger and its level of verbose
-    log = get_logger(__name__)
-    log.setLevel(Cnt['LOG'])
-
-    #-----------------------------------------------------
-    #> indecies 
+    perform 2D interpolation for all scatter sinograms
+    to form a 3D scatter sionogram.
+    '''
+    #> indecies
     iAW = np.unique(sctind)
     nsbins = len(iAW)
 
@@ -321,7 +281,7 @@ def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
     tri = qhull.Delaunay(sind)
 
     grid_x, grid_y = np.mgrid[0:Cnt['NSANGLES'], 0:Cnt['NSBINS']]
-    
+
     #-----------------------------------------------------
     log.info('scatter sinogram interpolation...')
 
@@ -336,9 +296,9 @@ def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
 
         #> prepare the array for interpolation input
         sval = np.zeros( (wien + nsbins,1), dtype=dtype)
-        
+
         #> append to the sino bottom in order to get a properly interpolated sino
-        sval = ssn2d[ 
+        sval = ssn2d[
             np.append( ai, np.zeros(len(ai0[0]), dtype=np.int32) ),
             np.append(wi, wi[ai0]) ]
 
@@ -397,8 +357,6 @@ def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
 
 #     return issino
 
-#====================================================================================================
-
 
 def vsm(
         datain,
@@ -414,13 +372,13 @@ def vsm(
         return_mask=False,
     ):
     '''
-        Voxel-driven scatter modelling (VSM).
-        Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
-        an estimate of emission image, the prompt measured sinogram, an 
-        estimate of the randoms sinogram and a normalisation sinogram.
-        Input:
+    Voxel-driven scatter modelling (VSM).
+    Obtain a scatter sinogram using the mu-maps (hardware and object mu-maps)
+    an estimate of emission image, the prompt measured sinogram, an
+    estimate of the randoms sinogram and a normalisation sinogram.
+    Input:
         - datain:       Contains the data used for scatter-specific detector
-                        normalisation.  May also include the non-corrected 
+                        normalisation.  May also include the non-corrected
                         emission image used for masking, when requested.
         - mumaps:       A tuple of hardware and object mu-maps (in this order).
         - em:           An estimate of the emission image.
@@ -432,12 +390,10 @@ def vsm(
         - prcnt_scl:    Ratio of the maximum scatter intensities below which the
                         scatter is not used for fitting it to the tails of prompt
                         data.  Default is 10%.
-        - emmsk:        When 'True' it will use uncorrected emission image for 
+        - emmsk:        When 'True' it will use uncorrected emission image for
                         masking the sources (voxels) of photons to be used in the
                         scatter modelling.
-
     '''
-
     #> decompose constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
@@ -445,11 +401,6 @@ def vsm(
 
     #> decompose mu-maps
     muh, muo = mumaps
-
-    #> set the logger and its level of verbose
-    log = get_logger(__name__)
-    log.setLevel(Cnt['LOG'])
-
 
     if emmsk and not os.path.isfile(datain['em_nocrr']):
         log.info('reconstructing emission data without scatter and attenuation corrections for mask generation...')
@@ -480,8 +431,8 @@ def vsm(
 
     #LUTs for scatter
     sctLUT = get_sctLUT(scanner_params)
-    
-    
+
+
     #-smooth before down-sampling mu-map and emission image
     muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(0.42, Cnt), mode='mirror')
     muim = ndi.interpolation.zoom( muim, Cnt['SCTSCLMU'], order=3 ) #(0.499, 0.5, 0.5)
@@ -489,7 +440,7 @@ def vsm(
     emim = ndi.filters.gaussian_filter(em, fwhm2sig(0.42, Cnt), mode='mirror')
     emim = ndi.interpolation.zoom( emim, Cnt['SCTSCLEM'], order=3 ) #(0.34, 0.33, 0.33)
     #emim = ndi.interpolation.zoom( emim, (0.499, 0.5, 0.5), order=3 )
-    
+
 
     #-smooth the mu-map for mask creation.  the mask contains voxels for which attenuation ray LUT is found.
     smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(0.84, Cnt), mode='mirror')
@@ -507,7 +458,7 @@ def vsm(
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
     nifty_scatter.vsm(sctout, muim, mumsk, emim, sctLUT, txLUT, axLUT, Cnt)
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
-    
+
     sct3d  = sctout['sct_3d']
     sctind = sctout['bin_indx']
 
@@ -541,7 +492,7 @@ def vsm(
     mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
     nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
-    
+
 
     #get attenuation + norm in (span-11) and SSR
     attossr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
@@ -556,7 +507,7 @@ def vsm(
         mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
         nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
-    
+
     #get the mask for the object from uncorrected emission image
     if emmsk and os.path.isfile(datain['em_nocrr']):
         nim = nib.load(datain['em_nocrr'])
@@ -594,11 +545,11 @@ def vsm(
                 #interpolate estimated scatter
                 ssn[k,i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
                 sssr[k, ssrlut[i], :, :] += ssn[k,i,:,:]
-            
+
     elif Cnt['TOFBINN']==1:
-        
+
         ssn, sssr = intrp_sct(sctind, sct3d, Cnt, snno, ssrlut)
-        
+
         # tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
 
         # log.info('scatter sinogram interpolation...')
@@ -609,7 +560,7 @@ def vsm(
         #     #interpolate estimated scatter
         #     ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
         #     sssr[ssrlut[i],:,:] += ssn[i,:,:]
-        #     if (i%100)==0: 
+        #     if (i%100)==0:
         #         log.info('sinograms interpolated: {}'.format(i))
 
 
@@ -648,7 +599,7 @@ def vsm(
 
     if return_uninterp:
         out['uninterp'] = sct3d
-        out['indexes'] = sctind     
+        out['indexes'] = sctind
 
     if return_ssrb:
         out['ssrb'] = sssr
@@ -662,5 +613,3 @@ def vsm(
     else:
         out['sino'] = sss
         return out
-
-

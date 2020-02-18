@@ -1,38 +1,27 @@
 """hist.py: processing of PET list-mode data: histogramming and randoms estimation."""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#-------------------------------------------------------------------------------
-import numpy as np
-from math import pi
-import sys
-import os
-import scipy.ndimage as ndi
-import nibabel as nib
-import pickle
-
-#CUDA extension module
-from . import mmr_lmproc
-
-from niftypet import nimpa
-
-#-------------------------------------------------------------------------------
 import logging
+from math import pi
+import os
+import pickle
+import sys
+
+import nibabel as nib
+import numpy as np
+import scipy.ndimage as ndi
+
+from . import mmr_lmproc  # CUDA extension module
+from .. import mmraux
+from niftypet import nimpa
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s \n> %(message)s')
-ch.setFormatter(formatter)
-# ch.setLevel(logging.ERROR)
-log.addHandler(ch)
-#-------------------------------------------------------------------------------
-
 
 
 #================================================================================
 # HISTOGRAM THE LIST-MODE DATA
 #--------------------------------------------------------------------------------
+
+
 def mmrhist(
         datain,
         scanner_params,
@@ -42,15 +31,16 @@ def mmrhist(
         use_stored=False,
         store=False,
         cmass_sig=5):
-    '''Process the list-mode data and return histogram, head curves, and centre of mass for motion detection.
     '''
-
+    Process the list-mode data and return histogram, head curves,
+    and centre of mass for motion detection.
+    '''
     # constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    hst = hist(
+    return hist(
             datain, txLUT, axLUT, Cnt,
             frms=frms,
             use_stored=use_stored,
@@ -59,11 +49,9 @@ def mmrhist(
             t0=t0, t1=t1,
             cmass_sig=cmass_sig)
 
-    return hst
 
-
-def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_stored=False, store=False, outpath='', t0=0, t1=0, cmass_sig=5 ):
-
+def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
+         use_stored=False, store=False, outpath='', t0=0, t1=0, cmass_sig=5):
     # histogramming with bootstrapping:
     # Cnt['BTP'] = 0: no bootstrapping [default];
     # Cnt['BTP'] = 1: non-parametric bootstrapping;
@@ -75,12 +63,12 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
-    if Cnt['VERBOSE']: 
-        log.info('histograming with span {} and {} dynamic frames.'.format(Cnt['SPN'], nfrm))
+    log.debug('histograming with span {} and {} dynamic frames.'.format(Cnt['SPN'], nfrm))
 
-
-    if use_stored==True and 'sinos' in datain and os.path.basename(datain['sinos'])=='sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy' :
-
+    if (use_stored is True and 'sinos' in datain and
+        os.path.basename(datain['sinos']) == (
+            'sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy'
+    )):
         # nele, ttags, tpos = mmr_lmproc.lminfo(datain['lm_bf'])
         # nitag = (ttags[1]-ttags[0]+999)/1000
 
@@ -90,15 +78,13 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
          hstout['ssr']) = np.load(datain['sinos'], allow_pickle=True)
 
         nitag = len(hstout['phc'])
-        if Cnt['VERBOSE']: 
-            log.info('acquisition duration by integrating time tags is {} sec.'.format(nitag))
+        log.debug('acquisition duration by integrating time tags is {} sec.'.format(nitag))
 
     elif os.path.isfile(datain['lm_bf']):
         # gather info about the LM time tags
         nele, ttags, tpos = mmr_lmproc.lminfo(datain['lm_bf'])
         nitag = int((ttags[1]-ttags[0]+999)/1000)
-        if Cnt['VERBOSE']: 
-            log.info('acquisition duration by integrating time tags is {} sec.'.format(nitag))
+        log.debug('acquisition duration by integrating time tags is {} sec.'.format(nitag))
 
         # adjust frame time if outside the limit
         if t1>nitag: t1 = nitag
@@ -110,9 +96,9 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
         # preallocate all the output arrays
         VTIME = 2
         MXNITAG = 5400 #limit to 1hr and 30mins
-        if (nitag>MXNITAG): 
+        if (nitag>MXNITAG):
             tn = int(MXNITAG/(1<<VTIME))
-        else: 
+        else:
             tn = int((nitag+(1<<VTIME)-1)/(1<<VTIME))
 
         pvs = np.zeros((tn, Cnt['NSEG0'], Cnt['NSBINS']), dtype=np.uint32)
@@ -153,7 +139,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
         mmr_lmproc.hist(
             hstout,
             datain['lm_bf'],
-            frms, 
+            frms,
             t0, t1,
             txLUT, axLUT, Cnt)
 
@@ -178,8 +164,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
     cmass = Cnt['SO_VXZ']*ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
-    if Cnt['VERBOSE']: 
-        log.info('centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'.format(cmass_sig))
+    log.debug('centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'.format(cmass_sig))
 
     #========================== BUCKET SINGLES ==============================
     #number of single rates reported for the given second
@@ -194,8 +179,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
     t = t[tmsk]
     #get the average bucket singles:
     buckets = np.int32( np.sum(single_rate,axis=0)/single_rate.shape[0] )
-    if Cnt['VERBOSE']:
-        log.info('dynamic and static buckets single rates:  COMPLETED.')
+    log.debug('dynamic and static buckets single rates:  COMPLETED.')
     #=========================================================================
 
     # account for the fact that when t0==t1 that means that full dataset is processed
@@ -210,7 +194,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
         'cmass':cmass,              #centre of mass of the radiodistribution in axial direction
         'pvs_sgtl':pvs_sgtl,        #sagittal projection views in short intervals
         'pvs_crnl':pvs_crnl,        #coronal projection views in short intervals
-        
+
         'fansums':hstout['fan'],    #fan sums of delayeds for variance reduction of random event sinograms
         'sngl_rate':single_rate,    #bucket singles over time
         'tsngl':t,                  #time points of singles measurements in list-mode data
@@ -223,15 +207,17 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16), use_sto
 
     return pdata
 
+
 #===============================================================================
 # GET REDUCED VARIANCE RANDOMS
 #-------------------------------------------------------------------------------
 
+
 def randoms(hst, scanner_params, gpu_dim=False):
     '''
-        Get the estimated sinogram of random events using the delayed event
-        measurement.  The delayed sinogram is in the histogram dictionary
-        obtained from the processing of the list-mode data.
+    Get the estimated sinogram of random events using the delayed event
+    measurement.  The delayed sinogram is in the histogram dictionary
+    obtained from the processing of the list-mode data.
     '''
 
     # constants, transaxial and axial LUTs are extracted
@@ -249,15 +235,13 @@ def randoms(hst, scanner_params, gpu_dim=False):
 
 
 def rand(fansums, txLUT, axLUT, Cnt):
-
     if    Cnt['SPN']==1:  nsinos=Cnt['NSN1']
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
     #number of frames
     nfrm = fansums.shape[0]
-    if Cnt['VERBOSE']: 
-        log.info('# of dynamic frames: {}'.format(nfrm))
+    log.debug('# of dynamic frames: {}'.format(nfrm))
 
     #random sino and estimated crystal map of singles put into a dictionary
     rsn  = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
@@ -268,10 +252,10 @@ def rand(fansums, txLUT, axLUT, Cnt):
     }
 
     #save results for each frame
-    
+
     rsino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     crmap = np.zeros((nfrm, Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
-    
+
     for i in range(nfrm):
         rndout['rsn'][:,:,:] = 0
         rndout['cmap'][:,:]  = 0
@@ -289,16 +273,16 @@ def rand(fansums, txLUT, axLUT, Cnt):
 #================================================================================
 # NEW!! GET REDUCED VARIANCE RANDOMS (BASED ON PROMPTS)
 #--------------------------------------------------------------------------------
-def prand(fansums, pmsk, txLUT, axLUT, Cnt):
 
+
+def prand(fansums, pmsk, txLUT, axLUT, Cnt):
     if    Cnt['SPN']==1:  nsinos=Cnt['NSN1']
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
     #number of frames
     nfrm = fansums.shape[0]
-    if Cnt['VERBOSE']: 
-        log.info('# of dynamic frames: {}.'.format(nfrm))
+    log.debug('# of dynamic frames: {}.'.format(nfrm))
 
     #random sino and estimated crystal map of singles put into a dictionary
     rsn  = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
@@ -309,10 +293,10 @@ def prand(fansums, pmsk, txLUT, axLUT, Cnt):
     }
 
     #save results for each frame
-    
+
     rsino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     crmap = np.zeros((nfrm, Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
-        
+
     for i in range(nfrm):
         rndout['rsn'][:,:,:] = 0
         rndout['cmap'][:,:]  = 0
@@ -327,12 +311,6 @@ def prand(fansums, pmsk, txLUT, axLUT, Cnt):
     return rsino, crmap
 
 
-
-
-
-
-
-#================================================================================
 def sino2nii(sino, Cnt, fpth):
     '''save sinogram in span-11 into NIfTI file'''
     #number of segments
@@ -345,7 +323,7 @@ def sino2nii(sino, Cnt, fpth):
     niisn = np.zeros(( Cnt['SEG'][0], Cnt['NSANGLES'], Cnt['NSBINS'], segn), dtype=sino.dtype)
 
     #first segment (with direct planes)
-    # tmp = 
+    # tmp =
     niisn[:,:,:,0] = sino[Cnt['SEG'][0]-1::-1, ::-1, ::-1]
 
     for iseg in range(1,segn):
@@ -368,14 +346,13 @@ def get_michem(sino, axLUT, Cnt):
     elif Cnt['SPN']==11:
         slut = axLUT['sn1_sn11']
     else:
-        log.error('sino is neither in span-1 or span-11')
-        sys.exit()
+        raise ValueError('sino is neither in span-1 or span-11')
 
     #acitivity michelogram
     Mem = np.zeros((Cnt['NRNG'],Cnt['NRNG']), dtype=np.float32)
     #sino to ring number & sino-1 to sino-11 index:
     sn1_rno  = axLUT['sn1_rno']
-    #sum all the sinograms inside 
+    #sum all the sinograms inside
     ssm = np.sum(sino, axis=(1,2))
 
     for sni in range(len(sn1_rno)):
@@ -391,7 +368,6 @@ def get_michem(sino, axLUT, Cnt):
 #=================================================================================
 
 
-#------------------------------------------------------
 def draw_frames(hst, tfrms, plot_diff=True):
     import matplotlib.pyplot as plt
     diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
@@ -411,7 +387,6 @@ def draw_frames(hst, tfrms, plot_diff=True):
     plt.xlabel('time [sec]')
     plt.ylabel('counts/sec')
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-#------------------------------------------------------
 
 
 def get_time_offset(hst):
@@ -485,17 +460,16 @@ def split_frames(hst, Tref=0, t0=0, t1=0):
     return {'timings':frms, 'fdur':fdur, 'fcnts':clvl, 'offset':toff, 'csum':csum}
 
 
-#-------------------------------------------------------------------------------------------------
-
-def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
-    ''' hst: histogram data
+def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose=True):
+    '''
+    Inputs:
+        hst: histogram data
         tposition: time position (middle point) of the frame to be defined
         Cref: reference count level to be in the frame (prompts - delays)
         tr0, tr1: time definitions of reference frame whose count level
         will be used as the reference Cref.  If Cref is not defined (i.e. = 0)
         then the tr0 and tr1 will be used.
     '''
-    
     # claculate the difference between the prompts and delays (more realistic count level)
     diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
     # cumulative sum for calculating count levels in arbitrary time windows
@@ -507,9 +481,7 @@ def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
     if Cref<0:
         raise ValueError('The reference count level has to be non-negative')
 
-    if verbose:
-        print('reference count level: {}.'.format(Cref))
-
+    (log.info if verbose else log.debug)('reference count level: {}.'.format(Cref))
 
     stp0 = 0
     stp1 = 0
@@ -523,17 +495,18 @@ def frame_position(hst, tposition, Cref=0, tr0=0, tr1=15, verbose = True):
     tw0 = tposition-stp0
     tw1 = tposition+stp1
     Tw = tw1 - tw0
-    if verbose:
-        log.info('time window t[{}, {}] of duration T={} and count level Cw={}'.format(tw0, tw1, Tw, Cw))
+    (log.info if verbose else log.debug)(
+        'time window t[{}, {}] of duration T={} and count level Cw={}'.format(tw0, tw1, Tw, Cw))
 
     return (tw0, tw1)
 
 
 def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
-    ''' Get auxiliary time frames with equal count levels for constant precision in
-        the estimation of subject motion based on PET data. 
     '''
-    
+    Get auxiliary time frames with equal count levels for constant precision in
+    the estimation of subject motion based on PET data.
+    '''
+
     # calculate the difference between the prompts and delays (more realistic count level)
     diff = np.int64(hst['phc']) - np.int64(hst['dhc'])
 
@@ -564,7 +537,7 @@ def auxilary_frames(hst, t_frms, Cref=0, tr0=0, tr1=15, verbose = True):
         if verbose:
             print('t[{}, {}]; tp={}, tcm={} => frm id:{}, timings:{}'.format(t_frms[i][0], t_frms[i][1], tp, tcm, fi2afi[-1], timings[-1]))
     # form the list of auxilary dynamic frames of equivalent count level (as in Cref) for reconstruction
-    mfrm = ['fluid'] + timings 
+    mfrm = ['fluid'] + timings
     return {'timings':mfrm, 'frame_idx':fi2afi}
 
 
@@ -580,7 +553,6 @@ def dynamic_timings(flist, offset=0):
     out['timings'] = [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
     out['total'] = total time
     out['frames'] = array([ 15,  15,  15,  15,  30,  30,  30,  30, ...])
-
     '''
     if not isinstance(flist, list):
         raise TypeError('Wrong type of frame data input')
@@ -634,4 +606,3 @@ def dynamic_timings(flist, offset=0):
     # prepare the output dictionary
     out = {'total':tsum, 'frames':frms, 'timings':t_frames}
     return out
-#=================================================================================================

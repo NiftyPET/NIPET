@@ -6,16 +6,17 @@ import os
 import sys
 
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.animation as manimation
+
 
 def mvavg(interval, window_size):
     window = np.ones(int(window_size))/float(window_size)
     return np.convolve(interval, window, 'same')
 
-def video_frm(hst, outpth):
 
+def video_frm(hst, outpth):
     plt.close('all')
 
     #=============== CONSTANTS ==================
@@ -80,11 +81,13 @@ def video_frm(hst, outpth):
     plt.show()
     return fnm
 
+
 #===================================================================================
 # Dynamic Frames to Projection Views
 #-----------------------------------------------------------------------------------
-def video_dyn(hst, frms, outpth, axLUT, Cnt):
 
+
+def video_dyn(hst, frms, outpth, axLUT, Cnt):
     plt.close('all')
 
     #=============== CONSTANTS ==================
@@ -172,5 +175,3 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
             writer.grab_frame()
 
     return fnm
-
-#===================================================================================

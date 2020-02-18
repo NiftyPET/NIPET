@@ -1,7 +1,7 @@
 """Resources file for NiftyPET NIPET and NIMPA etc."""
 #---------------------------------------------------------------
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2018-20"
 #---------------------------------------------------------------
 
 import numpy as np

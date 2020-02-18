@@ -1,42 +1,22 @@
 """Forward and back projector for PET data reconstruction"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#------------------------------------------------------------------------------
-import numpy as np
-import sys
+import logging
 import os
+import sys
 
-from . import petprj
+import numpy as np
+
 from ..img import mmrimg
 from .. import mmraux
-
-
-#-------------------------------------------------------------------------------
-# LOGGING
-#-------------------------------------------------------------------------------
-import logging
-
-#> console handler
-ch = logging.StreamHandler()
-formatter = logging.Formatter(
-    '\n%(levelname)s> %(asctime)s - %(name)s - %(funcName)s\n> %(message)s'
-    )
-ch.setFormatter(formatter)
-logging.getLogger(__name__).addHandler(ch)
-
-def get_logger(name):
-    return logging.getLogger(name)
-
-#> default log level (10-debug, 20-info, ...)
-log_default = logging.WARNING
-#-------------------------------------------------------------------------------
-
-
+from . import petprj
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
 
 
 #=========================================================================
 # transaxial (one-slice) projector
 #-------------------------------------------------------------------------
+
 
 def trnx_prj(scanner_params, sino=None, im=None):
 
@@ -45,27 +25,20 @@ def trnx_prj(scanner_params, sino=None, im=None):
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    #> set the logger and its level of verbose
-    log = get_logger(__name__)
-    if 'LOG' in Cnt:
-        log.setLevel(Cnt['LOG'])
-    else:
-        log.setLevel(log_default)
-
     # if sino==None and im==None:
     #     raise ValueError('Input sinogram or image has to be given.')
-    if sino!=None and im!=None:
+    if sino is not None and im is not None:
         raise ValueError('Only one input should be given: sinogram or image.')
 
-    if sino==None:
+    if sino is None:
         sino = np.zeros((txLUT['Naw'], ), dtype=np.float32)
-    if im==None:
+    if im is None:
         im = np.zeros((Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
 
     tv = np.zeros(Cnt['NTV']*Cnt['Naw'], dtype=np.uint8)
     tt = np.zeros(Cnt['NTT']*Cnt['Naw'], dtype=np.float32)
 
-    nipet.prj.petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
+    petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
 
     return {'tv':tv, 'tt':tt}
 
@@ -73,6 +46,8 @@ def trnx_prj(scanner_params, sino=None, im=None):
 #=========================================================================
 # forward projector
 #-------------------------------------------------------------------------
+
+
 def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=False, attenuation=False):
     ''' Calculate forward projection (a set of sinograms) for the provided input image.
         Arguments:
@@ -88,14 +63,10 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
     '''
-
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
 
     #>choose between attenuation forward projection (mu-map is the input)
     #>or the default for emission image forward projection
@@ -124,7 +95,9 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     elif im.shape[0]==Cnt['SZ_IMX'] and im.shape[1]==Cnt['SZ_IMY'] and im.shape[2]==Cnt['rSZ_IMZ']:
         ims = im
     else:
-        log.error('wrong image size;  it has to be one of these: (z,y,x) = (127,344,344) or (y,x,z) = (320,320,128)')
+        raise ValueError('wrong image size;'
+            ' it has to be one of these: (z,y,x) = (127,344,344)'
+            ' or (y,x,z) = (320,320,128)')
 
     log.debug('number of sinos:%d' % nsinos)
 
@@ -148,26 +121,26 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
 
     return sino
 
+
 #=========================================================================
 # back projector
 #-------------------------------------------------------------------------
+
+
 def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
-    ''' Calculate forward projection for the provided input image.
-        Arguments:
+    '''
+    Calculate forward projection for the provided input image.
+    Arguments:
         sino -- input emission sinogram to be back projected to the image space.
         scanner_params -- dictionary of all scanner parameters, containing scanner constants,
             transaxial and axial look up tables (LUT).
         isub -- array of transaxial indices of all sinograms (angles x bins) used for subsets;
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
     '''
-
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    #> set the level of verbose
-    log.setLevel(Cnt['LOG'])
 
     if Cnt['SPN']==1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
@@ -215,4 +188,3 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
     bimg = mmrimg.convert2e7(bimg, Cnt)
 
     return bimg
-#-------------------------------------------------------------------------
