@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""init the NiftyPET NIPET package"""
+"""initialise the NiftyPET NIPET package"""
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 import logging
@@ -7,6 +7,7 @@ import os
 import platform
 import re
 import sys
+from textwrap import dedent
 
 from tqdm.auto import tqdm
 
@@ -48,7 +49,7 @@ if 'CONDA_DEFAULT_ENV' in os.environ:
         env = re.findall('envs/(.*)/bin/python', sys.executable)[0]
     except IndexError:
         env = os.environ['CONDA_DEFAULT_ENV']
-    print('init> conda environment found:', env)
+    log.info('conda environment found:' + env)
 else:
     env = ''
 # create the path for the resources files according to the OS platform
@@ -57,16 +58,19 @@ if platform.system() in ['Linux', 'Darwin']:
 elif platform.system() == 'Windows':
     path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
 else:
-    print('e> unrecognised operating system!')
+    log.error('unrecognised operating system!')
 
 sys.path.append(path_resources)
 try:
     import resources
 except ImportError as ie:
-    print('----------------------------')
-    print('e> Import Error: <resources.py> could not be imported.  It should be in ''~/.niftypet/resources.py'' (Linux) or ''//Users//USERNAME//AppData//Local//niftypet//resources.py'' (Windows) but likely it does not exists.')
-    print('----------------------------')
-    raise ImportError
+    raise ImportError(dedent('''\
+        --------------------------------------------------------------------------
+        NiftyPET resources file <resources.py> could not be imported.
+        It should be in ~/.niftypet/resources.py (Linux) or
+        in //Users//USERNAME//AppData//Local//niftypet//resources.py (Windows)
+        but likely it does not exists.
+        --------------------------------------------------------------------------'''))
 
 
 from . import mmrnorm
