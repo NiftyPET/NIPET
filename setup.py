@@ -205,7 +205,7 @@ for ci in range(len(cmd)):
 error_str = ''
 for ci in range(len(cmd)):
     if errstr[ci] != '_':
-        error_str.append(' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+        error_str += ' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci]
 
 if error_str == '':
     error_str = 'No errors found!'
