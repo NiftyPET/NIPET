@@ -26,7 +26,7 @@ def obtain_image(img, Cnt=None, imtype=''):
         else:
             output['im'] = img['im']
             output['exists'] = True
-            output['fim'] = img['fim']
+            if 'fim' in img:  output['fim'] = img['fim']
             if 'faff' in img: output['faff'] = img['faff']
             if 'fmuref' in img: output['fmuref'] = img['fmuref']
             if 'affine' in img: output['affine'] = img['affine']

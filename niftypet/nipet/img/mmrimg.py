@@ -1238,6 +1238,8 @@ def hdw_mumap(
     else:
         fmudir = os.path.join(datain['corepath'], 'mumap-hdw')
 
+    nimpa.create_dir(fmudir)
+
     # if requested to use the stored hardware mu_map get it from the path in datain
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
         if datain['hmumap'].endswith(('.nii', '.nii.gz')):
