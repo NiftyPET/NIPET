@@ -236,7 +236,7 @@ __global__ void hst(int *lm,
 
 				//-- centre of mass
 				atomicAdd(mass.zR + itag, si_ssrb);
-				atomicAdd(mass.zM + itag, 1);
+				atomicAdd(mass.zM + itag, Nevnt);
 				//---
 			}
 

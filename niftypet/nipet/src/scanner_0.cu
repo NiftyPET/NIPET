@@ -213,7 +213,7 @@ txLUTs get_txlut(Cnst Cnt)
 			}
 		}
 	}
-	if (Cnt.LOG <= LOGINFO)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("i> transaxial LUTs done.  # active bins: %d\n", txluts.naw);
 
 

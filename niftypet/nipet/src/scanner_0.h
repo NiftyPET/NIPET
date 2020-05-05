@@ -94,6 +94,9 @@ typedef struct{
 
   int bpe; //number of bytes per event (used for GE Signa)
   int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
+
+  int log; //for logging in list mode processing
+  
 } LMprop; //properties of LM data file and its breaking up into chunks of data.
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
