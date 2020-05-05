@@ -110,7 +110,7 @@ if resources.ENBLXNAT:
 
 
 #> GE Signa
-from . import aux_sig
+#from . import aux_sig
 
-from . import lm_sig
-from .lm_sig.hst_sig import lminfo_sig
+#from . import lm_sig
+#from .lm_sig.hst_sig import lminfo_sig

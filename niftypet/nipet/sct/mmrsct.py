@@ -1,3 +1,7 @@
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+
+
 """Voxel-driven scatter modelling for PET data"""
 from concurrent.futures import ThreadPoolExecutor
 import logging
@@ -19,8 +23,6 @@ from .. import mmr_auxe
 from .. import mmrnorm
 from . import nifty_scatter
 from ..prj import mmrprj, petprj, mmrrec
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 
