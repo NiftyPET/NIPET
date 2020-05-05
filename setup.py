@@ -9,6 +9,7 @@ import platform
 from setuptools import setup, find_packages
 from subprocess import run, PIPE
 import sys
+from textwrap import dedent
 if os.getenv('DISPLAY', False):
     from tkinter import Tk
     from tkinter.filedialog import askdirectory
@@ -171,7 +172,6 @@ errstr = []
 cmakelog = ['nipet_cmake_config.log', 'nipet_cmake_build.log']
 # run commands with logging
 for ci in range(len(cmd)):
-
     p = run(cmd[ci], stdout=PIPE, stderr=PIPE)
 
     stdout = p.stdout.decode('utf-8')
@@ -187,35 +187,32 @@ for ci in range(len(cmd)):
         errstr.append('_')
 
     if p.stderr:
-        log.warning('''\
-        \r---------- process warnings/errors ------------
-        \r{}
-        \r--------------------- end ---------------------
-        '''.format(stderr))
+        log.warning(dedent('''\
+            ---------- process warnings/errors ------------
+            {}
+            --------------------- end ---------------------
+            ''').format(stderr))
 
-    log.info('''\
-    \r---------- compilation output ------------
-    \r{}
-    \r------------------- end ------------------
-    '''.format(stdout))
+    log.info(dedent('''\
+        ---------- compilation output ------------
+        {}
+        ------------------- end ------------------
+        ''').format(stdout))
 
 
 #-----------------------------------------------------------------------
 #> deal with errors
-error_str = ''
-for ci in range(len(cmd)):
-    if errstr[ci] != '_':
-        error_str.append(' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci])
+error_str = '\n'.join(
+    ' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci]
+    for ci in range(len(cmd)) if errstr[ci] != '_')
 
-if error_str == '':
-    error_str = 'No errors found!'
-
-error_rprt = '''---------- error report ----------
-    \r{}
-    \r> -------------- end ---------------
-'''.format(error_str)
-
-log.info(error_rprt)
+if error_str:
+    raise ValueError(dedent('''\
+        ---------- error report ----------
+        {}
+        > -------------- end ---------------
+        ''').format(error_str))
+log.info('No errors found!')
 #-----------------------------------------------------------------------
 
 

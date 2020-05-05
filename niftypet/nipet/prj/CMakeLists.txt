@@ -6,8 +6,9 @@ set(CURR_FOLDER_NAME "prj")
 
 # get the site packages location, then strip the trailing whitespace
 execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; from distutils.sysconfig import get_python_lib; print(get_python_lib())"
-  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+  COMMAND "${PYTHON_EXECUTABLE}" -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"
+  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 #get source files
 file(GLOB_RECURSE SRC "src/*.cu")
@@ -19,9 +20,8 @@ include_directories(include ${CMAKE_BINARY_DIR}/include)
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
 include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)
 include_directories(${PYTHON_INCLUDE_DIRS})
-#include_directories(${PYTHON_SITE_PACKAGES}/numpy/core/include/)
 execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; import numpy; print(numpy.get_include())"
+  COMMAND "${PYTHON_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
   OUTPUT_VARIABLE PYTHON_NUMPY_INCLUDE
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 include_directories(${PYTHON_NUMPY_INCLUDE})
