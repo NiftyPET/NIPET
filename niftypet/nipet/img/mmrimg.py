@@ -1,5 +1,7 @@
 """Image functions for PET data reconstruction and processing."""
+
 import glob
+import shutil
 import logging
 import math
 from math import pi
@@ -22,6 +24,9 @@ import resources as rs
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
+
+
+ct_nans = -1024
 
 
 #===================================================================================
@@ -249,7 +254,7 @@ def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False):
 def hu2mu(im):
     '''HU units to 511keV PET mu-values'''
     # convert nans to -1024 for the HU values only
-    im[np.isnan(im)] = -1024
+    im[np.isnan(im)] = ct_nans
     # constants
     muwater  = 0.096
     mubone   = 0.172
@@ -336,13 +341,17 @@ def obj_mumap(
     else:
         fmudir = os.path.join( outpath, 'mumap-obj' )
     nimpa.create_dir(fmudir)
-    # ref file name
+
+    #> ref file name
     fmuref = os.path.join(fmudir, 'muref.nii.gz')
-    # ref affine
+    
+    #> ref affine
     B = image_affine(datain, Cnt, gantry_offset=gantry_offset)
-    # ref image (blank)
+    
+    #> ref image (blank)
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-    # store ref image
+    
+    #> store ref image
     nimpa.array2nii(im, B, fmuref)
 
     # check if the object dicom files for MR-based mu-map exists
@@ -411,6 +420,8 @@ def obj_mumap(
         os.remove(fmunii)
         os.remove(fmu)
 
+        if [f for f in os.listdir(fmudir) if not f.startswith('.') and not f.endswith('.json')] == []:
+            shutil.rmtree(fmudir)
 
     return mu_dct
 
@@ -460,6 +471,9 @@ def align_mumap(
     #> create the folder, if not existent
     nimpa.create_dir(opth)
 
+    #> tmp folder for not aligned mu-maps
+    tmpdir = os.path.join(opth, 'tmp')
+
     #> get the timing of PET if affine not given
     if faff!='' and 't0' in hst:
         t0 = hst['t0']
@@ -494,7 +508,6 @@ def align_mumap(
         Cnt = scanner_params
     else:
         Cnt = rs.get_mmr_constants()
-    Cnt   = scanner_params['Cnt']
 
     #> if affine not provided histogram the LM data for recon and registration
     if not os.path.isfile(faff):
@@ -543,6 +556,7 @@ def align_mumap(
             mudic = obj_mumap(
                         datain,
                         Cnt,
+                        outpath=tmpdir,
                         del_auxilary=del_auxilary)
             muo = mudic['im']
             # reconstruct PET image with UTE mu-map to which co-register T1w
@@ -572,6 +586,7 @@ def align_mumap(
             mudic = obj_mumap(
                     datain,
                     Cnt,
+                    outpath=tmpdir,
                     del_auxilary=del_auxilary)
             muo = mudic['im']
 
@@ -673,8 +688,18 @@ def align_mumap(
 
     #> output file name for the aligned mu-maps
     if musrc=='pct':
-        freg = os.path.join(opth, 'pCT-res-tmp'+fcomment+'.nii.gz')
-        fflo = datain['pCT']
+        
+
+        #> convert to mu-values before resampling to avoid artefacts with negative values
+        nii = nib.load(datain['pCT'])
+        img = np.float32(nii.get_data())
+        img_mu = hu2mu(img)
+        nii_mu = nib.Nifti1Image(img_mu, nii.affine)
+        fflo = os.path.join(tmpdir, 'pct2mu-not-aligned.nii.gz')
+        nib.save(nii_mu, fflo)
+
+        freg = os.path.join(opth, 'pct2mu-aligned-'+fcomment+'.nii.gz')
+
 
     elif musrc=='ute':
         freg = os.path.join(opth, 'UTE-res-tmp'+fcomment+'.nii.gz')
@@ -724,13 +749,13 @@ def align_mumap(
 
     #-convert to mu-values; sort out the file name too.
     if musrc=='pct':
-        mu = hu2mu(imreg)
+        mu = imreg
     elif musrc=='ute':
         mu = np.float32(imreg)/1e4
         #-remove the converted file from DICOMs
         os.remove(fflo)
     else:
-        raise NameError('Confused o_O.')
+        raise NameError('Confused o_O')
 
     # get rid of negatives
     mu[mu<0] = 0
@@ -757,10 +782,13 @@ def align_mumap(
         fmu = os.path.join(opth, fname + '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
         mu_dct['fim'] = fmu
+
     if del_auxilary:
         os.remove(freg)
+
         if musrc=='ute' and not os.path.isfile(faff):
             os.remove(fute)
+        shutil.rmtree(tmpdir)
 
     return mu_dct
 
