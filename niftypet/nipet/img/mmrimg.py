@@ -757,9 +757,11 @@ def align_mumap(
     else:
         raise NameError('Confused o_O')
 
-    # get rid of negatives
+    #> get rid of negatives and nans
     mu[mu<0] = 0
-    # return image dictionary with the image itself and other parameters
+    mu[np.isnan(mu)] = 0
+
+    #> return image dictionary with the image itself and other parameters
     mu_dct['im'] = mu
     mu_dct['affine'] = A
     mu_dct['faff'] = faff_mrpet
