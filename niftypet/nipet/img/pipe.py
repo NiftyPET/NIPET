@@ -362,12 +362,16 @@ def mmrchain(
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
+    
     if ret_sinos and itr>1 and recmod>2:
         output['sinos'] = {
             'psino':dynpsn,
             'ssino':dynssn,
             'rsino':dynrsn,
             'amask':dynmsk}
+    
+    if ret_histo:
+        output['hst'] = hsts
 
 
     # ----------------------------------------------------------------------
