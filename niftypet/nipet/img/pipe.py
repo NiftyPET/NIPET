@@ -1,5 +1,7 @@
 """module for pipelined image reconstruction and analysis"""
-import logging
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+
 from numbers import Integral
 import os
 from subprocess import call
@@ -14,8 +16,8 @@ from ..lm.mmrhist import mmrhist
 from .mmrimg import image_affine
 from niftypet import nimpa
 from ..prj import mmrrec
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
+
+import logging
 log = logging.getLogger(__name__)
 
 
@@ -37,12 +39,12 @@ def mmrchain(
                     # automatically. 3: attenuation and scatter
                     # correction, 1: attenuation correction
                     # only, 0: no correction (randoms only).
-    histo=[],       # input histogram (from list-mode data);
+    histo=None,     # input histogram (from list-mode data);
                     # if not given, it will be performed.
 
     trim=False,
     trim_scale=2,
-    trim_interp=1,  # interpolation for upsampling used in PVC
+    trim_interp=0,  # interpolation for upsampling used in PVC
     trim_memlim=True,   # reduced use of memory for machines
                         # with limited memory (slow though)
 
@@ -60,6 +62,8 @@ def mmrchain(
                     # generated image files
     ret_sinos=False,# return prompt, scatter and randoms
                     # sinograms for each reconstruction
+    ret_histo=False,# return histogram (LM processing output) for
+                    # each image frame
     store_img = True,
     store_img_intrmd=False,
     store_itr=[],   # store any reconstruction iteration in
@@ -72,6 +76,13 @@ def mmrchain(
     axLUT = scanner_params['axLUT']
 
     # -------------------------------------------------------------------------
+    # HISOTGRAM PRECEEDS FRAMES
+    if not histo==None and 'psino' in histo:
+        frames = ['fluid', [histo['t0'], histo['t1']]]
+    else:
+        histo = None
+        log.warning('the given histogram does not contain a prompt sinogram--will generate a histogram.')
+
     # FRAMES
     # check for the provided dynamic frames
     if isinstance(frames, list):
@@ -86,7 +97,7 @@ def mmrchain(
         #   provided the t0 and t1 are within the acquisition times.
 
         # 2D starting with entry 'fluid' or 'timings'
-        if (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
+        elif (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
             and all([isinstance(t, list) and len(t) == 2 for t in frames[1:]])):
             t_frms = frames[1:]
         # if 2D definitions, starting with entry 'def':
@@ -107,8 +118,7 @@ def mmrchain(
                 in the correct list format: 1D [15,15,30,30,...]\
                 or 2D list [[2,15], [2,30], ...]')
     else:
-        log.error('osemdyn: provided dynamic frames definitions\
-                are not in either Python list or numpy array.')
+        log.error('provided dynamic frames definitions are incorrect (should be a list of definitions).')
         raise TypeError('Wrong data type for dynamic frames')
     # number of dynamic time frames
     nfrm = len(t_frms)
@@ -254,6 +264,10 @@ def mmrchain(
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
+    #> returning dictionary of histograms if requested
+    if ret_histo:
+        hsts = {}
+
 
     # import pdb; pdb.set_trace()
 
@@ -269,7 +283,7 @@ def mmrchain(
         # check if there is enough prompt data to do a reconstruction
         # --------------
         log.info('dynamic frame times t0={}, t1={}:'.format(t0, t1))
-        if not histo:
+        if histo==None:
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
@@ -278,6 +292,10 @@ def mmrchain(
                 \rusing provided histogram
                 \r------------------------------------------------------
                 ''')
+
+        if ret_histo:
+            hsts[str(t0)+'-'+str(t1)] = hst
+
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
             log.warning('''
                 \r===========================================================================
