@@ -8,6 +8,7 @@ import numpy as np
 from math import pi
 import platform
 import os
+import errno
 
 #> logging represented by an integer: 10, 20, 30... for DEBUG, INFO, WARNING...
 #> as it is in Python package logging, which is also used here.
@@ -38,6 +39,9 @@ CMAKE_TLS_PAR = '' #-DUSE_SSE=OFF'
 # PATHTOOLS = os.path.join('/chosen/path/', DIRTOOLS)
 #> path to Python wrapper of Vinci
 VINCIPATH = ''
+
+#> path to reference images for testing NiftyPET
+REFPATH = ''
 # -----------------------------------------------------
 
 # -----------------------------------------------------
@@ -287,6 +291,8 @@ def get_setup(Cnt = {}):
     # hardware mu-maps
     if 'HMUDIR'     in globals() and HMUDIR!='':        Cnt['HMUDIR']   = HMUDIR
     if 'VINCIPATH'  in globals() and VINCIPATH!='':     Cnt['VINCIPATH'] = VINCIPATH
+    #> testing
+    if 'REFPATH'  in globals() and REFPATH!='':     Cnt['REFPATH'] = PATHTOOLS
 
     Cnt['ENBLXNAT'] = ENBLXNAT
     Cnt['ENBLAGG'] = ENBLAGG
@@ -402,3 +408,79 @@ def get_mmr_constants():
     Cnt = get_setup(Cnt=Cnt)
 
     return Cnt
+
+
+def get_refimg(pathsrc):
+    ''' Reference images reconstructed for testing future versions and editions of NiftyPET.
+        It is based on the open source list-mode amyloid PET data available at:
+        https://doi.org/10.5281/zenodo.1472951
+    '''
+
+    if isinstance(pathsrc, dict) and 'REFPATH' in pathsrc and os.path.exists(pathsrc['REFPATH']):
+        folder_ref = pathsrc['REFPATH']
+    elif isinstance(pathsrc, str) and os.path.exists(pathsrc):
+        folder_ref = pathsrc
+    else:
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), folder_ref)
+
+    #------------------------------------------------------------------------------------------------
+    #> predetermined structure of the reference folder as a dictionary:
+    refpaths = {
+        'histo':{'p': 1570707830, 'd': 817785422},
+        'basic':{},
+        'aligned':{'spm':{}, 'niftyreg':{}}
+    }
+
+    refpaths['basic'] = {
+        'pet':os.path.join(folder_ref, 'basic', '17598013_t-3000-3600sec_itr-4_suvr.nii.gz'),
+        'omu':os.path.join(folder_ref, 'basic', 'mumap-from-DICOM_no-alignment.nii.gz'),
+        'hmu':os.path.join(folder_ref, 'basic', 'hardware_umap.nii.gz'),
+    }
+    refpaths['aligned']['niftyreg'] = {
+        'hmu':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', 'hardware_umap.nii.gz'),
+        'omu':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', 'mumap-PCT-aligned-to_t0-3600_AC.nii.gz'),
+        'pos':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', '17598013_t0-3600sec_itr2_AC-UTE.nii.gz'),
+        'pet':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', '17598013_nfrm-2_itr-4.nii.gz'),
+        'trm':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', '17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz'),
+        'pvc':os.path.join(folder_ref, 'dyn_aligned', 'niftyreg', '17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz')
+    }
+    refpaths['aligned']['spm'] = {
+        'hmu':os.path.join(folder_ref, 'dyn_aligned', 'spm', 'hardware_umap.nii.gz'),
+        'omu':os.path.join(folder_ref, 'dyn_aligned', 'spm', 'mumap-PCT-aligned-to_t0-3600_AC.nii.gz'),
+        'pos':os.path.join(folder_ref, 'dyn_aligned', 'spm', '17598013_t0-3600sec_itr2_AC-UTE.nii.gz'),
+        'pet':os.path.join(folder_ref, 'dyn_aligned', 'spm', '17598013_nfrm-2_itr-4.nii.gz'),
+        'trm':os.path.join(folder_ref, 'dyn_aligned', 'spm', '17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz'),
+        'pvc':os.path.join(folder_ref, 'dyn_aligned', 'spm', '17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz')
+    }
+    #------------------------------------------------------------------------------------------------
+
+    testext = {'basic':{}, 'aligned':{}}
+    testext['basic']['pet'] = 'static reconstruction with unaligned UTE mu-map'
+    testext['basic']['hmu'] = 'hardware mu-map for the static unaligned reconstruction'
+    testext['basic']['omu'] = 'object mu-map for the static unaligned reconstruction'
+    #---
+    testext['aligned']['pet'] = '2-frame scan with aligned UTE mu-map'
+    testext['aligned']['hmu'] = 'hardware mu-map for the 2-frame aligned reconstruction'
+    testext['aligned']['omu'] = 'object mu-map for the 2-frame aligned reconstruction'
+    testext['aligned']['pos'] = 'AC reconstruction for positioning (full acquisition used)'
+    testext['aligned']['trm'] = 'trimming post reconstruction'
+    testext['aligned']['pvc'] = 'PVC post reconstruction'
+    #------------------------------------------------------------------------------------------------
+
+
+
+    #> check if all files are in
+    #> basic
+    frefs = refpaths['basic']
+    for k in frefs:
+        if not os.path.isfile(frefs[k]):
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), frefs[k])
+
+    #> reg tools: niftyreg and spm
+    frefs = refpaths['aligned']
+    for r in frefs:
+        for k in frefs[r]:
+            if not os.path.isfile(frefs[r][k]):
+                raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), frefs[r][k])
+
+    return refpaths, testext
