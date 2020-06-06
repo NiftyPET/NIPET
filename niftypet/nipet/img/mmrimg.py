@@ -435,6 +435,7 @@ def align_mumap(
         datain,
         scanner_params=None,
         outpath='',
+        reg_tool='niftyreg',
         use_stored=False,
         hst=None,
         t0=0, t1=0,
@@ -612,13 +613,13 @@ def align_mumap(
                 fute = datain[ute_name]
 
             # get the affine transformation
-            try:
+            if reg_tool=='spm':
                 regdct = nimpa.coreg_spm(
                     fpet,
                     fute,
                     outpath=os.path.join(outpath,'PET', 'positioning')
                 )
-            except:
+            elif reg_tool=='niftyreg':
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     fute,
@@ -640,6 +641,8 @@ def align_mumap(
                     fthrsh=0.05,
                     verbose=verbose
                 )
+            else:
+                raise ValueError('unknown registration tool requested')
 
             faff_mrpet = regdct['faff']
 
@@ -647,13 +650,13 @@ def align_mumap(
 
             ft1w = nimpa.pick_t1w(datain)
 
-            try:
+            if reg_tool=='spm':
                 regdct = nimpa.coreg_spm(
                     fpet,
                     ft1w,
                     outpath=os.path.join(outpath,'PET', 'positioning')
                 )
-            except:
+            elif reg_tool=='niftyreg':
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     ft1w,
@@ -674,7 +677,9 @@ def align_mumap(
                     fthrsh=0.05,
                     verbose=verbose
                 )
-
+            else:
+                raise ValueError('unknown registration tool requested')
+            
             faff_mrpet = regdct['faff']
 
         else:
@@ -1290,7 +1295,7 @@ def hdw_mumap(
         hmupos = get_hmupos(datain, hparts, Cnt, outpath=outpath)
         # just to get the dims, get the ref image
         nimo = nib.load(hmupos[0]['niipath'])
-        A = nimo.get_sform()
+        A = nimo.affine
         imo = np.float32( nimo.get_data() )
         imo[:] = 0
 
@@ -1307,7 +1312,8 @@ def hdw_mumap(
         hdr['cal_max'] = np.max(imo)
         hdr['cal_min'] = np.min(imo)
         fmu  = os.path.join(os.path.dirname (hmupos[0]['niipath']), 'hardware_umap.nii.gz' )
-        nib.save(nimo, fmu)
+        hmu_nii = nib.Nifti1Image(imo, A)
+        nib.save(hmu_nii, fmu)
 
         hmu = np.transpose(imo[:,::-1,::-1], (2, 1, 0))
 
