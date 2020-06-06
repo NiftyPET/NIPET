@@ -97,7 +97,7 @@ def mmrchain(
         #   provided the t0 and t1 are within the acquisition times.
 
         # 2D starting with entry 'fluid' or 'timings'
-        elif (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
+        if (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
             and all([isinstance(t, list) and len(t) == 2 for t in frames[1:]])):
             t_frms = frames[1:]
         # if 2D definitions, starting with entry 'def':
