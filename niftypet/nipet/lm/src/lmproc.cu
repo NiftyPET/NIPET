@@ -137,7 +137,7 @@ void lmproc(hstout dicout,
 #else
 		HANDLE_ERROR(cudaMallocManaged(&d_sino, tot_bins * sizeof(unsigned int)));
 #endif
-		HANDLE_ERROR(cudaMemset(d_sino, 0, nfrm*tot_bins * sizeof(unsigned int)));
+		HANDLE_ERROR(cudaMemset(d_sino, 0, tot_bins * sizeof(unsigned int)));
 	}
 
 	//--- start and stop time

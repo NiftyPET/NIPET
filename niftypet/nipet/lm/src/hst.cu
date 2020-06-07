@@ -311,7 +311,7 @@ curandStatePhilox4_32_10_t* setup_curand() {
 	curandStatePhilox4_32_10_t *d_prng_states;
 	cudaMalloc((void **)&d_prng_states,
 		MIN(NSTREAMS, lmprop.nchnk)*BTHREADS*NTHREADS * sizeof(curandStatePhilox4_32_10_t));
-	setup_rand <<< MIN(NSTREAMS, lmprop.nchnk)*BTHREADS, NTHREADS >> >(d_prng_states);
+	setup_rand <<< MIN(NSTREAMS, lmprop.nchnk)*BTHREADS, NTHREADS >>>(d_prng_states);
 	//printf("DONE.\n");
 	return d_prng_states;
 }
@@ -330,18 +330,21 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 
 	ichnk += 1;
 	if (nchnkrd<lmprop.nchnk) {
+
 #if RD2MEM
 		for (size_t l = 0; l<lmprop.ele4chnk[nchnkrd]; l++)
 			lmbuff[i*ELECHNK + l] = lm[lmprop.atag[nchnkrd] + l];
 #else
 		FILE *fr = fopen(lmprop.fname, "rb");
 		if (fr == NULL) { fprintf(stderr, "e> Can't open input file!\n"); exit(1); }
+
 #ifdef __linux__
 		fseek(fr, 4 * lmprop.atag[nchnkrd], SEEK_SET);//<------------------------------<<<< IMPORTANT!!!
 #endif
 #ifdef WIN32
 		_fseeki64(fr, 4 * lmprop.atag[nchnkrd], SEEK_SET);//<------------------------------<<<< IMPORTANT!!!
 #endif
+
 		size_t r = fread(&lmbuff[i*ELECHNK], 4, lmprop.ele4chnk[nchnkrd], fr);
 		if (r != lmprop.ele4chnk[nchnkrd]) {
 			printf("ele4chnk = %d, r = %d\n", lmprop.ele4chnk[nchnkrd], r);
@@ -446,10 +449,14 @@ void gpu_hst(unsigned int *d_ssrb,
 	HANDLE_ERROR(cudaMallocHost((void**)&lmbuff, NSTREAMS * ELECHNK * sizeof(int)));      // host pinned
 	HANDLE_ERROR(cudaMalloc((void**)&d_lmbuff, NSTREAMS * ELECHNK * sizeof(int))); // device
 
-	if (Cnt.LOG <= LOGINFO)  printf("\ni> creating %d CUDA streams... ", MIN(NSTREAMS, lmprop.nchnk));
-	cudaStream_t *stream = new cudaStream_t[MIN(NSTREAMS, lmprop.nchnk)];
-	//cudaStream_t stream[MIN(NSTREAMS,lmprop.nchnk)];
-	for (int i = 0; i < MIN(NSTREAMS, lmprop.nchnk); ++i)
+
+	// Get the number of streams to be used
+    int nstreams = MIN(NSTREAMS, lmprop.nchnk);
+
+	if (Cnt.LOG <= LOGINFO)  printf("\ni> creating %d CUDA streams... ", nstreams);
+	cudaStream_t *stream = new cudaStream_t[nstreams];
+	//cudaStream_t stream[nstreams];
+	for (int i = 0; i < nstreams; ++i)
 		HANDLE_ERROR(cudaStreamCreate(&stream[i]));
 	if (Cnt.LOG <= LOGINFO)  printf("DONE.\n");
 
@@ -474,7 +481,7 @@ void gpu_hst(unsigned int *d_ssrb,
 	_fseeki64(fr, 4 * lmprop.atag[nchnkrd], SEEK_SET);//<------------------------------<<<< IMPORTANT!!!
 #endif
 	if (Cnt.LOG <= LOGINFO) printf("(i> FSEEK to adrress: %d)...", lmprop.atag[nchnkrd]);
-	for (int i = 0; i<MIN(NSTREAMS, lmprop.nchnk); i++) {
+	for (int i = 0; i < nstreams; i++) {
 		r = fread(&lmbuff[i*ELECHNK], 4, lmprop.ele4chnk[nchnkrd], fr);//i*ELECHNK
 		if (r != lmprop.ele4chnk[nchnkrd]) { fputs("Reading Error(s)\n", stderr); fclose(fr); exit(3); } //printf("r=%d, ele=%d\n",(int)r,lmprop.ele4chnk[i]);
 		dataready[i] = 1; // stream[i] can start processing the data
@@ -497,7 +504,7 @@ void gpu_hst(unsigned int *d_ssrb,
 										  //***** launch the next free stream ******
 		int si, busy = 1;
 		while (busy == 1) {
-			for (int i = 0; i<MIN(NSTREAMS, lmprop.nchnk); i++) {
+			for (int i = 0; i < nstreams; i++) {
 				if ((cudaStreamQuery(stream[i]) == cudaSuccess) && (dataready[i] == 1)) {
 					busy = 0;
 					si = i;
@@ -524,6 +531,8 @@ void gpu_hst(unsigned int *d_ssrb,
 	}
 	//============================================================================
 
+	cudaDeviceSynchronize();
+
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
 	float elapsedTime;
@@ -532,15 +541,23 @@ void gpu_hst(unsigned int *d_ssrb,
 	cudaEventDestroy(stop);
 	if (Cnt.LOG <= LOGDEBUG) printf("+> histogramming DONE in %fs.\n\n", 0.001*elapsedTime);
 
-	cudaDeviceSynchronize();
-
-	//______________________________________________________________________________________________________
+	
+	for (int i = 0; i < nstreams; ++i)
+    {
+        cudaError_t err = cudaStreamSynchronize(stream[i]); 
+        if (Cnt.LOG <= LOGDEBUG)
+        	printf("--> sync CPU with stream[%d/%d], %s\n", i, nstreams, cudaGetErrorName( err ));
+        HANDLE_ERROR( err );
+    }
 
 	//***** close things down *****
-	for (int i = 0; i < MIN(NSTREAMS, lmprop.nchnk); ++i) {
+	for (int i = 0; i < nstreams; ++i) {
 		//printf("--> checking stream[%d], %s\n",i, cudaGetErrorName( cudaStreamQuery(stream[i]) ));
 		HANDLE_ERROR(cudaStreamDestroy(stream[i]));
 	}
+
+	//______________________________________________________________________________________________________
+
 
 	cudaFreeHost(lmbuff);
 	cudaFree(d_lmbuff);

@@ -459,8 +459,6 @@ def align_mumap(
     '''
     if scanner_params is None:
         scanner_params = {}
-    if hst is None:
-        hst = []
 
 
     #> output folder
@@ -476,7 +474,7 @@ def align_mumap(
     tmpdir = os.path.join(opth, 'tmp')
 
     #> get the timing of PET if affine not given
-    if faff!='' and 't0' in hst:
+    if faff=='' and not hst is None and isinstance(hst, dict) and 't0' in hst:
         t0 = hst['t0']
         t1 = hst['t1']
 
@@ -488,7 +486,7 @@ def align_mumap(
 
     #---------------------------------------------------------------------------
     #> used stored if requested
-    if use_stored and affine!='':
+    if use_stored:
         fmu_stored = fnm + '-aligned-to_t'\
                      + str(hst['t0'])+'-'+str(hst['t1'])+'_'+petopt.upper()\
                      + fcomment
@@ -514,7 +512,7 @@ def align_mumap(
     if not os.path.isfile(faff):
         from niftypet.nipet.prj import mmrrec
         #-histogram the list data if needed
-        if not hst:
+        if hst is None:
             from niftypet.nipet import mmrhist
             if 'txLUT' in scanner_params:
                 hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
