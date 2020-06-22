@@ -62,6 +62,13 @@ ENBLAGG = False
 CMPL_DCM2NIIX = False
 
 #============ SIEMENS mMR SCANNER C O N S T A N T S ===============
+
+#> LM header offset in bytes (for mMR it is in a separate DICOM format)
+LMOFF = 0
+
+#> bytes per event in list mode data
+BPE = 4
+
 # number of rings (axially) and crystals (transaxially)
 NRNG = 64
 
@@ -309,6 +316,9 @@ def get_mmr_constants():
     Cnt = {
         'LOG':LOG,
         'VERBOSE':False,
+
+        'BPE':BPE,
+        'LMOFF':LMOFF,
         
         'ISOTOPE':'F18',
         'DCYCRR':DCYCRR,

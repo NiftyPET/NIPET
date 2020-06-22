@@ -27,7 +27,7 @@ def mmrhist(
         scanner_params,
         t0=0, t1=0,
         outpath='',
-        frms=np.array([0], dtype=np.uint16),
+        frms=None,
         use_stored=False,
         store=False,
         cmass_sig=5):
@@ -50,27 +50,35 @@ def mmrhist(
             cmass_sig=cmass_sig)
 
 
-def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
-         use_stored=False, store=False, outpath='', t0=0, t1=0, cmass_sig=5):
-    # histogramming with bootstrapping:
-    # Cnt['BTP'] = 0: no bootstrapping [default];
-    # Cnt['BTP'] = 1: non-parametric bootstrapping;
-    # Cnt['BTP'] = 2: parametric bootstrapping (using Poisson distribution with mean = 1)
+def hist(
+    datain,
+    txLUT,
+    axLUT,
+    Cnt,
+    t0=0, t1=0,
+    cmass_sig=5,
+    frms=None, # np.array([0], dtype=np.uint16),
+    use_stored=False,
+    store=False,
+    outpath=''):
 
-    #number of dynamic frames
-    nfrm = len(frms)
+    '''
+    Process list mode data with histogramming and optional bootstrapping:
+    Cnt['BTP'] = 0: no bootstrapping [default];
+    Cnt['BTP'] = 1: non-parametric bootstrapping;
+    Cnt['BTP'] = 2: parametric bootstrapping (using Poisson distribution with mean = 1)
+    '''
+
     if    Cnt['SPN']==1:  nsinos=Cnt['NSN1']
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
-    log.debug('histograming with span {} and {} dynamic frames.'.format(Cnt['SPN'], nfrm))
+    log.debug('histogramming with span {}.'.format(Cnt['SPN']))
 
     if (use_stored is True and 'sinos' in datain and
         os.path.basename(datain['sinos']) == (
-            'sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy'
+            'sinos_s'+str(Cnt['SPN'])+'_frm-'+str(t0)+'-'+str(t1)+'.npy'
     )):
-        # nele, ttags, tpos = mmr_lmproc.lminfo(datain['lm_bf'])
-        # nitag = (ttags[1]-ttags[0]+999)/1000
 
         hstout = {}
         (hstout['phc'], hstout['dhc'], hstout['mss'], hstout['pvs'],
@@ -107,16 +115,13 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
         mss = np.zeros((nitag), dtype=np.float32)
 
         bck = np.zeros((2, nitag, Cnt['NBCKT']), dtype=np.uint32)
-        fan = np.zeros((nfrm, Cnt['NRNG'], Cnt['NCRS']), dtype=np.uint32)
+        fan = np.zeros((Cnt['NRNG'], Cnt['NCRS']), dtype=np.uint32)
 
-        if nfrm==1:
-            psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
-            dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
-        elif nfrm>1:
-            psino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint8)
-            dsino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint8)
+        #> prompt and delayed sinograms
+        psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
+        dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
 
-        # single slice rebinned prompots
+        #> single slice rebinned prompots
         ssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
 
         hstout = {
@@ -139,7 +144,6 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
         mmr_lmproc.hist(
             hstout,
             datain['lm_bf'],
-            frms,
             t0, t1,
             txLUT, axLUT, Cnt)
 
@@ -150,7 +154,7 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
                 fsino = os.path.join(outpath, 'sino')
                 nimpa.create_dir(fsino)
             # complete the path with the file name
-            fsino = os.path.join(fsino, 'sinos_s'+str(Cnt['SPN'])+'_n'+str(nfrm)+'_frm-'+str(t0)+'-'+str(t1)+'.npy')
+            fsino = os.path.join(fsino, 'sinos_s'+str(Cnt['SPN'])+'_frm-'+str(t0)+'-'+str(t1)+'.npy')
             # store to the above path
             np.save(fsino,  (hstout['phc'], hstout['dhc'], hstout['mss'], hstout['pvs'],
                     hstout['bck'], hstout['fan'], hstout['psn'], hstout['dsn'], hstout['ssr']))
@@ -166,21 +170,26 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
     cmass = Cnt['SO_VXZ']*ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
     log.debug('centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'.format(cmass_sig))
 
-    #========================== BUCKET SINGLES ==============================
-    #number of single rates reported for the given second
+    #========================== BUCKET SINGLES =========================
+    #> number of single rates reported for the given second
+    #> the last two bits are used for the number of reports
     nsr = (hstout['bck'][1,:,:]>>30)
-    #average in a second period
+    
+    #> average in a second period
     hstout['bck'][0,nsr>0] = hstout['bck'][0,nsr>0] / nsr[nsr>0]
-    #time indeces when single rates given
+    
+    #> time indeces when single rates given
     tmsk = np.sum(nsr,axis=1)>0
     single_rate = np.copy(hstout['bck'][0,tmsk,:])
-    #time
+    
+    #> time
     t = np.arange(nitag)
     t = t[tmsk]
-    #get the average bucket singles:
+    
+    #> get the average bucket singles:
     buckets = np.int32( np.sum(single_rate,axis=0)/single_rate.shape[0] )
     log.debug('dynamic and static buckets single rates:  COMPLETED.')
-    #=========================================================================
+    #===================================================================
 
     # account for the fact that when t0==t1 that means that full dataset is processed
     if t0==t1: t1 = t0+nitag
@@ -200,8 +209,8 @@ def hist(datain, txLUT, axLUT, Cnt, frms=np.array([0], dtype=np.uint16),
         'tsngl':t,                  #time points of singles measurements in list-mode data
         'buckets':buckets,          #average bucket singles
 
-        'psino':hstout['psn'],      #prompt sinogram
-        'dsino':hstout['dsn'],      #delayeds sinogram
+        'psino':hstout['psn'].astype(np.uint16),      #prompt sinogram
+        'dsino':hstout['dsn'].astype(np.uint16),      #delayeds sinogram
         'pssr' :hstout['ssr']       #single-slice rebinned sinogram of prompts
     }
 
@@ -239,10 +248,6 @@ def rand(fansums, txLUT, axLUT, Cnt):
     elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
     elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
 
-    #number of frames
-    nfrm = fansums.shape[0]
-    log.debug('# of dynamic frames: {}'.format(nfrm))
-
     #random sino and estimated crystal map of singles put into a dictionary
     rsn  = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     cmap = np.zeros((Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
@@ -251,23 +256,9 @@ def rand(fansums, txLUT, axLUT, Cnt):
         'cmap':cmap,
     }
 
-    #save results for each frame
+    mmr_lmproc.rand(rndout, fansums, txLUT, axLUT, Cnt)
 
-    rsino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-    crmap = np.zeros((nfrm, Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
-
-    for i in range(nfrm):
-        rndout['rsn'][:,:,:] = 0
-        rndout['cmap'][:,:]  = 0
-        mmr_lmproc.rand(rndout, fansums[i,:,:], txLUT, axLUT, Cnt)
-        rsino[i,:,:,:] = rndout['rsn']
-        crmap[i,:,:] = rndout['cmap']
-
-    if nfrm==1:
-        rsino = rsino[0,:,:,:]
-        crmap = crmap[0,:,:]
-
-    return rsino, crmap
+    return rndout['rsn'], rndout['cmap']
 
 
 #================================================================================

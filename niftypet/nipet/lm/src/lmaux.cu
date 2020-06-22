@@ -1,10 +1,10 @@
-/*------------------------------------------------------------------------
+/*----------------------------------------------------------------------
 CUDA C extension for Python
 Provides auxiliary functionality for the processing of PET list-mode data.
 
 author: Pawel Markiewicz
-Copyrights: 2018
-------------------------------------------------------------------------*/
+Copyrights: 2020
+----------------------------------------------------------------------*/
 
 #include <stdlib.h>
 #include "lmaux.h"
@@ -40,7 +40,9 @@ void getMemUse(void) {
 LMprop lmprop; //global variable
 int* lm; //global variable
 
-		 //************ LIST MODA DATA FILE PROPERTIES (Siemens mMR) ****************
+
+
+//********** LIST MODA DATA FILE PROPERTIES (Siemens mMR) **************
 void getLMinfo(char *flm, const Cnst Cnt)
 {
 	// variables for openning and reading binary files
@@ -92,7 +94,9 @@ void getLMinfo(char *flm, const Cnst Cnt)
 	int tag = 0;
 	int buff[1];
 	int last_ttag, first_ttag;
-	int toff; //time offset
+
+	//time offset based on the first time tag
+	int toff;
 	size_t last_taddr, first_taddr;
 	size_t c = 1;
 	//--
@@ -240,6 +244,10 @@ void getLMinfo(char *flm, const Cnst Cnt)
 }
 //*********************************************************************
 
+
+
+
+
 void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 {
 	int newn = 0; //new number of chunks
@@ -283,39 +291,6 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 	lmprop.nchnk = newn;
 }
 //==================================================================
-
-
-// //******** LIST MODA DATA FILE PROPERTIES (Siemens mMR) ************
-// void getGELMinfo(char *flm)
-// {
-
-//   uint64_t Bstart = 0;
-//   uint64_t Bcount = 6;
-
-//   hid_t H5file = H5Fopen (flm, H5F_ACC_RDONLY, H5P_DEFAULT);
-//   if (H5file<0){
-//         printf("ce> could not open the HDF5 file!\n");
-//         return;
-//   }
-
-//   hid_t dset = H5Dopen (H5file, LMDATASET_S, H5P_DEFAULT);
-//   if (dset<0){
-//         printf("ce> could not open the list-mode dataset!\n");
-//         return;
-//   }
-
-//   hid_t dspace = H5Dget_space( dset );
-
-//   hsize_t start[1];
-//   hsize_t count[1];
-//   hsize_t stride[1] = 1;
-//   start[0] = (hsize_t) Bstart;
-//   count[0] = (hsize_t) Bcount;
-
-//   herr_t status = H5Sselect_hyperslab( dspace, H5S_SELECT_SET, &start[0], &stride[0], &count[0], NULL );
-// }
-
-
 
 
 

@@ -9,9 +9,12 @@
 // SCANNER CONSTANTS
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 struct Cnst {
-	int A;  //sino angles
-	int W;  //sino bins for any angular index
-	int aw; //sino bins (active only)
+	int BPE; 	// bytes per single event
+	int LMOFF;	// offset for the LM file (e.g., offsetting for header)
+	
+	int A;  	//sino angles
+	int W;  	//sino bins for any angular index
+	int aw; 	//sino bins (active only)
 
 	int NCRS;  //number of crystals
 	int NCRSR; //reduced number of crystals by gaps
@@ -80,19 +83,16 @@ typedef struct{
   int nchnk;
   int nitag;
   int toff;
+  int lmoff; //offset for starting LM events
   int last_ttag;
   int tstart;
   int tstop;
   int tmidd;
   int flgs; //write out sinos in span-11
   int span; //choose span (1, 11 or SSRB)
-  int nfrm; //output dynamic sinos in span-11
   int flgf; //do fan-sums calculations and output by randoms estimation
-  int nfrm2;
-  short *t2dfrm;
-  int frmoff; //frame offset to account for the splitting of the dynamic data into two
 
-  int bpe; //number of bytes per event (used for GE Signa)
+  int bpe; //number of bytes per event
   int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
 
   int log; //for logging in list mode processing

@@ -67,25 +67,28 @@ PyMODINIT_FUNC PyInit_mmr_lmproc(void) {
 //=== END PYTHON INIT ===
 
 
-//======================================================================================
+//=============================================================================
 
 
 
-//======================================================================================
+//=============================================================================
 // P R O C E S I N G   L I S T   M O D E   D A T A
-//--------------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 // Siemens mMR
 
 static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
+	/* Quickly process the list mode file to find the timing information
+	   and number of elements
+	*/
 
 	// path to LM file
 	char *flm;
 
-	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	/* Parse the input tuple */
 	if (!PyArg_ParseTuple(args, "s", &flm))
 		return NULL;
-	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 	FILE *fr;
 	size_t r;
@@ -175,7 +178,7 @@ static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
 }
 
 
-//==================================================================================
+//=============================================================================
 static PyObject *mmr_hist(PyObject *self, PyObject *args)
 {
 
@@ -184,7 +187,6 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 
 	char * flm;
 	int tstart, tstop;
-	PyObject * o_frames=NULL;
 
 	//Dictionary of scanner constants
 	PyObject * o_mmrcnst=NULL;
@@ -198,17 +200,30 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	axialLUT axLUT;
 
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "OsOiiOOO", &o_dicout, &flm, &o_frames, &tstart, &tstop, &o_txLUT, &o_axLUT, &o_mmrcnst))
+	if (!PyArg_ParseTuple(	
+			args, "OsiiOOO",
+			&o_dicout,
+			&flm,
+			&tstart,
+			&tstop,
+			&o_txLUT,
+			&o_axLUT,
+			&o_mmrcnst))
 		return NULL;
 
 
 
 	/* Interpret the input objects as numpy arrays. */
-	PyArrayObject *p_frames = NULL;
-	p_frames = (PyArrayObject *)PyArray_FROM_OTF(o_frames, NPY_USHORT, NPY_ARRAY_IN_ARRAY);
 	//the dictionary of constants
 	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
 	Cnt.LOG = (char)PyLong_AsLong(pd_log);
+
+	PyObject* pd_bpe = PyDict_GetItemString(o_mmrcnst, "BPE");
+	Cnt.BPE = (int)PyLong_AsLong(pd_bpe);
+
+	PyObject* pd_lmoff = PyDict_GetItemString(o_mmrcnst, "LMOFF");
+	Cnt.LMOFF = (int)PyLong_AsLong(pd_lmoff);
+
 	PyObject* pd_Naw = PyDict_GetItemString(o_mmrcnst, "Naw");
 	Cnt.aw = (int)PyLong_AsLong(pd_Naw);
 	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
@@ -255,8 +270,7 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	p_s2cF = (PyArrayObject *)PyArray_FROM_OTF(pd_s2cF, NPY_INT16, NPY_ARRAY_IN_ARRAY);
 
 	/* If that didn't work, throw an exception. */
-	if (p_frames == NULL || p_sn1_rno == NULL || p_sn1_sn11 == NULL || p_sn1_ssrb == NULL || p_s2cF == NULL) {
-		Py_XDECREF(p_frames);
+	if (p_sn1_rno == NULL || p_sn1_sn11 == NULL || p_sn1_ssrb == NULL || p_s2cF == NULL) {
 		Py_XDECREF(p_sn1_rno);
 		Py_XDECREF(p_sn1_sn11);
 		Py_XDECREF(p_sn1_ssrb);
@@ -266,12 +280,6 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 
 
 
-	/* How many data points are there? */
-	int nfrm = (int)PyArray_DIM(p_frames, 0);
-
-	/* Get pointers to the data as C-types. */
-	unsigned short * frames = (unsigned short*)PyArray_DATA(p_frames);
-
 	axLUT.sn1_rno = (short*)PyArray_DATA(p_sn1_rno);
 	axLUT.sn1_sn11 = (short*)PyArray_DATA(p_sn1_sn11);
 	axLUT.sn1_ssrb = (short*)PyArray_DATA(p_sn1_ssrb);
@@ -279,55 +287,47 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	//sino to crystal LUT from txLUTs
 	LORcc *s2cF = (LORcc*)PyArray_DATA(p_s2cF);
 
-	//=============== the dictionary of output arrays ===================
+	//=============== the dictionary of output arrays ==================
 	//sinograms
 	PyObject *pd_psn=NULL, *pd_dsn=NULL;
 	PyArrayObject *p_psn=NULL, *p_dsn=NULL;
 
-	if (nfrm == 1) {
-		pd_psn = PyDict_GetItemString(o_dicout, "psn");
-		p_psn = (PyArrayObject *)PyArray_FROM_OTF(pd_psn, NPY_UINT16, NPY_ARRAY_INOUT_ARRAY2);
+	// prompt sinogram
+	pd_psn = PyDict_GetItemString(o_dicout, "psn");
+	p_psn = (PyArrayObject *)PyArray_FROM_OTF(pd_psn, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 
-		pd_dsn = PyDict_GetItemString(o_dicout, "dsn");
-		p_dsn = (PyArrayObject *)PyArray_FROM_OTF(pd_dsn, NPY_UINT16, NPY_ARRAY_INOUT_ARRAY2);
-	}
-	else if (nfrm>1) {
-		pd_psn = PyDict_GetItemString(o_dicout, "psn");
-		p_psn = (PyArrayObject *)PyArray_FROM_OTF(pd_psn, NPY_UINT8, NPY_ARRAY_INOUT_ARRAY2);
+	// delayed sinogram
+	pd_dsn = PyDict_GetItemString(o_dicout, "dsn");
+	p_dsn = (PyArrayObject *)PyArray_FROM_OTF(pd_dsn, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 
-		pd_dsn = PyDict_GetItemString(o_dicout, "dsn");
-		p_dsn = (PyArrayObject *)PyArray_FROM_OTF(pd_dsn, NPY_UINT8, NPY_ARRAY_INOUT_ARRAY2);
-	}
-
-	
 	PyArrayObject *p_phc=NULL, *p_dhc=NULL, *p_ssr=NULL, *p_mss=NULL;
 	PyArrayObject *p_pvs=NULL, *p_bck=NULL, *p_fan=NULL;
 
-	//single slice rebinned prompt sinogram
+	// single slice rebinned (SSRB) prompt sinogram
 	PyObject *pd_ssr = PyDict_GetItemString(o_dicout, "ssr");
 	p_ssr = (PyArrayObject *)PyArray_FROM_OTF(pd_ssr, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 
-	//prompt head curve
+	// prompt head curve
 	PyObject *pd_phc = PyDict_GetItemString(o_dicout, "phc");
 	p_phc = (PyArrayObject *)PyArray_FROM_OTF(pd_phc, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 	
-	//delayeds head curve
+	// delayed head curve
 	PyObject *pd_dhc = PyDict_GetItemString(o_dicout, "dhc");
 	p_dhc = (PyArrayObject *)PyArray_FROM_OTF(pd_dhc, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 	
-	//centre of mass of axial radiodistribution
+	// centre of mass of axial radiodistribution
 	PyObject *pd_mss = PyDict_GetItemString(o_dicout, "mss");
 	p_mss = (PyArrayObject *)PyArray_FROM_OTF(pd_mss, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 	
-	//projection views (sagittal and coronal) for video
+	// projection views (sagittal and coronal) for video
 	PyObject *pd_pvs = PyDict_GetItemString(o_dicout, "pvs");
 	p_pvs = (PyArrayObject *)PyArray_FROM_OTF(pd_pvs, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 	
-	//single bucket rates over time
+	// single bucket rates over time
 	PyObject *pd_bck = PyDict_GetItemString(o_dicout, "bck");
 	p_bck = (PyArrayObject *)PyArray_FROM_OTF(pd_bck, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 	
-	//fan-sums of delayed events
+	// fan-sums of delayed events
 	PyObject *pd_fan = PyDict_GetItemString(o_dicout, "fan");
 	p_fan = (PyArrayObject *)PyArray_FROM_OTF(pd_fan, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
 
@@ -356,35 +356,31 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	}
 
 	hstout dicout;
-	//head curves (prompts and delayeds), centre of mass of axial radiodistribution and projection views (for video) 
+	// head curves (prompts and delayed), centre of mass of
+	// axial radiodistribution and projection views (for video) 
 	dicout.hcp = (unsigned int*)PyArray_DATA(p_phc);
 	dicout.hcd = (unsigned int*)PyArray_DATA(p_dhc);
 	dicout.mss = (float*)PyArray_DATA(p_mss);
 	dicout.snv = (unsigned int*)PyArray_DATA(p_pvs);
-	//single buckets and delayeds fan-sums
+	
+	//single buckets and delayed fan-sums
 	dicout.bck = (unsigned int*)PyArray_DATA(p_bck);
 	dicout.fan = (unsigned int*)PyArray_DATA(p_fan);
-	//sinograms
-	if (nfrm == 1) {
-		dicout.psn = (unsigned int*)PyArray_DATA(p_psn);
-		dicout.dsn = (unsigned int*)PyArray_DATA(p_dsn);
-	}
-	else if (nfrm>1) {
-		dicout.psn = (unsigned char*)PyArray_DATA(p_psn);
-		dicout.dsn = (unsigned char*)PyArray_DATA(p_dsn);
-	}
+	
+	//sinograms: prompt, delayed and SSRB
+	dicout.psn = (unsigned int*)PyArray_DATA(p_psn);
+	dicout.dsn = (unsigned int*)PyArray_DATA(p_dsn);
 	dicout.ssr = (unsigned int*)PyArray_DATA(p_ssr);
-	//====================================================================
+	//==================================================================
 
 	// sets the device on which to calculate
 	cudaSetDevice(Cnt.DEVID);
 
-	//====================================================================
-	lmproc(dicout, flm, frames, nfrm, tstart, tstop, s2cF, axLUT, Cnt);
-	//====================================================================
+	//==================================================================
+	lmproc(dicout, flm, tstart, tstop, s2cF, axLUT, Cnt);
+	//==================================================================
 
 	//Clean up:
-	Py_DECREF(p_frames);
 	Py_DECREF(p_sn1_rno);
 	Py_DECREF(p_sn1_sn11);
 	Py_DECREF(p_sn1_ssrb);
@@ -599,7 +595,7 @@ static PyObject *mmr_prand(PyObject *self, PyObject *args) {
 	//Dictionary of scanner constants
 	PyObject * o_mmrcnst;
 
-	// fan sums for each crystal (can be in time frames for dynamic scans)
+	// fan sums for each crystal
 	PyObject * o_fansums;
 
 	//mask for the randoms only regions in prompt sinogram
