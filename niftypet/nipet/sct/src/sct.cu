@@ -24,7 +24,7 @@ __inline__ __device__
 float warpsum(float val)
 {
 	for (int off = 16; off>0; off /= 2)
-		val += __shfl_down(val, off);
+		val += __shfl_down_sync(0xFFFFFFFF, val, off);
 	return val;
 }
 
@@ -32,7 +32,7 @@ float warpsum(float val)
 __inline__ __device__
 float warpsum_xor(float val) {
 	for (int mask = SS_WRP / 2; mask > 0; mask /= 2)
-		val += __shfl_xor(val, mask);
+		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
 	return val;
 }
 
@@ -41,7 +41,7 @@ __inline__ __device__
 float wcumsum(int idx, float val)
 {
 	for (int off = 1; off<SS_WRP; off *= 2)
-		val += __shfl(val, idx - off)* ((idx - off) >= 0);
+		val += __shfl_sync(0xFFFFFFFF, val, idx - off)* ((idx - off) >= 0);
 	return val;
 }
 
@@ -199,20 +199,20 @@ void Psct(float *rslt,
 
 		//accumulate mu-values.
 		float cumum = wcumsum(idx, sval);
-		float sumWarp = __shfl(cumum, (SS_WRP - 1));
+		float sumWarp = __shfl_sync(0xFFFFFFFF, cumum, (SS_WRP - 1));
 
 		//get the scattering point mu-values sum by subtracting the sum back by four (default) voxels.
 		//make it zero index when negative.
-		float smu = cumum - __shfl(cumum, idx - (1 << LSCT2))  *  ((idx - (1 << LSCT2)) >= 0);
+		float smu = cumum - __shfl_sync(0xFFFFFFFF, cumum, idx - (1 << LSCT2))  *  ((idx - (1 << LSCT2)) >= 0);
 
 		//probability of scattering from a scatter point
 		float p_scatter = (1 - expf(-smu*SSTP));
 
 		//now subtract the warp sample to have the cumsum starting from 0 for incident probability calculations.
-		cumum -= sval;//__shfl(sval,0);
+		cumum -= sval;//__shfl_sync(0xFFFFFFFF, sval,0);
 
 					  //probability of incident photons on scattering point.
-		p_scatter *= uomg * expf(-(__shfl(cumum, idx & ~((1 << LSCT2) - 1)) + rcsum)* SSTP);
+		p_scatter *= uomg * expf(-(__shfl_sync(0xFFFFFFFF, cumum, idx & ~((1 << LSCT2) - 1)) + rcsum)* SSTP);
 
 		//if(idx==0&&iur==2&&iuc==7) printf("%d> ps=%6.8f\n", k, 1e7*p_scatter );
 
@@ -239,9 +239,9 @@ void Psct(float *rslt,
 
 			//scatter vector used first for the scattering point
 			float3 s;
-			s.x = (x + a.x * __shfl(tt, sct_id));
-			s.y = (y + a.y * __shfl(tt, sct_id));
-			s.z = (z + a.z * __shfl(tt, sct_id));
+			s.x = (x + a.x * __shfl_sync(0xFFFFFFFF, tt, sct_id));
+			s.y = (y + a.y * __shfl_sync(0xFFFFFFFF, tt, sct_id));
+			s.z = (z + a.z * __shfl_sync(0xFFFFFFFF, tt, sct_id));
 
 			//if ((iur==2)&&(isr==2)) printf("k%d, iuc%d: s.z=%4.3f | a.z=%4.3f\n", k, iuc, s.z, a.z);
 
@@ -264,9 +264,9 @@ void Psct(float *rslt,
 			// if(i_smsk<0) {s.x=1e7; i_smsk = 0;}
 
 			//finish forming the scatter vector by subtracting scatter crystal coordinates
-			s.x = __shfl(sc.x, crs_shft) - s.x;
-			s.y = __shfl(sc.y, crs_shft) - s.y;
-			s.z = __shfl(sc.z, crs_shft) - s.z;
+			s.x = __shfl_sync(0xFFFFFFFF, sc.x, crs_shft) - s.x;
+			s.y = __shfl_sync(0xFFFFFFFF, sc.y, crs_shft) - s.y;
+			s.z = __shfl_sync(0xFFFFFFFF, sc.z, crs_shft) - s.z;
 
 			//distance from the scattering point to the detector
 			aux.y = powf(s.x*s.x + s.y*s.y + s.z*s.z, 0.5);
@@ -289,35 +289,35 @@ void Psct(float *rslt,
 			//indexing resutls: singly_scattered_crystal_index + singly_scattered_ring_index * no_of_scatter_crystals +
 			//unscattered_crystal_ring_index * no_of_scattered_crastals_rings.
 			//normal vector of scatter receiving crystals has the z-component always zero for cylindrical scanners
-			//(__shfl(sc.x, crs_shft)*IR_RING) is the x-comonent norm of scatter crystal
+			//(__shfl_sync(0xFFFFFFFF, sc.x, crs_shft)*IR_RING) is the x-comonent norm of scatter crystal
 
 			if (c_TOFBIN[0]>1) {
 				//TOF bin index with determination of the sign
 				char m = infov*floorf(0.5*c_TOFBIN[0] + c_TOFBIN[3] *
-					(__shfl(tt, sct_id) + aux.y - an) *
-					(((__fdividef(__shfl(sc.y, crs_shft) - uc.y, __shfl(sc.x, crs_shft) - uc.x)>0) != (__shfl(sc.y, crs_shft)>uc.y))  *  (-2) + 1)
+					(__shfl_sync(0xFFFFFFFF, tt, sct_id) + aux.y - an) *
+					(((__fdividef(__shfl_sync(0xFFFFFFFF, sc.y, crs_shft) - uc.y, __shfl_sync(0xFFFFFFFF, sc.x, crs_shft) - uc.x)>0) != (__shfl_sync(0xFFFFFFFF, sc.y, crs_shft)>uc.y))  *  (-2) + 1)
 				);
 				atomicAdd(rslt + m * scrsdef.nsrng*scrsdef.nscrs*scrsdef.nsrng*scrsdef.nscrs / 2 +
-					__shfl(idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
+					__shfl_sync(0xFFFFFFFF, idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
 
 					infov*em_vox * c_KN[icos].x *
-					(SRFCRS*(s.x*__shfl(sc.x, crs_shft)*IR_RING + s.y*__shfl(sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
-					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl(isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
-					__shfl(p_scatter, sct_id));
+					(SRFCRS*(s.x*__shfl_sync(0xFFFFFFFF, sc.x, crs_shft)*IR_RING + s.y*__shfl_sync(0xFFFFFFFF, sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
+					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl_sync(0xFFFFFFFF, isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
+					__shfl_sync(0xFFFFFFFF, p_scatter, sct_id));
 			}
 			else {
-				atomicAdd(rslt + __shfl(idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
+				atomicAdd(rslt + __shfl_sync(0xFFFFFFFF, idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
 					infov*em_vox * c_KN[icos].x *
-					(SRFCRS*(s.x*__shfl(sc.x, crs_shft)*IR_RING + s.y*__shfl(sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
-					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl(isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
-					__shfl(p_scatter, sct_id));
+					(SRFCRS*(s.x*__shfl_sync(0xFFFFFFFF, sc.x, crs_shft)*IR_RING + s.y*__shfl_sync(0xFFFFFFFF, sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
+					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl_sync(0xFFFFFFFF, isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
+					__shfl_sync(0xFFFFFFFF, p_scatter, sct_id));
 			}
 
 			// #endif
 
 			// if ( (blockIdx.x==0)  & (k==0) && (isr==2) && (iur==2) && (iuc==25) && ((idx&((1<<LSCT2)-1))==3) )
 			//   printf(":> sc[%d] idx[%d]: t = %6.4f | tt = %6.4f | an=%6.4f, as0=%6.4f + as1=%6.4f, m=%d\n",
-			//           __shfl(isc, crs_shft), idx, t, tt, an, __shfl(tt, sct_id), aux.y, m);
+			//           __shfl_sync(0xFFFFFFFF, isc, crs_shft), idx, t, tt, an, __shfl_sync(0xFFFFFFFF, tt, sct_id), aux.y, m);
 
 		}
 	}

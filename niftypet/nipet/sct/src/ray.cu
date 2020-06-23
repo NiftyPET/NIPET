@@ -12,7 +12,7 @@ __inline__ __device__
 float warpsum(float uval)
 {
 	for (int off = 16; off>0; off /= 2)
-		uval += __shfl_down(uval, off);
+		uval += __shfl_down_sync(0xFFFFFFFF, uval, off);
 	return uval;
 }
 
@@ -20,7 +20,7 @@ float warpsum(float uval)
 __inline__ __device__
 float warpsum_xor(float val) {
 	for (int mask = 16; mask > 0; mask /= 2)
-		val += __shfl_xor(val, mask);
+		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
 	return val;
 }
 

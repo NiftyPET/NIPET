@@ -22,7 +22,7 @@ __constant__ short c_li2span11[nrSN1];
 __inline__ __device__
 float warpsum(float rval) {
 	for (int off = 16; off>0; off /= 2)
-		rval += __shfl_down(rval, off);
+		rval += __shfl_down_sync(0xFFFFFFFF, rval, off);
 	return rval;
 }
 

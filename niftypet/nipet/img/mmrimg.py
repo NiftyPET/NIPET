@@ -765,7 +765,7 @@ def align_mumap(
         mu_dct['fim'] = fmu
     if del_auxilary:
         os.remove(freg)
-        if not os.path.isfile(faff):
+        if musrc=='ute' and not os.path.isfile(faff):
             os.remove(fute)
 
     return mu_dct
