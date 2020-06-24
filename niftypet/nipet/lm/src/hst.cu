@@ -52,7 +52,7 @@ __global__ void setup_rand(curandState *state)
 __global__ void hst(
 	int *lm,
 	unsigned int *psino,
-	unsigned int *dsino,
+	// unsigned int *dsino,
 	unsigned int *ssrb,
 	unsigned int *rdlyd,
 	unsigned int *rprmt,
@@ -164,99 +164,102 @@ __global__ void hst(
 		 //by masking (ignore the first bits) extract the bin address or time
 		val = word & 0x3fffffff;
 
-		if ((word>0) && (itag >= tstart) && (itag<tstop)) { // <--events && (itag>=tstart) && (itag<tstop)
+		if ((itag >= tstart) && (itag<tstop)){
 
-			si = val / NSBINANG;
-			aw = val - si*NSBINANG;
-			a = aw / NSBINS;
-			w = aw - a*NSBINS;
+			if (word>0){
 
-			//span-11 sinos
-			si11 = c_li2span11[si];
+				if ((Nevnt>0)&&(Nevnt<32)){ 
 
-			//SSRB sino [127x252x344]
-			si_ssrb = c_ssrb[si];
+					si = val / NSBINANG;
+					aw = val - si*NSBINANG;
+					a = aw / NSBINS;
+					w = aw - a*NSBINS;
 
-			//span-1
-			if (span == 1) {
-				addr = val;
+					//span-11 sinos
+					si11 = c_li2span11[si];
 
-			}
-			//span-11
-			else if (span == 11) {
-				addr = si11*NSBINANG + aw;
-			}
-			//SSRB
-			else if (span == 0) {
-				addr = si_ssrb*NSBINANG + aw;
-			}
+					//SSRB sino [127x252x344]
+					si_ssrb = c_ssrb[si];
 
-			P = (word >> 30);
+					//span-1
+					if (span == 1)			addr = val;
+					//span-11
+					else if (span == 11)  	addr = si11*NSBINANG + aw;
+					//SSRB
+					else if (span == 0)		addr = si_ssrb*NSBINANG + aw;
 
-			//> prompts
-			if (P == 1) {
+					P = (word >> 30);
 
-				atomicAdd(rprmt + itag, Nevnt);
+					//> prompts
+					if (P == 1) {
 
-				//---SSRB
-				atomicAdd(ssrb + si_ssrb*NSBINANG + aw, Nevnt);
-				//---
+						atomicAdd(rprmt + itag, Nevnt);
 
-				//---sino
-				atomicAdd(psino + addr, Nevnt);
-				//---
+						//---SSRB
+						atomicAdd(ssrb + si_ssrb*NSBINANG + aw, Nevnt);
+						//---
 
-				//-- centre of mass
-				atomicAdd(mass.zR + itag, si_ssrb);
-				atomicAdd(mass.zM + itag, Nevnt);
-				//---
+						//---sino
+						atomicAdd(psino + addr, Nevnt);
+						//---
 
-				//---motion projection view
-				a0 = a == 0;
-				a126 = a == 126;
-				if ((a0 || a126) && (itag<MXNITAG)) {
-					atomicAdd(snview + (itag >> VTIME)*SEG0*NSBINS + si_ssrb*NSBINS + w, Nevnt << (a126 * 8));
+						//-- centre of mass
+						atomicAdd(mass.zR + itag, si_ssrb);
+						atomicAdd(mass.zM + itag, Nevnt);
+						//---
+
+						//---motion projection view
+						a0 = a == 0;
+						a126 = a == 126;
+						if ((a0 || a126) && (itag<MXNITAG)) {
+							atomicAdd(snview + (itag >> VTIME)*SEG0*NSBINS + si_ssrb*NSBINS + w, Nevnt << (a126 * 8));
+						}
+						
+					}
+
+					//> delayeds
+					else {
+						//> use the same UINT32 sinogram for prompts after shifting delayeds
+						atomicAdd(psino + addr, Nevnt<<16);
+
+						//> delayeds head curve
+						atomicAdd(rdlyd + itag, Nevnt);
+
+						//+++ fan-sums (for singles estimation) +++
+						atomicAdd(fansums + nCRS*sn1_rno[si].x + sn2crs[a + NSANGLES*w].x, Nevnt);
+						atomicAdd(fansums + nCRS*sn1_rno[si].y + sn2crs[a + NSANGLES*w].y, Nevnt);
+						//+++
+					}
 				}
-				
 			}
 
-			//> delayeds
 			else {
-				atomicAdd(dsino + addr, Nevnt);
-				atomicAdd(rdlyd + itag, Nevnt);
 
-				//+++ fansums (for singles estimation) +++
-				atomicAdd(fansums + nCRS*sn1_rno[si].x + sn2crs[a + NSANGLES*w].x, Nevnt);
-				atomicAdd(fansums + nCRS*sn1_rno[si].y + sn2crs[a + NSANGLES*w].y, Nevnt);
-				//+++
-			}
-		}
+				//--time tags
+				if ((word >> 29) == -4) {
+					itag = (val - toff) / ITIME;
+					itagu = (val - toff) - itag*ITIME;
+				}
+				//--singles
+				else if (((word >> 29) == -3) && (itag >= tstart) && (itag<tstop)) {
 
-		else if ((itag >= tstart) && (itag<tstop)) {
+					//bucket index
+					unsigned short ibck = ((word & 0x1fffffff) >> 19);
 
-			//--time tags
-			if ((word >> 29) == -4) {
-				itag = (val - toff) / ITIME;
-				itagu = (val - toff) - itag*ITIME;
-			}
-			//--singles
-			else if (((word >> 29) == -3) && (itag >= tstart) && (itag<tstop)) {
+					//weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
+					if (ibck<NBUCKTS) {
+						atomicAdd(bucks + ibck + NBUCKTS*itag, (word & 0x0007ffff) << 3);
+						// how many reads greater than zeros per one sec
+						// the last two bits are used for the number of reports per second
+						atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, ((word & 0x0007ffff)>0) << 30);
 
-				//bucket index
-				unsigned short ibck = ((word & 0x1fffffff) >> 19);
+						//--get some more info about the time tag (mili seconds) for up to two singles reports per second
+						if (bucks[ibck + NBUCKTS*itag + NBUCKTS*nitag] == 0)
+							atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, itagu);
+						else
+							atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, itagu << 10);
+					}
 
-				//weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
-				if (ibck<NBUCKTS) {
-					atomicAdd(bucks + ibck + NBUCKTS*itag, (word & 0x0007ffff) << 3);
-					// how many reads greater than zeros per one sec
-					// the last two bits are used for the number of reports per second
-					atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, ((word & 0x0007ffff)>0) << 30);
-
-					//--get some more info about the time tag (mili seconds) for up to two singles reports per second
-					if (bucks[ibck + NBUCKTS*itag + NBUCKTS*nitag] == 0)
-						atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, itagu);
-					else
-						atomicAdd(bucks + ibck + NBUCKTS*itag + NBUCKTS*nitag, itagu << 10);
 				}
 
 			}
@@ -364,8 +367,6 @@ void get_lm_chunk(FILE* f, int stream_idx){
 
 	if (LOG <= LOGDEBUG) 
 		printf("[%4d / %4d] chunks read\n\n", nchnkrd, lmprop.nchnk);
-	// if (LOG <= LOGINFO) 
-	// 	printf("\n");
 }
 
 
@@ -398,7 +399,7 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 //================================================================================
 void gpu_hst(
 	unsigned int *d_psino,
-	unsigned int *d_dsino,
+	// unsigned int *d_dsino,
 	unsigned int *d_ssrb,
 	unsigned int *d_rdlyd,
 	unsigned int *d_rprmt,
@@ -546,7 +547,6 @@ void gpu_hst(
 		hst<<<BTHREADS, NTHREADS, 0, stream[si]>>>(
 			d_lmbuff,
 			d_psino,
-			d_dsino,
 			d_ssrb,
 			d_rdlyd,
 			d_rprmt,

@@ -19,8 +19,8 @@ typedef struct {
 	float        * mss; 	//centre of mass (axially)
 
 	unsigned int * ssr;		// SSRB sinogram
-	unsigned int * psn;		// prompt sinogram
-	unsigned int * dsn;		// delayed sinogram
+	unsigned short * psn;		// prompt sinogram
+	unsigned short * dsn;		// delayed sinogram
 	unsigned long long psm; // prompt sum
 	unsigned long long dsm;	// delayed sum
 	unsigned int tot;		// total number of bins

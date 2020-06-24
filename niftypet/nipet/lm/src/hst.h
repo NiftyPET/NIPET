@@ -15,7 +15,6 @@ curandState* setup_curand();
 
 void gpu_hst(
 	unsigned int *d_psino,
-	unsigned int *d_dsino,
 	unsigned int *d_ssrb,
 	unsigned int *d_rdlyd,
 	unsigned int *d_rprmt,

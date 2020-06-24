@@ -125,15 +125,12 @@ void lmproc(
 
 
 	// prompt and delayed sinograms
-	unsigned int *d_psino, *d_dsino;
+	unsigned int *d_psino;//, *d_dsino;
 	
 
-	// prompt sinogram
+	// prompt and compressed delayeds in one sinogram (two unsigned shorts)
 	HANDLE_ERROR(cudaMalloc(&d_psino, 	 tot_bins * sizeof(unsigned int)));
 	HANDLE_ERROR(cudaMemset( d_psino, 0, tot_bins * sizeof(unsigned int)));
-	// delayed sinogram
-	HANDLE_ERROR(cudaMalloc(&d_dsino, 	 tot_bins * sizeof(unsigned int)));
-	HANDLE_ERROR(cudaMemset( d_dsino, 0, tot_bins * sizeof(unsigned int)));
 
 
 	//--- start and stop time
@@ -166,7 +163,6 @@ void lmproc(
 	//**************************************************************************************
 	gpu_hst(
 		d_psino,
-		d_dsino,
 		d_ssrb,
 		d_rdlyd,
 		d_rprmt,
@@ -190,25 +186,23 @@ void lmproc(
 	for (int i = 0; i<SEG0*NSBINANG; i++) {
 		psum_ssrb += dicout.ssr[i];
 	}
-	if (Cnt.LOG <= LOGINFO) printf("i> total SSRB sino events (prompts):  P = %llu\n", psum_ssrb);
 	//---
 
 
-	//> copy to host the prompt and delayed sinograms 
-	HANDLE_ERROR(cudaMemcpy(dicout.psn, d_psino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	HANDLE_ERROR(cudaMemcpy(dicout.dsn, d_dsino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+	//> copy to host the compressed prompt and delayed sinograms
+	unsigned int * sino = (unsigned int *)malloc(tot_bins * sizeof(unsigned int));
+	HANDLE_ERROR(cudaMemcpy(sino, d_psino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 	
 	unsigned int mxbin = 0;
 	dicout.psm = 0;
 	dicout.dsm = 0;
 	for (int i = 0; i<tot_bins; i++) {
+		dicout.psn[i] = sino[i] & 0x0000FFFF;
+		dicout.dsn[i] = sino[i] >> 16;
 		dicout.psm += dicout.psn[i];
 		dicout.dsm += dicout.dsn[i];
 		if (mxbin<dicout.psn[i])  mxbin = dicout.psn[i];
 	}
-
-	if (Cnt.LOG <= LOGINFO) printf("\ni> total sino events (prompts and delayeds):  P = %llu, D = %llu\n", dicout.psm, dicout.dsm);
-	if (Cnt.LOG <= LOGINFO) printf("\ni> maximum prompt sino value:  %u \n", mxbin);
 
 	//--- output data to Python
 	//projection views
@@ -223,9 +217,20 @@ void lmproc(
 	int *zM = (int *)malloc(lmprop.nitag * sizeof(int));
 	cudaMemcpy(zR, d_mass.zR, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(zM, d_mass.zM, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
+	
+	//> calculate the centre of mass while also the sum of head-curve prompts and delayeds
+	unsigned long long sphc = 0, sdhc = 0;
 	for (int i = 0; i<lmprop.nitag; i++) {
 		dicout.mss[i] = zR[i] / (float)zM[i];
+		sphc += dicout.hcp[i];
+		sdhc += dicout.hcd[i];
 	}
+
+	if (Cnt.LOG <= LOGINFO) printf("\nic> total prompt single slice rebinned sinogram:  P = %llu\n", psum_ssrb);
+	if (Cnt.LOG <= LOGINFO) printf("\nic> total prompt and delayeds sinogram   events:  P = %llu, D = %llu\n", dicout.psm, dicout.dsm);
+	if (Cnt.LOG <= LOGINFO) printf("\nic> total prompt and delayeds head-curve events:  P = %llu, D = %llu\n", sphc, sdhc);
+	if (Cnt.LOG <= LOGINFO) printf("\nic> maximum prompt sino value:  %u \n", mxbin);
+
 
 	//-fansums and bucket singles
 	HANDLE_ERROR(cudaMemcpy(dicout.fan, d_fansums, NRINGS*nCRS * sizeof(unsigned int), cudaMemcpyDeviceToHost));
@@ -241,7 +246,6 @@ void lmproc(
 	free(lmprop.ele4thrd);
 
 	cudaFree(d_psino);
-	cudaFree(d_dsino);
 	cudaFree(d_ssrb);
 	cudaFree(d_rdlyd);
 	cudaFree(d_rprmt);

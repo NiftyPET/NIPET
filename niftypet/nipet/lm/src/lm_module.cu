@@ -294,11 +294,11 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 
 	// prompt sinogram
 	pd_psn = PyDict_GetItemString(o_dicout, "psn");
-	p_psn = (PyArrayObject *)PyArray_FROM_OTF(pd_psn, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
+	p_psn = (PyArrayObject *)PyArray_FROM_OTF(pd_psn, NPY_UINT16, NPY_ARRAY_INOUT_ARRAY2);
 
 	// delayed sinogram
 	pd_dsn = PyDict_GetItemString(o_dicout, "dsn");
-	p_dsn = (PyArrayObject *)PyArray_FROM_OTF(pd_dsn, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
+	p_dsn = (PyArrayObject *)PyArray_FROM_OTF(pd_dsn, NPY_UINT16, NPY_ARRAY_INOUT_ARRAY2);
 
 	PyArrayObject *p_phc=NULL, *p_dhc=NULL, *p_ssr=NULL, *p_mss=NULL;
 	PyArrayObject *p_pvs=NULL, *p_bck=NULL, *p_fan=NULL;
@@ -368,8 +368,8 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	dicout.fan = (unsigned int*)PyArray_DATA(p_fan);
 	
 	//sinograms: prompt, delayed and SSRB
-	dicout.psn = (unsigned int*)PyArray_DATA(p_psn);
-	dicout.dsn = (unsigned int*)PyArray_DATA(p_dsn);
+	dicout.psn = (unsigned short*)PyArray_DATA(p_psn);
+	dicout.dsn = (unsigned short*)PyArray_DATA(p_dsn);
 	dicout.ssr = (unsigned int*)PyArray_DATA(p_ssr);
 	//==================================================================
 

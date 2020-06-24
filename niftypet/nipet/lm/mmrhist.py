@@ -118,8 +118,8 @@ def hist(
         fan = np.zeros((Cnt['NRNG'], Cnt['NCRS']), dtype=np.uint32)
 
         #> prompt and delayed sinograms
-        psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
-        dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
+        psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
+        dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
 
         #> single slice rebinned prompots
         ssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
