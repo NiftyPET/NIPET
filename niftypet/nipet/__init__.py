@@ -60,7 +60,7 @@ elif platform.system() == 'Windows':
 else:
     log.error('unrecognised operating system!')
 
-sys.path.insert(0,path_resources)
+sys.path.insert(1,path_resources)
 try:
     import resources
 except ImportError as ie:
