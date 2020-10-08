@@ -472,6 +472,7 @@ def align_mumap(
 
     #> tmp folder for not aligned mu-maps
     tmpdir = os.path.join(opth, 'tmp')
+    nimpa.create_dir(tmpdir)
 
     #> get the timing of PET if affine not given
     if faff=='' and not hst is None and isinstance(hst, dict) and 't0' in hst:
