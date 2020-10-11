@@ -42,7 +42,7 @@ void d_elmult(float * d_inA,
 	dim3 TpB(NTHRDS, 1, 1);
 	elmult << <BpG, TpB >> >(d_inA, d_inB, length);
 }
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
 
@@ -53,7 +53,9 @@ __global__  void eldiv0(float * inA,
 	int length)
 {
 	int idx = threadIdx.x + blockDim.x*blockIdx.x;
-	if (idx<length)  inA[idx] /= inB[idx];
+	if (idx>=length) return;
+	if(inB[idx] == 0) inA[idx] = 0;
+	else inA[idx] /= inB[idx];
 }
 
 void d_eldiv(float * d_inA,
@@ -76,13 +78,13 @@ __global__ void sneldiv(unsigned short *inA,
 	int snno)
 {
 	int idz = threadIdx.x + blockDim.x*blockIdx.x;
-	if (blockIdx.y<Nprj && idz<snno) {
-		// inB > only active bins of the subset
-		// inA > all sinogram bins
-		float a = (float)inA[snno*sub[blockIdx.y] + idz];
-		a /= inB[snno*blockIdx.y + idz];//sub[blockIdx.y]
-		inB[snno*blockIdx.y + idz] = a; //sub[blockIdx.y]
-	}
+	if (!(blockIdx.y<Nprj && idz<snno)) return;
+	// inB > only active bins of the subset
+	// inA > all sinogram bins
+	float a = (float)inA[snno*sub[blockIdx.y] + idz];
+	if (inB[snno*blockIdx.y + idz] == 0) a = 0;
+	else a /= inB[snno*blockIdx.y + idz];//sub[blockIdx.y]
+	inB[snno*blockIdx.y + idz] = a; //sub[blockIdx.y]
 }
 
 void d_sneldiv(unsigned short * d_inA,
@@ -307,7 +309,7 @@ void osem(float *imgout,
 		//divide to get the correction
 		d_sneldiv(d_psng, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
 
-		//back-project the correction 
+		//back-project the correction
 		cudaMemset(d_bimg, 0, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float));
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
