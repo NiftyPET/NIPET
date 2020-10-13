@@ -385,7 +385,8 @@ void gpu_hst(unsigned int *d_ssrb,
 	curandDiscreteDistribution_t poisson_hst;
 	// normally instead of Cnt.BTPRT I would have 1.0 if expecting the same
 	// number of resampled events as in the original file (or close to)
-	curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
+	if (Cnt.BTP==2)
+		curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
 	//---
 
 	//single slice rebinning LUT to constant memory
@@ -540,7 +541,8 @@ void gpu_hst(unsigned int *d_ssrb,
 	cudaFree(d_sn1_rno);
 
 	//destroy the histogram for parametric bootstrap
-	curandDestroyDistribution(poisson_hst);
+	if (Cnt.BTP==2)
+		curandDestroyDistribution(poisson_hst);
 	//*****
 
 
