@@ -945,12 +945,8 @@ def get_dicoms(dfile, datain, Cnt):
     if Cnt['VERBOSE']: print('')
 
 
-def explore_input(fldr, params, print_paths=False):
-    # two ways of passing Cnt are here decoded
-    if 'Cnt' in params:
-        Cnt = params['Cnt']
-    else:
-        Cnt = params
+def explore_input(fldr, params, print_paths=False, recurse=False):
+    Cnt = params.get('Cnt', params)  # two ways of passing Cnt are here decoded
 
     if not os.path.isdir(fldr):
         log.error('provide a valid folder path for the data.')
@@ -959,32 +955,35 @@ def explore_input(fldr, params, print_paths=False):
     #check for the availble data: list mode data, component-based norm and mu-maps
     # [dcm + bf] is one format of DICOM raw data; [ima] is another one used.
     # mu-map can be given from the scanner as an e.g., UTE-based, or pseudoCT through synthesis.
-    datain = {'corepath' :''}
-
-    datain['corepath'] = fldr
+    datain = {'corepath': fldr}
 
     for f in os.listdir(fldr):
-        if os.path.isfile( pjoin(fldr,f) ):
+        if os.path.isfile(pjoin(fldr, f)):
             if f.lower().endswith(".dcm") or f.lower().endswith(".ima"):
-                get_dicoms( pjoin(fldr,f), datain, Cnt)
+                get_dicoms(pjoin(fldr, f), datain, Cnt)
             # elif f.lower().endswith(".bf"):
             #     get_bf( pjoin(fldr,f), datain, Cnt)
             elif f.endswith(".npy") or f.endswith(".dic"):
-                get_npfiles( pjoin(fldr,f), datain, Cnt['VERBOSE'])
+                get_npfiles(pjoin(fldr, f), datain, Cnt['VERBOSE'])
             elif f.endswith(".nii.gz") or f.endswith(".nii"):
-                get_niifiles( pjoin(fldr,f), datain, Cnt['VERBOSE'])
+                get_niifiles(pjoin(fldr, f), datain, Cnt['VERBOSE'])
 
-        elif os.path.isdir(pjoin(fldr,f)):
+        elif os.path.isdir(pjoin(fldr, f)):
             #go one level into subfolder
-            sfldr = pjoin(fldr,f)
-            for sf in os.listdir(sfldr):
-                if os.path.isfile( pjoin(sfldr, sf) ):
-                    if sf.lower().endswith(".dcm") or sf.lower().endswith(".ima"):
-                        get_dicoms(   pjoin(sfldr,sf), datain, Cnt )
-                    elif sf.endswith(".nii.gz") or sf.endswith(".nii"):
-                        get_niifiles( pjoin(sfldr,sf), datain, Cnt['VERBOSE'])
-                    elif sf.endswith(".npy") or sf.endswith(".dic"):
-                        get_npfiles(  pjoin(sfldr,sf), datain, Cnt['VERBOSE'])
+            sfldr = pjoin(fldr, f)
+            if recurse:
+                extra = explore_input(sfldr, params, recurse=recurse)
+                extra.pop('corepath')
+                datain.update(extra)
+            else:
+                for sf in os.listdir(sfldr):
+                    if os.path.isfile(pjoin(sfldr, sf)):
+                        if sf.lower().endswith(".dcm") or sf.lower().endswith(".ima"):
+                            get_dicoms(pjoin(sfldr, sf), datain, Cnt)
+                        elif sf.endswith(".nii.gz") or sf.endswith(".nii"):
+                            get_niifiles(pjoin(sfldr, sf), datain, Cnt['VERBOSE'])
+                        elif sf.endswith(".npy") or sf.endswith(".dic"):
+                            get_npfiles(pjoin(sfldr, sf), datain, Cnt['VERBOSE'])
 
     if print_paths:
         print('--------------------------------------------------')
