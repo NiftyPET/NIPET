@@ -43,7 +43,7 @@ static PyMethodDef petprj_methods[] = {
 	 "PET forward projector."},
 	{"bprj",   back_prj,   METH_VARARGS,
 	"PET back projector." },
-	{"osem",   osem_rec,   METH_VARARGS, 
+	{"osem",   osem_rec,   METH_VARARGS,
 	 "OSEM reconstruction of PET data." },
 	{NULL, NULL, 0, NULL} // Sentinel
 };
@@ -75,7 +75,7 @@ PyMODINIT_FUNC PyInit_petprj(void) {
 #define CUDA_CHECK(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {
-   if (code != cudaSuccess) 
+   if (code != cudaSuccess)
    {
       fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
       if (abort) exit(code);
@@ -84,7 +84,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 
 //==============================================================================
-// T R A N S A X I A L   P R O J E C T O R 
+// T R A N S A X I A L   P R O J E C T O R
 //------------------------------------------------------------------------------
 static PyObject *trnx_prj(PyObject *self, PyObject *args)
 {
@@ -125,7 +125,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
 
 	//sino to crystal, crystals
-	PyArrayObject *p_s2c = NULL, *p_crs = NULL; 
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL;
 	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
 	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 
@@ -133,7 +133,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	//image object
 	PyArrayObject *p_im = NULL;
 	p_im = (PyArrayObject *)PyArray_FROM_OTF(o_im, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	//output sino object
 	PyArrayObject *p_prjout = NULL;
 	p_prjout = (PyArrayObject *)PyArray_FROM_OTF(o_prjout, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
@@ -181,20 +181,20 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	int N1crs = PyArray_DIM(p_crs, 1);
 	if (Cnt.LOG <= LOGDEBUG)
 		printf("\ni> N0crs=%d, N1crs=%d\n", N0crs, N1crs);
-	
+
 
 	float *im  = (float*)PyArray_DATA(p_im);
 	if (Cnt.LOG <= LOGDEBUG)
 		printf("i> forward-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1));
 
-	// input/output projection sinogram 
+	// input/output projection sinogram
 	float *prjout = (float*)PyArray_DATA(p_prjout);
 
-	// output sampling 
+	// output sampling
 	unsigned char *tv = (unsigned char*)PyArray_DATA(p_tv);
 	float *tt = (float*)PyArray_DATA(p_tt);
 
-	
+
 	// CUDA --------------------------------------------------------------------
 
 	// sets the device on which to calculate
@@ -255,7 +255,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 
 
 //==============================================================================
-// F O R W A R D   P R O J E C T O R 
+// F O R W A R D   P R O J E C T O R
 //------------------------------------------------------------------------------
 
 static PyObject *frwd_prj(PyObject *self, PyObject *args)
@@ -325,7 +325,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	PyObject* pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
 	//sino to crystal, crystals
-	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL; 
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL;
 	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
 	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 
@@ -335,11 +335,11 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	//image object
 	PyArrayObject *p_im = NULL;
 	p_im = (PyArrayObject *)PyArray_FROM_OTF(o_im, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//subsets if using e.g., OSEM
 	PyArrayObject *p_subs = NULL;
 	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//output sino object
 	PyArrayObject *p_prjout = NULL;
 	p_prjout = (PyArrayObject *)PyArray_FROM_OTF(o_prjout, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
@@ -418,7 +418,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 		subs = subs_;
 	}
 
-	// output projection sinogram 
+	// output projection sinogram
 	float *prjout = (float*)PyArray_DATA(p_prjout);
 
 	// sets the device on which to calculate
@@ -457,7 +457,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 
 
 //==============================================================================
-// B A C K   P R O J E C T O R 
+// B A C K   P R O J E C T O R
 //------------------------------------------------------------------------------
 static PyObject *back_prj(PyObject *self, PyObject *args)
 {
@@ -507,7 +507,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	PyObject* pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
 	PyObject* pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
 	PyObject* pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
-	
+
 	//transaxial sino LUTs:
 	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
 	PyObject* pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
@@ -522,9 +522,9 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	p_li2sn  = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn,  NPY_INT16,	NPY_ARRAY_IN_ARRAY);
 	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, 	NPY_ARRAY_IN_ARRAY);
 	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32,NPY_ARRAY_IN_ARRAY);
-	
+
 	//sino to crystal, crystals
-	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL; 
+	PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL;
 	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
 	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
 
@@ -537,7 +537,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	//subsets if using e.g., OSEM
 	PyArrayObject *p_subs = NULL;
 	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//output back-projection image
 	PyArrayObject *p_bim = NULL;
 	p_bim = (PyArrayObject *)PyArray_FROM_OTF(o_bimg, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
@@ -677,7 +677,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyObject * o_rsng; //randoms
 	PyObject * o_ssng; //scatter
 	PyObject * o_nsng; //norm
-	PyObject * o_asng; //attenuation  
+	PyObject * o_asng; //attenuation
 
 					   //sensitivity image
 	PyObject * o_imgsens;
@@ -692,6 +692,8 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	Cnt.LOG = (char)PyLong_AsLong(pd_log);
 	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
 	Cnt.SPN = (char)PyLong_AsLong(pd_span);
+	PyObject* pd_sigma_rm = PyDict_GetItemString(o_mmrcnst, "SIGMA_RM");
+	Cnt.SIGMA_RM = (float)PyFloat_AsDouble(pd_sigma_rm);
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
 	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
@@ -740,11 +742,11 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	p_li2sn1 = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_ARRAY_IN_ARRAY);
 	p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_ARRAY_IN_ARRAY);
 	p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//2D sino index LUT:
 	PyArrayObject *p_aw2ali = NULL;
 	p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//sino to crystal, crystals
 	PyArrayObject *p_s2c = NULL, *p_crs = NULL;
 	p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_ARRAY_IN_ARRAY);

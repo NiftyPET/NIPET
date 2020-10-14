@@ -153,6 +153,7 @@ SZ_VOXZ = 0.203125
 # SZ_VOXY = 0.1669
 # SZ_VOXZ = 0.203125
 #~~~
+SIGMA_RM = 0
 
 #~~~
 # inverse size
@@ -364,6 +365,7 @@ def get_mmr_constants():
         'SO_VXZ':SO_VXZ,
         'SO_VXY':SO_VXY,
         'SO_VXX':SO_VXX,
+        'SIGMA_RM':SIGMA_RM, # resolution modelling sigma
 
         'NTT':NTT,
         'NTV':NTV,

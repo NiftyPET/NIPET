@@ -171,6 +171,42 @@ void d_elmsk(float *d_inA,
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+__global__ void convolve3d(float *dst, float *src, float *knl,
+	const int Z, const int X, const int Y,
+	const int z, const int y, const int x
+){
+	int idx = threadIdx.x + blockDim.x*blockIdx.x;
+	int idy = threadIdx.y + blockDim.y*blockIdx.y;
+	int idz = threadIdx.z + blockDim.z*blockIdx.z;
+	if (idx>=X || idy>=Y || idz>=Z) return;
+
+	float res = 0;
+	for (int k=0; k<z && 0<=idz+k-z/2 && idz+k-z/2<Z; ++k) {
+		for (int i=0; i<x && 0<=idx+i-x/2 && idx+i-x/2<X; ++i) {
+			for (int j=0; j<y && 0<=idy+j-y/2 && idy+j-y/2<Y; ++j) {
+				res += src[(idz+k-z/2)*X*Y + (idx+i-x/2)*Y + (idy+j-y/2)] * knl[k*x*y + j*y + i];
+			}
+		}
+	}
+	dst[idz*X*Y + idx*Y + idy] = res;
+}
+
+void d_convolve3d(float *DST, float *SRC, float *knl, int Z, int X, int Y, int z, int y, int x)
+{
+	if (z == 1 && x == 1 && y == 1) return;
+	dim3 BpG(
+		(X + NTHRDS / 4 - 1) / (NTHRDS / 4),
+		(Y + NTHRDS / 4 - 1) / (NTHRDS / 4),
+		(Z + NTHRDS / 2 - 1) / (NTHRDS / 2)
+	);
+	dim3 TpB(NTHRDS / 4, NTHRDS / 4, NTHRDS / 2);
+	convolve3d<<<BpG, TpB>>>(DST, SRC, knl, Z, X, Y, z, y, x);
+	HANDLE_ERROR(cudaMemcpy(SRC, DST, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float), cudaMemcpyDeviceToDevice));
+}
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+
 
 
 void osem(float *imgout,
@@ -266,7 +302,7 @@ void osem(float *imgout,
 	float *d_esng;  HANDLE_ERROR(cudaMalloc(&d_esng, Nprj*snno * sizeof(float)));
 
 	//--sensitivity image (images for all subsets)
-	float * d_sensim;
+	float *d_sensim;
 
 
 #ifdef WIN32
@@ -284,6 +320,37 @@ void osem(float *imgout,
 	// //~~~~testing
 	// printf("-->> The sensitivity pointer has size of %d and it's value is %lu \n", sizeof(d_sensim), &d_sensim);
 	// //~~~~
+
+	// resolution modelling kernel
+	const int knlW = Cnt.SIGMA_RM > 0 ? 1 + 2 * (int)(ceil(2 * Cnt.SIGMA_RM)) : 1;  // width of kernel
+	float *d_knlrm; HANDLE_ERROR(cudaMalloc(&d_knlrm, knlW*knlW*knlW * sizeof(float)));
+	if(knlW > 1){
+		float *knlrm = new float[knlW*knlW*knlW];
+		const double pi = 3.1415926535897932;
+		const double tmpA = 1.0 / (Cnt.SIGMA_RM * sqrt(pi * 2));
+		const double tmpB = -1.0 / (2 * Cnt.SIGMA_RM * Cnt.SIGMA_RM);
+		for (int k=0; k<knlW; ++k) {
+			for (int i=0; i<knlW; ++i) {
+				for (int j=0; j<knlW; ++j) {
+					knlrm[k*knlW*knlW + j*knlW + i] = tmpA * exp(tmpB * (
+						pow(knlW/2 - k, 2) +
+						pow(knlW/2 - j, 2) +
+						pow(knlW/2 - i, 2)
+					));
+				}
+			}
+		}
+		cudaMemcpy(d_knlrm, knlrm, knlW*knlW*knlW * sizeof(float), cudaMemcpyHostToDevice);
+	}
+	float *d_convtmp; HANDLE_ERROR(cudaMalloc(&d_convtmp, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
+
+	// resolution modelling sensitivity image
+	for (int i = 0; i<Nsub; i++){
+		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
+	}
+
+	// resolution modelling current image
+	d_convolve3d(d_convtmp, d_imgout, d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
 
 	//--back-propagated image
 
@@ -313,6 +380,9 @@ void osem(float *imgout,
 		cudaMemset(d_bimg, 0, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float));
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
+		// resolution modelling
+		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
+
 		//divide by sensitivity image
 		d_eldiv(d_bimg, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMZ*SZ_IMX*SZ_IMY);
 
@@ -335,6 +405,8 @@ void osem(float *imgout,
 	cudaFree(d_esng);
 
 	cudaFree(d_sensim);
+	cudaFree(d_knlrm);
+	cudaFree(d_convtmp);
 	cudaFree(d_imgout);
 	cudaFree(d_bimg);
 	cudaFree(d_rcnmsk);
