@@ -289,6 +289,7 @@ def simulate_recon(
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
         sim_inv = 1 / psf(sim)
+        sim_inv[~msk] = 0
 
         rndsct = rsng + ssng
         for i in trange(nitr, desc="MLEM",
@@ -304,10 +305,8 @@ def simulate_recon(
             bim = psf(mmrprj.back_prj(crrsino, scanner_params))
 
             #> divide the back-projected image by the sensitivity image
-            bim *= sim_inv
-
             #> update the estimated image and remove NaNs
-            eim *= msk*bim
+            eim *= bim * sim_inv
             eim[np.isnan(eim)] = 0
 
     return eim
