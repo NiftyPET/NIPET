@@ -341,14 +341,11 @@ void osem(float *imgout,
 	float *d_convtmp; HANDLE_ERROR(cudaMalloc(&d_convtmp, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	// resolution modelling sensitivity image
-	for (int i = 0; i<Nsub; i++){
+	for (int i=0; i<Nsub; i++)
 		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
-	}
 
-	// resolution modelling current image
-	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_imgout_rm, d_imgout, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice));
-	d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+	// resolution modelling image
+	float *d_imgout_rm;   HANDLE_ERROR(cudaMallocManaged(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	//--back-propagated image
 
@@ -364,6 +361,10 @@ void osem(float *imgout,
 	for (int i = 0; i<Nsub; i++) {
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
+		//resolution modelling current image
+		HANDLE_ERROR(cudaMemcpy(d_imgout_rm, d_imgout, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice));
+		d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
 		rec_fprj(d_esng, d_imgout_rm, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
@@ -378,7 +379,7 @@ void osem(float *imgout,
 		cudaMemset(d_bimg, 0, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float));
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
-		// resolution modelling
+		//resolution modelling backprojection
 		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
 
 		//divide by sensitivity image
