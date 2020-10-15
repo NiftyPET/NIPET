@@ -369,8 +369,7 @@ void osem(float *imgout,
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//resolution modelling current image
-		HANDLE_ERROR(cudaMemcpy(d_imgout_rm, d_imgout, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice));
-		d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW, true);
+		d_convolve3d(d_imgout_rm, d_imgout, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW, false);
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
