@@ -275,7 +275,6 @@ def osemone(datain, mumaps, hst, scanner_params,
         disable=log.getEffectiveLevel() > logging.INFO,
         leave=log.getEffectiveLevel() <= logging.INFO
     ) as pbar:
-        Cnt = Cnt.copy()
         # resolution modelling
         Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
         for k in pbar:
