@@ -9,6 +9,7 @@ Copyrights: 2018
 
 //number of threads used for element-wise GPU calculations
 #define NTHRDS 1024
+#define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
 
 //************ CHECK DEVICE MEMORY USAGE *********************
@@ -54,7 +55,7 @@ __global__  void eldiv0(float * inA,
 {
 	int idx = threadIdx.x + blockDim.x*blockIdx.x;
 	if (idx>=length) return;
-	if(inB[idx] == 0) inA[idx] = 0;
+	if(FLOAT_WITHIN_EPS(inB[idx])) inA[idx] = 0;
 	else inA[idx] /= inB[idx];
 }
 
@@ -82,7 +83,7 @@ __global__ void sneldiv(float *inA,
 	// inA > only active bins of the subset
 	// inB > all sinogram bins
 	float b = (float)inB[snno*sub[blockIdx.y] + idz];
-	if (inA[snno*blockIdx.y + idz] == 0) b = 0;
+	if (FLOAT_WITHIN_EPS(inA[snno*blockIdx.y + idz])) b = 0;
 	else b /= inA[snno*blockIdx.y + idz];//sub[blockIdx.y]
 	inA[snno*blockIdx.y + idz] = b; //sub[blockIdx.y]
 }
@@ -154,8 +155,8 @@ __global__  void elmsk(float *inA,
 	int idx = threadIdx.x + blockDim.x*blockIdx.x;
 
 	if (idx<length) {
-		if (msk[idx]>0) inA[idx] *= inB[idx];
-		else  inA[idx] = 0;
+		if (msk[idx]) inA[idx] *= inB[idx];
+		else inA[idx] = 0;
 	}
 }
 
@@ -174,8 +175,8 @@ void d_elmsk(float *d_inA,
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __global__ void convolve3d(float *dst, float *src, float *knl,
 	const int X, const int Y, const int Z,
-	const int x, const int y, const int z
-){
+	const int x, const int y, const int z)
+{
 	int idx = threadIdx.x + blockDim.x*blockIdx.x; if(idx>=X) return;
 	int idy = threadIdx.y + blockDim.y*blockIdx.y; if(idy>=Y) return;
 	int idz = threadIdx.z + blockDim.z*blockIdx.z; if(idz>=Z) return;
