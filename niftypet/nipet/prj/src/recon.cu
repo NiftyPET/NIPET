@@ -191,13 +191,19 @@ __global__ void convolve3d(float *dst, float *src, float *knl,
 	dst[idx*Y*Z + idy*Z + idz] = res;
 }
 
-void d_convolve3d(float *TMP, float *SRC, float *knl, int X, int Y, int Z, int x, int y, int z)
+void d_convolve3d(float *DST, float *SRC, float *knl,
+	int X, int Y, int Z,
+	int x, int y, int z,
+	bool inplace=false)
 {
 	if (x == 1 && y == 1 && z == 1) return;
-	dim3 BpG((X + 31) / 32, (Y + 31) / 32, Z);
-	dim3 TpB(32, 32, 1);
-	convolve3d<<<BpG, TpB>>>(TMP, SRC, knl, X, Y, Z, x, y, z);
-	HANDLE_ERROR(cudaMemcpy(SRC, TMP, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float), cudaMemcpyDeviceToDevice));
+	const int ythrd  = NTHREADS / 32;
+	dim3 BpG((X + 31) / 32, (Y + ythrd - 1) / ythrd, Z);
+	dim3 TpB(32, ythrd, 1);
+	convolve3d<<<BpG, TpB>>>(DST, SRC, knl, X, Y, Z, x, y, z);
+	if (inplace){
+		HANDLE_ERROR(cudaMemcpy(SRC, DST, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float), cudaMemcpyDeviceToDevice));
+	}
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -342,10 +348,10 @@ void osem(float *imgout,
 
 	// resolution modelling sensitivity image
 	for (int i=0; i<Nsub; i++)
-		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW, true);
 
 	// resolution modelling image
-	float *d_imgout_rm;   HANDLE_ERROR(cudaMallocManaged(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
+	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	//--back-propagated image
 
@@ -363,7 +369,7 @@ void osem(float *imgout,
 
 		//resolution modelling current image
 		HANDLE_ERROR(cudaMemcpy(d_imgout_rm, d_imgout, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice));
-		d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+		d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW, true);
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
@@ -380,7 +386,7 @@ void osem(float *imgout,
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//resolution modelling backprojection
-		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW, true);
 
 		//divide by sensitivity image
 		d_eldiv(d_bimg, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMZ*SZ_IMX*SZ_IMY);
