@@ -71,24 +71,24 @@ void d_eldiv(float * d_inA,
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-__global__ void sneldiv(unsigned short *inA,
-	float *inB,
+__global__ void sneldiv(float *inA,
+	unsigned short *inB,
 	int   *sub,
 	int Nprj,
 	int snno)
 {
 	int idz = threadIdx.x + blockDim.x*blockIdx.x;
 	if (!(blockIdx.y<Nprj && idz<snno)) return;
-	// inB > only active bins of the subset
-	// inA > all sinogram bins
-	float a = (float)inA[snno*sub[blockIdx.y] + idz];
-	if (inB[snno*blockIdx.y + idz] == 0) a = 0;
-	else a /= inB[snno*blockIdx.y + idz];//sub[blockIdx.y]
-	inB[snno*blockIdx.y + idz] = a; //sub[blockIdx.y]
+	// inA > only active bins of the subset
+	// inB > all sinogram bins
+	float b = (float)inB[snno*sub[blockIdx.y] + idz];
+	if (inA[snno*blockIdx.y + idz] == 0) b = 0;
+	else b /= inA[snno*blockIdx.y + idz];//sub[blockIdx.y]
+	inA[snno*blockIdx.y + idz] = b; //sub[blockIdx.y]
 }
 
-void d_sneldiv(unsigned short * d_inA,
-	float * d_inB,
+void d_sneldiv(float *d_inA,
+	unsigned short *d_inB,
 	int *d_sub,
 	int Nprj,
 	int snno)
@@ -173,36 +173,31 @@ void d_elmsk(float *d_inA,
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __global__ void convolve3d(float *dst, float *src, float *knl,
-	const int Z, const int X, const int Y,
-	const int z, const int y, const int x
+	const int X, const int Y, const int Z,
+	const int x, const int y, const int z
 ){
-	int idx = threadIdx.x + blockDim.x*blockIdx.x;
-	int idy = threadIdx.y + blockDim.y*blockIdx.y;
-	int idz = threadIdx.z + blockDim.z*blockIdx.z;
-	if (idx>=X || idy>=Y || idz>=Z) return;
+	int idx = threadIdx.x + blockDim.x*blockIdx.x; if(idx>=X) return;
+	int idy = threadIdx.y + blockDim.y*blockIdx.y; if(idy>=Y) return;
+	int idz = threadIdx.z + blockDim.z*blockIdx.z; if(idz>=Z) return;
 
 	float res = 0;
-	for (int k=0; k<z && 0<=idz+k-z/2 && idz+k-z/2<Z; ++k) {
-		for (int i=0; i<x && 0<=idx+i-x/2 && idx+i-x/2<X; ++i) {
-			for (int j=0; j<y && 0<=idy+j-y/2 && idy+j-y/2<Y; ++j) {
-				res += src[(idz+k-z/2)*X*Y + (idx+i-x/2)*Y + (idy+j-y/2)] * knl[k*x*y + j*y + i];
+	for (int i=0; i<x && 0<=idx+i-x/2 && idx+i-x/2<X; ++i) {
+		for (int j=0; j<y && 0<=idy+j-y/2 && idy+j-y/2<Y; ++j) {
+			for (int k=0; k<z && 0<=idz+k-z/2 && idz+k-z/2<Z; ++k) {
+				res += src[(idx+i-x/2)*Y*Z + (idy+j-y/2)*Z + (idz+k-z/2)] * knl[i*y*z + j*z + k];
 			}
 		}
 	}
-	dst[idz*X*Y + idx*Y + idy] = res;
+	dst[idx*Y*Z + idy*Z + idz] = res;
 }
 
-void d_convolve3d(float *DST, float *SRC, float *knl, int Z, int X, int Y, int z, int y, int x)
+void d_convolve3d(float *TMP, float *SRC, float *knl, int X, int Y, int Z, int x, int y, int z)
 {
-	if (z == 1 && x == 1 && y == 1) return;
-	dim3 BpG(
-		(X + NTHRDS / 4 - 1) / (NTHRDS / 4),
-		(Y + NTHRDS / 4 - 1) / (NTHRDS / 4),
-		(Z + NTHRDS / 2 - 1) / (NTHRDS / 2)
-	);
-	dim3 TpB(NTHRDS / 4, NTHRDS / 4, NTHRDS / 2);
-	convolve3d<<<BpG, TpB>>>(DST, SRC, knl, Z, X, Y, z, y, x);
-	HANDLE_ERROR(cudaMemcpy(SRC, DST, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float), cudaMemcpyDeviceToDevice));
+	if (x == 1 && y == 1 && z == 1) return;
+	dim3 BpG((X + 31) / 32, (Y + 31) / 32, Z);
+	dim3 TpB(32, 32, 1);
+	convolve3d<<<BpG, TpB>>>(TMP, SRC, knl, X, Y, Z, x, y, z);
+	HANDLE_ERROR(cudaMemcpy(SRC, TMP, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float), cudaMemcpyDeviceToDevice));
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -323,34 +318,35 @@ void osem(float *imgout,
 
 	// resolution modelling kernel
 	const int knlW = Cnt.SIGMA_RM > 0 ? 1 + 2 * (int)(ceil(2 * Cnt.SIGMA_RM)) : 1;  // width of kernel
-	float *d_knlrm; HANDLE_ERROR(cudaMalloc(&d_knlrm, knlW*knlW*knlW * sizeof(float)));
+	float *d_knlrm; HANDLE_ERROR(cudaMallocManaged(&d_knlrm, knlW*knlW*knlW * sizeof(float)));
 	if(knlW > 1){
-		float *knlrm = new float[knlW*knlW*knlW];
 		const double pi = 3.1415926535897932;
-		const double tmpA = 1.0 / (Cnt.SIGMA_RM * sqrt(pi * 2));
-		const double tmpB = -1.0 / (2 * Cnt.SIGMA_RM * Cnt.SIGMA_RM);
-		for (int k=0; k<knlW; ++k) {
-			for (int i=0; i<knlW; ++i) {
-				for (int j=0; j<knlW; ++j) {
-					knlrm[k*knlW*knlW + j*knlW + i] = tmpA * exp(tmpB * (
-						pow(knlW/2 - k, 2) +
+		const double tmpE = -1.0 / (2 * Cnt.SIGMA_RM * Cnt.SIGMA_RM);
+		for (int i=0; i<knlW; ++i) {
+			for (int j=0; j<knlW; ++j) {
+				for (int k=0; k<knlW; ++k) {
+					d_knlrm[i*knlW*knlW + j*knlW + k] = (float)exp(tmpE * (
+						pow(knlW/2 - i, 2) +
 						pow(knlW/2 - j, 2) +
-						pow(knlW/2 - i, 2)
+						pow(knlW/2 - k, 2)
 					));
 				}
 			}
 		}
-		cudaMemcpy(d_knlrm, knlrm, knlW*knlW*knlW * sizeof(float), cudaMemcpyHostToDevice);
+		// normalise
+		double knlSum = 0;
+		for (size_t i = 0; i < knlW*knlW*knlW; i++) knlSum += d_knlrm[i];
+		for (size_t i = 0; i < knlW*knlW*knlW; i++) d_knlrm[i] /= knlSum;
 	}
 	float *d_convtmp; HANDLE_ERROR(cudaMalloc(&d_convtmp, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	// resolution modelling sensitivity image
 	for (int i = 0; i<Nsub; i++){
-		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
+		d_convolve3d(d_convtmp, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
 	}
 
 	// resolution modelling current image
-	d_convolve3d(d_convtmp, d_imgout, d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
+	d_convolve3d(d_convtmp, d_imgout, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
 
 	//--back-propagated image
 
@@ -374,14 +370,14 @@ void osem(float *imgout,
 		d_sneladd(d_esng, d_rsng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
 
 		//divide to get the correction
-		d_sneldiv(d_psng, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
+		d_sneldiv(d_esng, d_psng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
 
 		//back-project the correction
 		cudaMemset(d_bimg, 0, SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float));
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		// resolution modelling
-		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMZ, SZ_IMX, SZ_IMY, knlW, knlW, knlW);
+		d_convolve3d(d_convtmp, d_bimg, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
 
 		//divide by sensitivity image
 		d_eldiv(d_bimg, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMZ*SZ_IMX*SZ_IMY);
