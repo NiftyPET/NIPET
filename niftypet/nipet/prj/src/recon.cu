@@ -346,7 +346,9 @@ void osem(float *imgout,
 	}
 
 	// resolution modelling current image
-	d_convolve3d(d_convtmp, d_imgout, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
+	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
+	HANDLE_ERROR(cudaMemcpy(d_imgout_rm, d_imgout, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice));
+	d_convolve3d(d_convtmp, d_imgout_rm, d_knlrm, SZ_IMX, SZ_IMY, SZ_IMZ, knlW, knlW, knlW);
 
 	//--back-propagated image
 
@@ -364,7 +366,7 @@ void osem(float *imgout,
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
-		rec_fprj(d_esng, d_imgout, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
+		rec_fprj(d_esng, d_imgout_rm, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//add the randoms+scatter
 		d_sneladd(d_esng, d_rsng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
@@ -404,6 +406,7 @@ void osem(float *imgout,
 	cudaFree(d_knlrm);
 	cudaFree(d_convtmp);
 	cudaFree(d_imgout);
+	cudaFree(d_imgout_rm);
 	cudaFree(d_bimg);
 	cudaFree(d_rcnmsk);
 }
