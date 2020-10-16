@@ -465,7 +465,7 @@ void osem(float *imgout,
 	float *d_convDst; HANDLE_ERROR(cudaMalloc(&d_convDst, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 
 	// resolution modelling sensitivity image
-	for (int i=0; i<Nsub; i++) {
+	for (int i=0; i<Nsub && Cnt.SIGMA_RM>0; i++) {
 		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
 		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
@@ -489,9 +489,11 @@ void osem(float *imgout,
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//resolution modelling current image
-		d_pad(d_convSrc, d_imgout);
-		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
-		d_unpad(d_imgout_rm, d_convDst);
+		if(Cnt.SIGMA_RM>0) {
+			d_pad(d_convSrc, d_imgout);
+			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
+			d_unpad(d_imgout_rm, d_convDst);
+		}
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
@@ -508,9 +510,11 @@ void osem(float *imgout,
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//resolution modelling backprojection
-		d_pad(d_convSrc, d_bimg);
-		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
-		d_unpad(d_bimg, d_convDst);
+		if (Cnt.SIGMA_RM>0) {
+			d_pad(d_convSrc, d_bimg);
+			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
+			d_unpad(d_bimg, d_convDst);
+		}
 
 		//divide by sensitivity image
 		d_eldiv(d_bimg, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMZ*SZ_IMX*SZ_IMY);
