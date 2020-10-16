@@ -12,193 +12,174 @@ Copyrights: 2018
 #define NTHRDS 1024
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
+/// z: how many Z-slices to add
+void d_pad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
+  HANDLE_ERROR(cudaMemset(dst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + z) * sizeof(float)));
+  for (size_t i = 0; i < SZ_IMX; ++i)
+    for (size_t j = 0; j < SZ_IMY; ++j)
+      cudaMemcpy(&dst[i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z)], &src[i * SZ_IMY * SZ_IMZ + j * SZ_IMZ],
+                 SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice);
+}
+
+/// z: how many Z-slices to remove
+void d_unpad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
+  for (size_t i = 0; i < SZ_IMX; ++i)
+    for (size_t j = 0; j < SZ_IMY; ++j)
+      cudaMemcpy(&dst[i * SZ_IMY * SZ_IMZ + j * SZ_IMZ], &src[i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z)],
+                 SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice);
+}
+
 /** separable convolution */
 /// Convolution kernel array
 __constant__ float c_Kernel[3 * KERNEL_LENGTH];
 /// sigma: Gaussian sigma
 void setKernelGaussian(float sigma) {
-	float knlRM[KERNEL_LENGTH * 3];
-	const double tmpE = -1.0 / (2 * sigma * sigma);
-	for (int i=0; i<KERNEL_LENGTH; ++i)
-		knlRM[i] = (float)exp(tmpE * pow(KERNEL_RADIUS - i, 2));
-	// normalise
-	double knlSum = 0;
-	for (size_t i=0; i<KERNEL_LENGTH; ++i) knlSum += knlRM[i];
-	for (size_t i=0; i<KERNEL_LENGTH; ++i){
-		knlRM[i] /= knlSum;
-		// also fill in other dimensions
-		knlRM[i + KERNEL_LENGTH] = knlRM[i];
-		knlRM[i + KERNEL_LENGTH * 2] = knlRM[i];
-	}
+  float knlRM[KERNEL_LENGTH * 3];
+  const double tmpE = -1.0 / (2 * sigma * sigma);
+  for (int i = 0; i < KERNEL_LENGTH; ++i)
+    knlRM[i] = (float)exp(tmpE * pow(KERNEL_RADIUS - i, 2));
+  // normalise
+  double knlSum = 0;
+  for (size_t i = 0; i < KERNEL_LENGTH; ++i)
+    knlSum += knlRM[i];
+  for (size_t i = 0; i < KERNEL_LENGTH; ++i) {
+    knlRM[i] /= knlSum;
+    // also fill in other dimensions
+    knlRM[i + KERNEL_LENGTH] = knlRM[i];
+    knlRM[i + KERNEL_LENGTH * 2] = knlRM[i];
+  }
   cudaMemcpyToSymbol(c_Kernel, knlRM, 3 * KERNEL_LENGTH * sizeof(float));
 }
 
 /// Row convolution filter
-__global__ void cnv_rows(float *d_Dst, float *d_Src, int imageW, int imageH,
-                         int pitch, int d_Len) {
-  __shared__ float
-      s_Data[ROWS_BLOCKDIM_Y]
-            [(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X];
+__global__ void cnv_rows(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch) {
+  __shared__ float s_Data[ROWS_BLOCKDIM_Y][(ROWS_RESULT_STEPS + 2 * ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X];
 
   // Offset to the left halo edge
-  const int baseX =
-      (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X +
-      threadIdx.x;
+  const int baseX = (blockIdx.x * ROWS_RESULT_STEPS - ROWS_HALO_STEPS) * ROWS_BLOCKDIM_X + threadIdx.x;
   const int baseY = blockIdx.y * ROWS_BLOCKDIM_Y + threadIdx.y;
 
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
-	d_Len -= baseY * pitch + baseX;
 
 // Load main data
 #pragma unroll
   for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
-    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
-        (i * ROWS_BLOCKDIM_X < d_Len) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+    s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] = d_Src[i * ROWS_BLOCKDIM_X];
   }
 
 // Load left halo
 #pragma unroll
   for (int i = 0; i < ROWS_HALO_STEPS; i++) {
     s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
-        (baseX >= -i * ROWS_BLOCKDIM_X && i * ROWS_BLOCKDIM_X < d_Len) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+        (baseX >= -i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
   }
 
 // Load right halo
 #pragma unroll
-  for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS;
-       i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++) {
+  for (int i = ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS + ROWS_HALO_STEPS; i++) {
     s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X] =
-        (imageW - baseX > i * ROWS_BLOCKDIM_X && i * ROWS_BLOCKDIM_X < d_Len) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
+        (imageW - baseX > i * ROWS_BLOCKDIM_X) ? d_Src[i * ROWS_BLOCKDIM_X] : 0;
   }
 
   // Compute and store results
   __syncthreads();
 
 #pragma unroll
-  for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS && i * ROWS_BLOCKDIM_X < d_Len; i++) {
+  for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
     for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[KERNEL_RADIUS - j] *
-             s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+      sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
     }
     d_Dst[i * ROWS_BLOCKDIM_X] = sum;
   }
 }
 
 /// Column convolution filter
-__global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH,
-                            int pitch,
-                            int offKrnl, // kernel offset for asymmetric kernels
-                                         // x, y, z (still the same dims though)
-														int d_Len
+__global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, int pitch,
+                            int offKrnl // kernel offset for asymmetric kernels
+                                        // x, y, z (still the same dims though)
                             ) {
-  __shared__ float s_Data[COLUMNS_BLOCKDIM_X]
-                         [(COLUMNS_RESULT_STEPS + 2 * COLUMNS_HALO_STEPS) *
-                              COLUMNS_BLOCKDIM_Y +
-                          1];
+  __shared__ float s_Data[COLUMNS_BLOCKDIM_X][(COLUMNS_RESULT_STEPS + 2 * COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + 1];
 
   // Offset to the upper halo edge
   const int baseX = blockIdx.x * COLUMNS_BLOCKDIM_X + threadIdx.x;
-  const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) *
-                        COLUMNS_BLOCKDIM_Y +
-                    threadIdx.y;
+  const int baseY = (blockIdx.y * COLUMNS_RESULT_STEPS - COLUMNS_HALO_STEPS) * COLUMNS_BLOCKDIM_Y + threadIdx.y;
   d_Src += baseY * pitch + baseX;
   d_Dst += baseY * pitch + baseX;
-	d_Len -= baseY * pitch + baseX;
 
 // Main data
 #pragma unroll
-  for (int i = COLUMNS_HALO_STEPS;
-       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
-    s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
-        (i * COLUMNS_BLOCKDIM_Y * pitch < d_Len) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
+  for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
+    s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] = d_Src[i * COLUMNS_BLOCKDIM_Y * pitch];
   }
 
 // Upper halo
 #pragma unroll
   for (int i = 0; i < COLUMNS_HALO_STEPS; i++) {
     s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
-        (baseY >= -i * COLUMNS_BLOCKDIM_Y && i * COLUMNS_BLOCKDIM_Y * pitch < d_Len)
-            ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
-            : 0;
+        (baseY >= -i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
   }
 
 // Lower halo
 #pragma unroll
   for (int i = COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS;
-       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS + COLUMNS_HALO_STEPS;
-       i++) {
+       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS + COLUMNS_HALO_STEPS; i++) {
     s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y] =
-        (imageH - baseY > i * COLUMNS_BLOCKDIM_Y && i * COLUMNS_BLOCKDIM_Y * pitch < d_Len)
-            ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch]
-            : 0;
+        (imageH - baseY > i * COLUMNS_BLOCKDIM_Y) ? d_Src[i * COLUMNS_BLOCKDIM_Y * pitch] : 0;
   }
 
   // Compute and store results
   __syncthreads();
 
 #pragma unroll
-  for (int i = COLUMNS_HALO_STEPS;
-       i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS && i * COLUMNS_BLOCKDIM_Y * pitch < d_Len; i++) {
+  for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
     for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[offKrnl + KERNEL_RADIUS - j] *
-             s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+      sum += c_Kernel[offKrnl + KERNEL_RADIUS - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
     }
     d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
   }
 }
 
 /// d_buff: temporary image buffer
-void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj,
-            int Nvi, bool inplace = false) {
-	assert(d_imgout != d_imgint);
+void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, int Nvi, bool inplace = false) {
+  assert(d_imgout != d_imgint);
   assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(Nvk % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
+  assert(Nvj % ROWS_BLOCKDIM_Y == 0);
 
   assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(Nvk % COLUMNS_BLOCKDIM_X == 0);
+  assert(Nvj % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
 
+  assert(Nvi % COLUMNS_BLOCKDIM_X == 0);
 
-	HANDLE_ERROR(cudaMemset(d_imgout, 0, Nvk * Nvj * Nvi * sizeof(float)));
-	int imglen;
+  HANDLE_ERROR(cudaMemset(d_imgout, 0, Nvk * Nvj * Nvi * sizeof(float)));
 
   // perform smoothing
   for (int k = 0; k < Nvk; k++) {
     //------ ROWS -------
-		dim3 blocks((Nvi + ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X - 1) / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X),
-			          (Nvj + ROWS_BLOCKDIM_Y - 1) / ROWS_BLOCKDIM_Y);
+    dim3 blocks(Nvi / (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X), Nvj / ROWS_BLOCKDIM_Y);
     dim3 threads(ROWS_BLOCKDIM_X, ROWS_BLOCKDIM_Y);
-		imglen = static_cast<int>(1LL * (Nvk - k) * Nvi * Nvj);
-    cnv_rows<<<blocks, threads>>>(d_imgout + k * Nvi * Nvj,
-                                  d_imgint + k * Nvi * Nvj, Nvi, Nvj, Nvi, imglen);
+    cnv_rows<<<blocks, threads>>>(d_imgout + k * Nvi * Nvj, d_imgint + k * Nvi * Nvj, Nvi, Nvj, Nvi);
     HANDLE_ERROR(cudaGetLastError());
 
     //----- COLUMNS ----
-		dim3 blocks2((Nvi + COLUMNS_BLOCKDIM_X - 1) / COLUMNS_BLOCKDIM_X,
-                 (Nvj + COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y - 1) / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
+    dim3 blocks2(Nvi / COLUMNS_BLOCKDIM_X, Nvj / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
     dim3 threads2(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
-    cnv_columns<<<blocks2, threads2>>>(d_buff + k * Nvi * Nvj,
-                                       d_imgout + k * Nvi * Nvj, Nvi, Nvj, Nvi,
-                                       KERNEL_LENGTH, imglen);
+    cnv_columns<<<blocks2, threads2>>>(d_buff + k * Nvi * Nvj, d_imgout + k * Nvi * Nvj, Nvi, Nvj, Nvi, KERNEL_LENGTH);
     HANDLE_ERROR(cudaGetLastError());
   }
 
   //----- THIRD DIM ----
   for (int j = 0; j < Nvj; j++) {
-    dim3 blocks3((Nvi + COLUMNS_BLOCKDIM_X - 1) / COLUMNS_BLOCKDIM_X,
-                 (Nvk + COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y - 1) / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
+    dim3 blocks3(Nvi / COLUMNS_BLOCKDIM_X, Nvk / (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y));
     dim3 threads3(COLUMNS_BLOCKDIM_X, COLUMNS_BLOCKDIM_Y);
-		imglen = static_cast<int>(1LL * (Nvj - j) * Nvi * Nvk);
-    cnv_columns<<<blocks3, threads3>>>(d_imgout + j * Nvi, d_buff + j * Nvi,
-                                       Nvi, Nvk, Nvi * Nvj, 2 * KERNEL_LENGTH, imglen);
+    cnv_columns<<<blocks3, threads3>>>(d_imgout + j * Nvi, d_buff + j * Nvi, Nvi, Nvk, Nvi * Nvj, 2 * KERNEL_LENGTH);
     HANDLE_ERROR(cudaGetLastError());
-  }
-
-  if (inplace) {
-    HANDLE_ERROR(cudaMemcpy(d_imgint, d_imgout, Nvk * Nvj * Nvi * sizeof(float),
-                            cudaMemcpyDeviceToDevice));
   }
 }
 /** end of separable convolution */
@@ -439,7 +420,7 @@ void osem(float *imgout,
 
 	//join norm and attenuation factors
 	float *d_ansng; HANDLE_ERROR(cudaMalloc(&d_ansng, snno*AW * sizeof(float)));
-	cudaMemcpy(d_ansng, asng, snno*AW * sizeof(float), cudaMemcpyHostToDevice);
+	HANDLE_ERROR(cudaMemcpy(d_ansng, asng, snno*AW * sizeof(float), cudaMemcpyHostToDevice));
 
 	//combine attenuation and normalisation in one sinogram
 	d_elmult(d_ansng, d_nsng, snno*AW);
@@ -479,12 +460,16 @@ void osem(float *imgout,
 
 	// resolution modelling kernel
 	setKernelGaussian(Cnt.SIGMA_RM);
-	float *d_convtmp; HANDLE_ERROR(cudaMalloc(&d_convtmp, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
-	float *d_convtmpB; HANDLE_ERROR(cudaMalloc(&d_convtmpB, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
+	float *d_convTmp; HANDLE_ERROR(cudaMalloc(&d_convTmp, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
+	float *d_convSrc; HANDLE_ERROR(cudaMalloc(&d_convSrc, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
+	float *d_convDst; HANDLE_ERROR(cudaMalloc(&d_convDst, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 
 	// resolution modelling sensitivity image
-	for (int i=0; i<Nsub; i++)
-		d_conv(d_convtmp, d_convtmpB, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMX, SZ_IMY, SZ_IMZ, true);
+	for (int i=0; i<Nsub; i++) {
+		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
+		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
+		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
+	}
 
 	// resolution modelling image
 	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
@@ -504,7 +489,9 @@ void osem(float *imgout,
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//resolution modelling current image
-		d_conv(d_convtmp, d_imgout_rm, d_imgout, SZ_IMX, SZ_IMY, SZ_IMZ, false);
+		d_pad(d_convSrc, d_imgout);
+		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
+		d_unpad(d_imgout_rm, d_convDst);
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
@@ -521,7 +508,9 @@ void osem(float *imgout,
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//resolution modelling backprojection
-		d_conv(d_convtmp, d_convtmpB, d_bimg, SZ_IMX, SZ_IMY, SZ_IMZ, true);
+		d_pad(d_convSrc, d_bimg);
+		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
+		d_unpad(d_bimg, d_convDst);
 
 		//divide by sensitivity image
 		d_eldiv(d_bimg, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], SZ_IMZ*SZ_IMX*SZ_IMY);
@@ -544,8 +533,9 @@ void osem(float *imgout,
 	cudaFree(d_esng);
 
 	cudaFree(d_sensim);
-	cudaFree(d_convtmp);
-	cudaFree(d_convtmpB);
+	cudaFree(d_convTmp);
+	cudaFree(d_convSrc);
+	cudaFree(d_convDst);
 	cudaFree(d_imgout);
 	cudaFree(d_imgout_rm);
 	cudaFree(d_bimg);
