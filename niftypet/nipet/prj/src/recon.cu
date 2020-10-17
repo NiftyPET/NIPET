@@ -520,7 +520,7 @@ void osem(float *imgout,
 
 		//forward project
 		cudaMemset(d_esng, 0, Nprj*snno * sizeof(float));
-		rec_fprj(d_esng, d_imgout_rm, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
+		rec_fprj(d_esng, Cnt.SIGMA_RM>0 ? d_imgout_rm : d_imgout, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//add the randoms+scatter
 		d_sneladd(d_esng, d_rsng, &d_subs[i*Nprj + 1], subs[i*Nprj], snno);
