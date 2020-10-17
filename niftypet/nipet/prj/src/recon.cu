@@ -2,8 +2,9 @@
 CUDA C extention for Python
 Provides functionality for PET image reconstruction.
 
-author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights:
+2018-2020 Pawel Markiewicz
+2020 Casper da Costa-Luis
 ------------------------------------------------------------------------*/
 #include "recon.h"
 #include <assert.h>
@@ -167,7 +168,7 @@ __global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, 
 }
 
 /// d_buff: temporary image buffer
-void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, int Nvi, bool inplace = false) {
+void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, int Nvi) {
   assert(d_imgout != d_imgint);
   assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
   assert(Nvk % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
