@@ -13,20 +13,42 @@ Copyrights: 2018
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
 /// z: how many Z-slices to add
+__global__ void pad(float *dst, float *src, const int z) {
+  int i = threadIdx.x + blockDim.x * blockIdx.x;
+  if (i >= SZ_IMX)
+    return;
+  int j = threadIdx.y + blockDim.y * blockIdx.y;
+  if (j >= SZ_IMY)
+    return;
+  src += i * SZ_IMY * SZ_IMZ + j * SZ_IMZ;
+  dst += i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z);
+  for (int k = 0; k < SZ_IMZ; ++k)
+    dst[k] = src[k];
+}
 void d_pad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
   HANDLE_ERROR(cudaMemset(dst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + z) * sizeof(float)));
-  for (size_t i = 0; i < SZ_IMX; ++i)
-    for (size_t j = 0; j < SZ_IMY; ++j)
-      cudaMemcpy(&dst[i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z)], &src[i * SZ_IMY * SZ_IMZ + j * SZ_IMZ],
-                 SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice);
+  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NTHRDS / 32, 32);
+  pad<<<BpG, TpB>>>(dst, src, z);
 }
 
 /// z: how many Z-slices to remove
+__global__ void unpad(float *dst, float *src, const int z) {
+  int i = threadIdx.x + blockDim.x * blockIdx.x;
+  if (i >= SZ_IMX)
+    return;
+  int j = threadIdx.y + blockDim.y * blockIdx.y;
+  if (j >= SZ_IMY)
+    return;
+  dst += i * SZ_IMY * SZ_IMZ + j * SZ_IMZ;
+  src += i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z);
+  for (int k = 0; k < SZ_IMZ; ++k)
+    dst[k] = src[k];
+}
 void d_unpad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
-  for (size_t i = 0; i < SZ_IMX; ++i)
-    for (size_t j = 0; j < SZ_IMY; ++j)
-      cudaMemcpy(&dst[i * SZ_IMY * SZ_IMZ + j * SZ_IMZ], &src[i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z)],
-                 SZ_IMZ * sizeof(float), cudaMemcpyDeviceToDevice);
+  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NTHRDS / 32, 32);
+  unpad<<<BpG, TpB>>>(dst, src, z);
 }
 
 /** separable convolution */

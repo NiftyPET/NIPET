@@ -9,7 +9,7 @@
 #define RECON_H
 
 /* separable convolution */
-#define KERNEL_RADIUS 4
+#define KERNEL_RADIUS 5
 #define KERNEL_LENGTH (2*KERNEL_RADIUS + 1)
 
 // Column convolution filter
