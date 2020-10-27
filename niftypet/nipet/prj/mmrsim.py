@@ -1,8 +1,9 @@
 """Simulations for image reconstruction with recommended reduced axial field of view"""
 import logging
 
-import numpy as np
+from scipy import ndimage as ndi
 from tqdm.auto import trange
+import numpy as np
 
 from ..img import mmrimg
 from .. import mmraux
@@ -119,7 +120,8 @@ def simulate_recon(
     ctim,
     scanner_params,
     simulate_3d = False,
-    nitr = 60,
+    nitr=60,
+    fwhm_rm=0.,
     slice_idx = -1,
     randoms=None,
     scatter=None,
@@ -215,6 +217,8 @@ def simulate_recon(
     else:
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
 
+    # resolution modelling
+    Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
 
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
@@ -272,6 +276,11 @@ def simulate_recon(
         eim = mmrimg.convert2e7(eimg, Cnt)
 
     else:
+        def psf(x):
+            if Cnt['SIGMA_RM']:
+                ndi.gaussian_filter(x, sigma=Cnt['SIGMA_RM'], mode='constant', output=x)
+            return x
+
         #> estimated image, initialised to ones
         eim = np.ones(rmu.shape, dtype=np.float32)
 
@@ -279,6 +288,8 @@ def simulate_recon(
 
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
+        sim_inv = 1 / psf(sim)
+        sim_inv[~msk] = 0
 
         rndsct = rsng + ssng
         for i in trange(nitr, desc="MLEM",
@@ -288,17 +299,14 @@ def simulate_recon(
             #> then forward project the estimated image
             #> after which divide the measured sinogram by the estimated sinogram (forward projected)
             crrsino = mmraux.remgaps(measured_sino, txLUT, Cnt) / \
-                        (mmrprj.frwd_prj(eim, scanner_params, dev_out=True) + rndsct)
+                        (mmrprj.frwd_prj(psf(eim), scanner_params, dev_out=True) + rndsct)
 
             #> back project the correction factors sinogram
-            bim = mmrprj.back_prj(crrsino, scanner_params)
+            bim = psf(mmrprj.back_prj(crrsino, scanner_params))
 
             #> divide the back-projected image by the sensitivity image
-            bim[msk] /= sim[msk]
-            bim[~msk] = 0
-
             #> update the estimated image and remove NaNs
-            eim *= msk*bim
+            eim *= bim * sim_inv
             eim[np.isnan(eim)] = 0
 
     return eim

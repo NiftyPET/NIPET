@@ -95,16 +95,16 @@ def get_subsets14(n, params):
 
 
 def osemone(datain, mumaps, hst, scanner_params,
-            recmod=3, itr=4, fwhm=0., mask_radius=29.,
+            recmod=3, itr=4, fwhm=0., fwhm_rm=0., mask_radius=29.,
             sctsino=np.array([]),
             outpath='',
             store_img=False, frmno='', fcomment='',
             store_itr=[],
             emmskS=False,
             ret_sinos=False,
-            attnsino = None,
-            randsino = None,
-            normcomp = None):
+            attnsino=None,
+            randsino=None,
+            normcomp=None):
     """
     OSEM image reconstruction with several modes
     (with/without scatter and/or attenuation correction)
@@ -273,8 +273,10 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-------------------------------------------------------------------------
     with trange(itr, desc="OSEM",
         disable=log.getEffectiveLevel() > logging.INFO,
-        leave=log.getEffectiveLevel() <= logging.INFO) as pbar:
-
+        leave=log.getEffectiveLevel() <= logging.INFO
+    ) as pbar:
+        # resolution modelling
+        Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
         for k in pbar:
             petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
             if np.nansum(img) < 0.1:

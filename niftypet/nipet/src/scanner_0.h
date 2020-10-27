@@ -61,6 +61,7 @@ struct Cnst {
 	char LOG; //different levels of verbose/logging like in Python's logging package
 
 
+	float SIGMA_RM; // resolution modelling sigma
 	// float RE;    //effective ring diameter
 	// float ICOSSTP;
 	

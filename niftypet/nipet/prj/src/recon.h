@@ -8,6 +8,21 @@
 #ifndef RECON_H
 #define RECON_H
 
+/* separable convolution */
+#define KERNEL_RADIUS 5
+#define KERNEL_LENGTH (2*KERNEL_RADIUS + 1)
+
+// Column convolution filter
+#define   COLUMNS_BLOCKDIM_X 8
+#define   COLUMNS_BLOCKDIM_Y 8
+#define COLUMNS_RESULT_STEPS 8
+#define   COLUMNS_HALO_STEPS 1
+
+// Row convolution filter
+#define   ROWS_BLOCKDIM_X 8
+#define   ROWS_BLOCKDIM_Y 8
+#define ROWS_RESULT_STEPS 8
+#define   ROWS_HALO_STEPS 1
 
 void osem(float *imgout,
 	bool  *rcnmsk,
