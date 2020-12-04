@@ -25,6 +25,7 @@ else:
             return initialdir
         return path
 
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import cudasetup as cs
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
@@ -261,18 +262,10 @@ setup(
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    install_requires=[
-        'nibabel>=2.4.0',
-        'nimpa>=2.0.0',
-        'numpy>=1.14',
-        'pydicom>=1.0.2,<=1.2.2',
-        'tqdm>=4.27',
-    ],
     python_requires='>=3.4',
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],
-        'niftypet.nipet.dinf': [fex],
         'niftypet.nipet.lm' : [fex],
         'niftypet.nipet.prj' : [fex],
         'niftypet.nipet.sct' : [fex],

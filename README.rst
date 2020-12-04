@@ -36,12 +36,10 @@ variables `PATHTOOLS` and `HMUDIR`, respectively.
     export HMUDIR=$HOME/mmr_hardwareumaps
     # cross-platform install
     conda create -n niftypet -c conda-forge python=3 \
-      ipykernel matplotlib numpy scikit-image ipywidgets
-    git clone https://github.com/NiftyPET/NIMPA.git nimpa
-    git clone https://github.com/NiftyPET/NIPET.git nipet
+      ipykernel numpy scipy scikit-image matplotlib ipywidgets
     conda activate niftypet
-    pip install --no-binary :all: --verbose -e ./nimpa
-    pip install --no-binary :all: --verbose -e ./nipet
+    pip install --verbose "git+https://github.com/NiftyPET/NIMPA@dev2#egg=nimpa"
+    pip install --verbose "git+https://github.com/NiftyPET/NIPET@dev2#egg=nipet"
 
 Licence
 ~~~~~~~

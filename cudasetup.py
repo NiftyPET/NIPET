@@ -54,7 +54,7 @@ def find_cuda():
 
     if cuda_path is None:
         log.warning('nvcc compiler could not be found from the PATH!')
-        return None
+        return
 
     # serach for the CUDA library path
     lcuda_path = os.path.join(cuda_path, 'lib64')
@@ -96,91 +96,30 @@ def dev_setup():
         log.info('using this CUDA architecture(s): {}'.format(Cnt['CCARCH']))
         return Cnt['CCARCH']
 
-    # get the current locations
-    path_current = os.path.dirname( os.path.realpath(__file__) )
-    path_resins = os.path.join(path_current, 'resources')
-    path_dinf = os.path.join(path_current, 'niftypet')
-    path_dinf = os.path.join(path_dinf, 'nipet')
-    path_dinf = os.path.join(path_dinf, 'dinf')
-    # temporary installation location for identifying the CUDA devices
-    path_tmp_dinf = os.path.join(path_resins,'dinf')
-    # if the folder 'path_tmp_dinf' exists, delete it
-    if os.path.isdir(path_tmp_dinf):
-        shutil.rmtree(path_tmp_dinf)
-    # copy the device_info module to the resources folder within the installation package
-    shutil.copytree( path_dinf, path_tmp_dinf)
-    # create a build using cmake
-    path_tmp_build = os.path.join(path_tmp_dinf, 'build')
-    os.makedirs(path_tmp_build)
-    os.chdir(path_tmp_build)
-    if platform.system()=='Windows':
-        subprocess.call(
-            ['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr,
-             '-DPYTHON_PREFIX_PATH='+prefix, '-G', Cnt['MSVC_VRSN']]
-        )
-        subprocess.call(['cmake', '--build', './', '--config', 'Release'])
-        path_tmp_build = os.path.join(path_tmp_build, 'Release')
-
-    elif platform.system() in ['Linux', 'Darwin']:
-        subprocess.call(
-            ['cmake', '../', '-DPYTHON_INCLUDE_DIRS='+pyhdr,
-             '-DPYTHON_PREFIX_PATH='+prefix]
-        )
-        subprocess.call(['cmake', '--build', './'])
+    from miutil import cuinfo
+    if 'DEVID' in Cnt:
+        ccstr = cuinfo.get_nvcc_flags(int(Cnt['DEVID']))
+        devid = Cnt['DEVID']
     else:
-        log.error('Unknown operating system: {}'.format(platform.system()))
-        return None
-
-    # import the new module for device properties
-    sys.path.insert(0, path_tmp_build)
-    import dinf
-
-    # get the list of installed CUDA devices
-    Ldev = dinf.dev_info(0)
-    if len(Ldev)==0:
-        raise IOError('No CUDA devices have been detected')
-    # extract the compute capability as a single number
-    cclist = [int(str(e[2])+str(e[3])) for e in Ldev]
-    # get the list of supported CUDA devices (with minimum compute capability)
-    spprtd = [str(cc) for cc in cclist if cc>=mincc]
-    if not spprtd:
-        log.error('installed devices have the compute capability of: {}'.format(spprtd))
-        raise IOError('No supported CUDA devices have been found.')
-    # best for the default CUDA device
-    i = [int(s) for s in spprtd]
-    devid = i.index(max(i))
-    #-----------------------------------------------------------------------------------
-    # form return list of compute capability numbers for which the software will be compiled
-    ccstr = ''
-    for cc in spprtd:
-        ccstr += '-gencode=arch=compute_'+cc+',code=compute_'+cc+';'
-    #-----------------------------------------------------------------------------------
-
-    # remove the temporary path
-    sys.path.remove(path_tmp_build)
-    # delete the build once the info about the GPUs has been obtained
-    os.chdir(path_current)
-    shutil.rmtree(path_tmp_dinf, ignore_errors=True)
+        devid = cuinfo.get_device_count() - 1
+        ccstr = ';'.join(set(map(cuinfo.get_nvcc_flags, range(devid + 1))))
 
     # passing this setting to resources.py
     fpth = os.path.join(path_resources,'resources.py') #resource_filename(__name__, 'resources/resources.py')
-    f = open(fpth, 'r')
-    rsrc = f.read()
-    f.close()
+    with open(fpth, 'r') as f:
+        rsrc = f.read()
     # get the region of keeping in synch with Python
     i0 = rsrc.find('### start GPU properties ###')
     i1 = rsrc.find('### end GPU properties ###')
     # list of constants which will be kept in sych from Python
-    cnt_list = ['DEV_ID', 'CC_ARCH']
-    val_list = [str(devid), '\''+ccstr+'\'']
+    cnt_dict = {'DEV_ID': str(devid), 'CC_ARCH': repr(ccstr)}
     # update the resource.py file
-    strNew = '### start GPU properties ###\n'
-    for i in range(len(cnt_list)):
-        strNew += cnt_list[i]+' = '+val_list[i] + '\n'
-    rsrcNew = rsrc[:i0] + strNew + rsrc[i1:]
-    f = open(fpth, 'w')
-    f.write(rsrcNew)
-    f.close()
+    with  open(fpth, 'w') as f:
+        f.write(rsrc[:i0])
+        f.write('### start GPU properties ###\n')
+        for k, v in cnt_dict.items():
+            f.write(k + ' = ' + v + '\n')
+        f.write(rsrc[i1:])
 
     return ccstr
 
@@ -380,7 +319,5 @@ def resources_setup():
     check_constants()
 
     # find available GPU devices, select one or more and output the compilation flags
-    gpuarch = dev_setup()
-
     # return gpuarch for cmake compilation
-    return gpuarch
+    return dev_setup()
