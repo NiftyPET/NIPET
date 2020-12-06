@@ -3,7 +3,6 @@ graft niftypet/nipet/src
 graft niftypet/nipet/lm/src
 graft niftypet/nipet/prj/src
 graft niftypet/nipet/sct/src
-graft resources/
 recursive-include ./ *.py
 include niftypet/nipet/def.h
 recursive-include niftypet CMakeLists.txt

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Compile CUDA source code and setup Python 3 package 'nipet'
 for namespace 'niftypet'.
@@ -10,108 +10,185 @@ from setuptools import setup, find_packages
 from subprocess import run, PIPE
 import sys
 from textwrap import dedent
-if os.getenv('DISPLAY', False):
-    from tkinter import Tk
-    from tkinter.filedialog import askdirectory
-else:
-    def askdirectory(title='Folder: ', initialdir=os.path.expanduser('~'), name=''):
-        """
-        decreasing precedence: os.environ[name], raw_input, initialdir
-        """
-        path = os.environ.get(name, None)
-        if path is None:
-            path = input(title)
-        if path == '':
-            return initialdir
-        return path
 
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
-import cudasetup as cs
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
+from pkg_resources import resource_filename
+
+from niftypet.ninst import cudasetup as cs
+from niftypet.ninst import install_tools as tls
+from niftypet.ninst.tools import LogHandler
+__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__ = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
 
 logging.basicConfig(level=logging.INFO)
 logroot = logging.getLogger('nipet')
-hand = logging.StreamHandler()
-formatter = logging.Formatter(
-    '%(levelname)s:%(asctime)s:%(name)s:%(funcName)s\n> %(message)s')
-hand.setFormatter(formatter)
-logroot.addHandler(hand)
+logroot.addHandler(LogHandler())
 log = logging.getLogger('nipet.setup')
 
-
-#-------------------------------------------------------------------------
-# The below function is a copy of the same function in install_tools.py
-# in NIMPA
+tls.check_platform()
+ext = tls.check_depends()  # external dependencies
 
 
-def update_resources(Cnt):
-    '''Update resources.py with the paths to the new installed apps.'''
-    # list of path names which will be saved
-    key_list = ['PATHTOOLS', 'RESPATH', 'REGPATH', 'DCM2NIIX', 'HMUDIR']
 
-    # get the local path to NiftyPET resources.py
-    path_resources = cs.path_niftypet_local()
-    resources_file = os.path.join(path_resources,'resources.py')
-
-    # update resources.py
-    if os.path.isfile(resources_file):
-        f = open(resources_file, 'r')
-        rsrc = f.read()
-        f.close()
-        # get the region of keeping in synch with Python
-        i0 = rsrc.find('### start NiftyPET tools ###')
-        i1 = rsrc.find('### end NiftyPET tools ###')
-        pth_list = []
-        for k in key_list:
-            if k in Cnt:
-                pth_list.append('\'' + Cnt[k].replace("\\","/") + '\'')
-            else:
-                pth_list.append('\'\'')
-
-        # modify resources.py with the new paths
-        strNew = '### start NiftyPET tools ###\n'
-        for i in range(len(key_list)):
-            if pth_list[i] != '\'\'':
-                strNew += key_list[i]+' = '+pth_list[i] + '\n'
-        rsrcNew = rsrc[:i0] + strNew + rsrc[i1:]
-        f = open(resources_file, 'w')
-        f.write(rsrcNew)
-        f.close()
-
-    return Cnt
+#=================================================================================================
+# automatically detects if the CUDA header files are in agreement with Python constants.
+#=================================================================================================
 
 
-if 'Windows' not in platform.system() and 'Linux' not in platform.system():
-    log.error('the current operating system is not supported.')
-    raise SystemError('OS: Unknown Sysytem.')
+def chck_vox_h(Cnt):
+    '''check if voxel size in Cnt and adjust the CUDA header files accordingly.'''
+    rflg = False
+    fpth = resource_filename(__name__, 'niftypet/nipet/def.h')
+    with open(fpth, 'r') as fd:
+        def_h = fd.read()
+    # get the region of keeping in synch with Python
+    i0 = def_h.find('//## start ##//')
+    i1 = def_h.find('//## end ##//')
+    defh = def_h[i0:i1]
+    # list of constants which will be kept in synch from Python
+    cnt_list = ['SZ_IMX', 'SZ_IMY',  'SZ_IMZ',
+                'TFOV2',  'SZ_VOXY', 'SZ_VOXZ', 'SZ_VOXZi']
+    flg = False
+    for s in cnt_list:
+        m = re.search('(?<=#define ' + s + r')\s*\d*\.*\d*', defh)
+        if s[3]=='V':
+            #print(s, float(m.group(0)), Cnt[s])
+            if Cnt[s]!=float(m.group(0)):
+                flg = True
+                break
+        else:
+            #print(s, int(m.group(0)), Cnt[s])
+            if Cnt[s]!=int(m.group(0)):
+                flg = True
+                break
+    # if flag is set then redefine the constants in the sct.h file
+    if flg:
+        strNew = '//## start ##// constants definitions in synch with Python.   DON''T MODIFY MANUALLY HERE!\n'+\
+        '// IMAGE SIZE\n'+\
+        '// SZ_I* are image sizes\n'+\
+        '// SZ_V* are voxel sizes\n'
+        strDef = '#define '
+        for s in cnt_list:
+            strNew += strDef+s+' '+str(Cnt[s])+(s[3]=='V')*'f' + '\n'
 
-#----------------------------------------------------
-# select the supported GPU device and install resources.py
-log.info('setting up CUDA...')
-gpuarch = cs.resources_setup()
-#----------------------------------------------------
+        scthNew = def_h[:i0] + strNew + def_h[i1:]
+        with open(fpth, 'w') as fd:
+            fd.write(scthNew)
+        rflg = True
+
+    return rflg
 
 
-#===============================================================
-# Hardware mu-maps
-log.info('indicate the location of hardware mu-maps:')
+def chck_sct_h(Cnt):
+    '''
+    check if voxel size for scatter correction changed and adjust
+    the CUDA header files accordingly.
+    '''
+    rflg = False
+    fpth = resource_filename(__name__, 'niftypet/nipet/sct/src/sct.h')
+    #pthcmpl = os.path.dirname(resource_filename(__name__, ''))
+    with open(fpth, 'r') as fd:
+        sct_h = fd.read()
+    # get the region of keeping in synch with Python
+    i0 = sct_h.find('//## start ##//')
+    i1 = sct_h.find('//## end ##//')
+    scth = sct_h[i0:i1]
+    # list of constants which will be kept in sych from Python
+    cnt_list = ['SS_IMX', 'SS_IMY', 'SS_IMZ',
+                'SSE_IMX', 'SSE_IMY', 'SSE_IMZ', 'NCOS',
+                'SS_VXY',  'SS_VXZ',  'IS_VXZ', 'SSE_VXY', 'SSE_VXZ',
+                'R_RING', 'R_2', 'IR_RING',  'SRFCRS']
+    flg = False
+    for i,s in enumerate(cnt_list):
+        m = re.search('(?<=#define ' + s + r')\s*\d*\.*\d*', scth)
+        # if s[-3]=='V':
+        if i<7:
+            #print(s, int(m.group(0)), Cnt[s])
+            if Cnt[s]!=int(m.group(0)):
+                flg = True
+                break
+        else:
+            #print(s, float(m.group(0)), Cnt[s])
+            if Cnt[s]!=float(m.group(0)):
+                flg = True
+                break
 
-#---------------------------------------------------------------
+    # if flag is set then redefine the constants in the sct.h file
+    if flg:
+        strNew = dedent('''\
+            //## start ##// constants definitions in synch with Python.   DO NOT MODIFY!\n
+            // SCATTER IMAGE SIZE AND PROPERTIES
+            // SS_* are used for the mu-map in scatter calculations
+            // SSE_* are used for the emission image in scatter calculations
+            // R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+            // NCOS is the number of samples for scatter angular sampling
+            ''')
+
+        strDef = '#define '
+        for i,s in enumerate(cnt_list):
+            strNew += strDef+s+' '+str(Cnt[s])+(i>6)*'f' + '\n'
+
+        scthNew = sct_h[:i0] + strNew + sct_h[i1:]
+        with open(fpth, 'w') as fd:
+            fd.write(scthNew)
+        #sys.path.append(pthcmpl)
+        rflg = True
+
+    return rflg
+
+
+def check_constants():
+    '''get the constants for the mMR from the resources file before
+    getting the path to the local resources.py (on Linux machines it is in ~/.niftypet)'''
+    resources = cs.get_resources()
+    Cnt = resources.get_mmr_constants()
+
+    sct_compile = chck_sct_h(Cnt)
+    def_compile = chck_vox_h(Cnt)
+    # sct_compile = False
+    # def_compile = False
+
+    if sct_compile or def_compile:
+        txt = 'NiftyPET constants were changed: needs CUDA compilation.'
+    else:
+        txt = '- - . - -'
+
+    log.info(dedent('''\
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        changed sct.h: {}
+        changed def.h: {}
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        {}
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~''').format(
+        sct_compile, def_compile, txt))
+
+
+if ext["cuda"] and ext["cmake"]:
+    cs.resources_setup(gpu=False)  # install resources.py
+    # check and update the constants in C headers according to resources.py
+    check_constants()
+    gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
+else:
+    raise SystemError("Need nvcc and cmake")
+
+
+log.info(
+    dedent(
+        """
+        --------------------------------------------------------------
+        Finding hardware mu-maps
+        --------------------------------------------------------------"""
+    )
+)
+
 # get the local path to NiftyPET resources.py
 path_resources = cs.path_niftypet_local()
 # if exists, import the resources and get the constants
-if os.path.isfile(os.path.join(path_resources,'resources.py')):
-    sys.path.append(path_resources)
-    try:
-        import resources
-    except ImportError:
-        log.error("NiftyPET's resources file <resources.py> could not be imported")
-        raise
-    # get the current setup, if any
-    Cnt = resources.get_setup()
+resources = cs.get_resources()
+# get the current setup, if any
+Cnt = resources.get_setup()
 
+if True:
     # assume the hardware mu-maps are not installed
     hmu_flg = False
     # go through each piece of the hardware components
@@ -131,97 +208,97 @@ if os.path.isfile(os.path.join(path_resources,'resources.py')):
             Tk().withdraw()
         else:
             prompt['name'] = 'HMUDIR'
-        Cnt['HMUDIR'] = askdirectory(**prompt)
+        Cnt['HMUDIR'] = tls.askdirectory(**prompt)
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # update the path in resources.py
-    update_resources(Cnt)
+    tls.update_resources(Cnt)
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-else:
-    raise SystemError('Missing file: resources.py')
 
 log.info('hardware mu-maps have been located')
+
+
+# CUDA installation
+if True:
+    log.info(
+        dedent(
+            """
+            --------------------------------------------------------------
+            CUDA compilation for NIPET ...
+            --------------------------------------------------------------"""
+        )
+    )
+
+    path_current = os.path.dirname(os.path.realpath(__file__))
+    path_build = os.path.join(path_current, "build")
+    if not os.path.isdir(path_build):
+        os.makedirs(path_build)
+    os.chdir(path_build)
+
+    # cmake installation commands
+    cmds = [
+        [
+            "cmake",
+            os.path.join("..", "niftypet"),
+            "-DPYTHON_INCLUDE_DIRS=" + cs.pyhdr,
+            "-DPYTHON_PREFIX_PATH=" + cs.prefix,
+            "-DCUDA_NVCC_FLAGS=" + gpuarch,
+        ],
+        ["cmake", "--build", "./"]
+    ]
+
+    if platform.system() == "Windows":
+        cmds[0] += ["-G", Cnt["MSVC_VRSN"]]
+        cmds[1] += ["--config", "Release"]
+
+    # error string for later reporting
+    errs = []
+    # the log files the cmake results are written
+    cmakelogs = ["nipet_cmake_config.log", "nipet_cmake_build.log"]
+    # run commands with logging
+    for cmd, cmakelog in zip(cmds, cmakelogs):
+        p = run(cmd, stdout=PIPE, stderr=PIPE)
+        stdout = p.stdout.decode("utf-8")
+        stderr = p.stderr.decode("utf-8")
+
+        with open(cmakelog, "w") as fd:
+            fd.write(stdout)
+
+        ei = stderr.find("error")
+        if ei >= 0:
+            errs.append(stderr[ei : ei + 60] + "...")
+        else:
+            errs.append("_")
+
+        if p.stderr:
+            log.warning(
+                dedent(
+                    """
+                    ---------- process warnings/errors ------------
+                    {}
+                    --------------------- end ---------------------"""
+                ).format(
+                    stderr
+                )
+            )
+
+        log.info(
+            dedent(
+                """
+                ---------- compilation output ------------
+                {}
+                ------------------- end ------------------"""
+            ).format(stdout)
+        )
+
+    log.info("\n------------- error report -------------")
+    for cmd, err in zip(cmds, errs):
+        if err != "_":
+            log.error(" found error(s) in %s >> %s", " ".join(cmd), err)
+    log.info("------------------ end -----------------")
+
+    # come back from build folder
+    os.chdir(path_current)
 #===============================================================
-
-
-
-#===============================================================
-log.info('CUDA compilation for NIPET')
-
-path_current = os.path.dirname( os.path.realpath(__file__) )
-path_build = os.path.join(path_current, 'build')
-if not os.path.isdir(path_build): os.makedirs(path_build)
-os.chdir(path_build)
-
-# cmake installation commands
-cmd = []
-cmd.append([
-    'cmake',
-    os.path.join('..','niftypet'),
-    '-DPYTHON_INCLUDE_DIRS=' + cs.pyhdr,
-    '-DPYTHON_PREFIX_PATH='+cs.prefix,
-    '-DCUDA_NVCC_FLAGS='+gpuarch
-])
-cmd.append(['cmake', '--build', './'])
-
-if platform.system()=='Windows':
-    cmd[0] += ['-G', Cnt['MSVC_VRSN']]
-    cmd[1] += ['--config', 'Release']
-
-# error string for later reporting
-errstr = []
-# the log files the cmake results are written
-cmakelog = ['nipet_cmake_config.log', 'nipet_cmake_build.log']
-# run commands with logging
-for ci in range(len(cmd)):
-    p = run(cmd[ci], stdout=PIPE, stderr=PIPE)
-
-    stdout = p.stdout.decode('utf-8')
-    stderr = p.stderr.decode('utf-8')
-
-    with open(cmakelog[ci], 'w') as f:
-        f.write(stdout)
-
-    ei = stderr.find('error')
-    if ei>=0:
-        errstr.append(stderr[ei:ei+60]+'...')
-    else:
-        errstr.append('_')
-
-    if p.stderr:
-        log.warning(dedent('''\
-            ---------- process warnings/errors ------------
-            {}
-            --------------------- end ---------------------
-            ''').format(stderr))
-
-    log.info(dedent('''\
-        ---------- compilation output ------------
-        {}
-        ------------------- end ------------------
-        ''').format(stdout))
-
-
-#-----------------------------------------------------------------------
-#> deal with errors
-error_str = '\n'.join(
-    ' found error(s) in ' + ' '.join(cmd[ci]) + ' >> ' + errstr[ci]
-    for ci in range(len(cmd)) if errstr[ci] != '_')
-
-if error_str:
-    raise ValueError(dedent('''\
-        ---------- error report ----------
-        {}
-        > -------------- end ---------------
-        ''').format(error_str))
-log.info('No errors found!')
-#-----------------------------------------------------------------------
-
-
-# come back from build folder
-os.chdir(path_current)
-#===============================================================
-
-
 
 
 
@@ -247,7 +324,7 @@ sys.stdout = log_file
 sys.stderr = log_file
 #----------------------------
 
-if platform.system() == 'Linux' :
+if platform.system() in ['Linux', 'Darwin'] :
     fex = '*.so'
 elif platform.system() == 'Windows' :
     fex = '*.pyd'
@@ -255,14 +332,14 @@ elif platform.system() == 'Windows' :
 setup(
     name='nipet',
     license=__licence__,
-    version='1.1.19',
+    version='2.0.0',
     description='CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.',
     long_description=long_description,
     author=__author__[0],
     author_email='p.markiewicz@ucl.ac.uk',
     url='https://github.com/NiftyPET/NiftyPET',
     keywords='PET image reconstruction and analysis',
-    python_requires='>=3.4',
+    python_requires='>=3.6',
     packages=find_packages(exclude=['docs']),
     package_data={
         'niftypet': ['auxdata/*'],
@@ -272,6 +349,7 @@ setup(
         'niftypet.nipet' : [fex],
     },
     zip_safe=False,
+    # namespace_packages=['niftypet'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Education',
@@ -283,10 +361,10 @@ setup(
         'Programming Language :: C',
         'Programming Language :: C++',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3 :: Only',
         'Topic :: Scientific/Engineering :: Medical Science Apps.',
-
     ],
-    # namespace_packages=['niftypet'],
 )
-#===============================================================

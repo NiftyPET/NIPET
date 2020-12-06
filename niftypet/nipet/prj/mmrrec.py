@@ -16,9 +16,9 @@ from .. import mmrnorm
 from . import petprj
 #from ..lm import mmrhist
 from ..lm.mmrhist import randoms
-from niftypet import nimpa
-import resources  # for isotope info
+from .. import resources  # for isotope info
 from ..sct import vsm
+from niftypet import nimpa
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
