@@ -16,17 +16,6 @@ Copyrights: 2018
 #define nhNSN1 4084
 #define nSEG 11 //number of segments, in span-11
 
-
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
-{
-	if (code != cudaSuccess)
-	{
-		fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-		if (abort) exit(code);
-	}
-}
-
 // #define CURAND_ERR(x) do { if((x)!=CURAND_STATUS_SUCCESS) { \
 //     printf("Error at %s:%d\n",__FILE__,__LINE__);\
 //     return EXIT_FAILURE;}} while(0)
@@ -565,7 +554,7 @@ void gpu_hst(
 			tstart, tstop,
 			d_prng_states, poisson_hst);
 
-		gpuErrchk(cudaPeekAtLastError());
+		HANDLE_ERROR(cudaGetLastError());
 		if (Cnt.LOG <= LOGDEBUG) printf("chunk[%d], stream[%d], ele4thrd[%d], ele4chnk[%d]\n", n, si, lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
 		cudaStreamAddCallback(stream[si], MyCallback, (void*)(size_t)si, 0);
 

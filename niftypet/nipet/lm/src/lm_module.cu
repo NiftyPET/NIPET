@@ -374,7 +374,7 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	//==================================================================
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//==================================================================
 	lmproc(dicout, flm, tstart, tstop, s2cF, axLUT, Cnt);
@@ -549,7 +549,7 @@ static PyObject *mmr_rand(PyObject *self, PyObject *args) {
 
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><> E s t i m a t e   r a n d o m s  GPU <><><><><><><><><><><><><><>
 	gpu_randoms(rsn, cmap, fansums, txlut, sn1_rno, sn1_sn11, Cnt);
@@ -731,7 +731,7 @@ static PyObject *mmr_prand(PyObject *self, PyObject *args) {
 	txlut.cr2s = (int*)PyArray_DATA(p_cr2s);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><> E s t i m a t e   r a n d o m s  GPU <><><><><><><><><><><><><><>
 	p_randoms(rsn, cmap, pmsksn, fansums, txlut, sn1_rno, sn1_sn11, Msn1, Cnt);
