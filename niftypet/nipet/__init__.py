@@ -73,6 +73,7 @@ except ImportError as ie:
         --------------------------------------------------------------------------'''))
 
 
+from niftypet.nimpa.dinf import gpuinfo, dev_info
 
 from . import prj
 from . import img
@@ -88,8 +89,6 @@ from . import mmr_auxe
 
 from . import lm
 from .lm.mmrhist import dynamic_timings, mmrhist, randoms
-
-from .dinf import gpuinfo, dev_info
 
 from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap, align_mumap
 from .img.mmrimg import convert2e7 as im_dev2e7

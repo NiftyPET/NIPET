@@ -4,6 +4,7 @@
 *.pdf
 *.eps
 *.log
+__pycache__/
 /docs/
 /build/
 /dist/
