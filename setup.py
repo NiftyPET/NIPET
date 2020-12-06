@@ -201,7 +201,6 @@ log.info(
         --------------------------------------------------------------"""
     )
 )
-
 # get the local path to NiftyPET resources.py
 path_resources = cs.path_niftypet_local()
 # if exists, import the resources and get the constants
@@ -209,113 +208,110 @@ resources = cs.get_resources()
 # get the current setup, if any
 Cnt = resources.get_setup()
 
-if True:
-    # assume the hardware mu-maps are not installed
-    hmu_flg = False
-    # go through each piece of the hardware components
-    if "HMUDIR" in Cnt and Cnt["HMUDIR"] != "":
-        for hi in Cnt["HMULIST"]:
-            if os.path.isfile(os.path.join(Cnt["HMUDIR"], hi)):
-                hmu_flg = True
-            else:
-                hmu_flg = False
-                break
-    # if not installed ask for the folder through GUI
-    # otherwise the path will have to be filled manually
-    if not hmu_flg:
-        prompt = dict(
-            title="Folder for hardware mu-maps: ", initialdir=os.path.expanduser("~")
-        )
-        if not os.getenv("DISPLAY", False):
-            prompt["name"] = "HMUDIR"
-        Cnt["HMUDIR"] = tls.askdirectory(**prompt)
-    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    # update the path in resources.py
-    tls.update_resources(Cnt)
-    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+# assume the hardware mu-maps are not installed
+hmu_flg = False
+# go through each piece of the hardware components
+if "HMUDIR" in Cnt and Cnt["HMUDIR"] != "":
+    for hi in Cnt["HMULIST"]:
+        if os.path.isfile(os.path.join(Cnt["HMUDIR"], hi)):
+            hmu_flg = True
+        else:
+            hmu_flg = False
+            break
+# if not installed ask for the folder through GUI
+# otherwise the path will have to be filled manually
+if not hmu_flg:
+    prompt = dict(
+        title="Folder for hardware mu-maps: ", initialdir=os.path.expanduser("~")
+    )
+    if not os.getenv("DISPLAY", False):
+        prompt["name"] = "HMUDIR"
+    Cnt["HMUDIR"] = tls.askdirectory(**prompt)
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# update the path in resources.py
+tls.update_resources(Cnt)
+# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
 
 # CUDA installation
-if True:
+log.info(
+    dedent(
+        """
+        --------------------------------------------------------------
+        CUDA compilation for NIPET ...
+        --------------------------------------------------------------"""
+    )
+)
+
+path_current = os.path.dirname(os.path.realpath(__file__))
+path_build = os.path.join(path_current, "build")
+if not os.path.isdir(path_build):
+    os.makedirs(path_build)
+os.chdir(path_build)
+
+# cmake installation commands
+cmds = [
+    [
+        "cmake",
+        os.path.join("..", "niftypet"),
+        "-DPYTHON_INCLUDE_DIRS=" + cs.pyhdr,
+        "-DPYTHON_PREFIX_PATH=" + cs.prefix,
+        "-DCUDA_NVCC_FLAGS=" + gpuarch,
+    ],
+    ["cmake", "--build", "./"],
+]
+
+if platform.system() == "Windows":
+    cmds[0] += ["-G", Cnt["MSVC_VRSN"]]
+    cmds[1] += ["--config", "Release"]
+
+# error string for later reporting
+errs = []
+# the log files the cmake results are written
+cmakelogs = ["nipet_cmake_config.log", "nipet_cmake_build.log"]
+# run commands with logging
+for cmd, cmakelog in zip(cmds, cmakelogs):
+    p = run(cmd, stdout=PIPE, stderr=PIPE)
+    stdout = p.stdout.decode("utf-8")
+    stderr = p.stderr.decode("utf-8")
+
+    with open(cmakelog, "w") as fd:
+        fd.write(stdout)
+
+    ei = stderr.find("error")
+    if ei >= 0:
+        errs.append(stderr[ei : ei + 60] + "...")
+    else:
+        errs.append("_")
+
+    if p.stderr:
+        log.warning(
+            dedent(
+                """
+                ---------- process warnings/errors ------------
+                {}
+                --------------------- end ---------------------"""
+            ).format(stderr)
+        )
+
     log.info(
         dedent(
             """
-            --------------------------------------------------------------
-            CUDA compilation for NIPET ...
-            --------------------------------------------------------------"""
-        )
+            ---------- compilation output ------------
+            {}
+            ------------------- end ------------------"""
+        ).format(stdout)
     )
 
-    path_current = os.path.dirname(os.path.realpath(__file__))
-    path_build = os.path.join(path_current, "build")
-    if not os.path.isdir(path_build):
-        os.makedirs(path_build)
-    os.chdir(path_build)
+log.info("\n------------- error report -------------")
+for cmd, err in zip(cmds, errs):
+    if err != "_":
+        log.error(" found error(s) in %s >> %s", " ".join(cmd), err)
+log.info("------------------ end -----------------")
 
-    # cmake installation commands
-    cmds = [
-        [
-            "cmake",
-            os.path.join("..", "niftypet"),
-            "-DPYTHON_INCLUDE_DIRS=" + cs.pyhdr,
-            "-DPYTHON_PREFIX_PATH=" + cs.prefix,
-            "-DCUDA_NVCC_FLAGS=" + gpuarch,
-        ],
-        ["cmake", "--build", "./"],
-    ]
-
-    if platform.system() == "Windows":
-        cmds[0] += ["-G", Cnt["MSVC_VRSN"]]
-        cmds[1] += ["--config", "Release"]
-
-    # error string for later reporting
-    errs = []
-    # the log files the cmake results are written
-    cmakelogs = ["nipet_cmake_config.log", "nipet_cmake_build.log"]
-    # run commands with logging
-    for cmd, cmakelog in zip(cmds, cmakelogs):
-        p = run(cmd, stdout=PIPE, stderr=PIPE)
-        stdout = p.stdout.decode("utf-8")
-        stderr = p.stderr.decode("utf-8")
-
-        with open(cmakelog, "w") as fd:
-            fd.write(stdout)
-
-        ei = stderr.find("error")
-        if ei >= 0:
-            errs.append(stderr[ei : ei + 60] + "...")
-        else:
-            errs.append("_")
-
-        if p.stderr:
-            log.warning(
-                dedent(
-                    """
-                    ---------- process warnings/errors ------------
-                    {}
-                    --------------------- end ---------------------"""
-                ).format(stderr)
-            )
-
-        log.info(
-            dedent(
-                """
-                ---------- compilation output ------------
-                {}
-                ------------------- end ------------------"""
-            ).format(stdout)
-        )
-
-    log.info("\n------------- error report -------------")
-    for cmd, err in zip(cmds, errs):
-        if err != "_":
-            log.error(" found error(s) in %s >> %s", " ".join(cmd), err)
-    log.info("------------------ end -----------------")
-
-    # come back from build folder
-    os.chdir(path_current)
+# come back from build folder
+os.chdir(path_current)
 # ===============================================================
 
 
