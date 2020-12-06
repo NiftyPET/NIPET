@@ -1,2 +1,2 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "ninst>=0.1.1", "numpy>=1.14"]
+requires = ["setuptools>=42", "wheel", "ninst>=0.2.0", "numpy>=1.14"]

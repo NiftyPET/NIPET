@@ -6,12 +6,11 @@ for namespace 'niftypet'.
 import logging
 import os
 import platform
+import re
 from setuptools import setup, find_packages
 from subprocess import run, PIPE
 import sys
 from textwrap import dedent
-
-from pkg_resources import resource_filename
 
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import install_tools as tls
@@ -38,7 +37,8 @@ ext = tls.check_depends()  # external dependencies
 def chck_vox_h(Cnt):
     '''check if voxel size in Cnt and adjust the CUDA header files accordingly.'''
     rflg = False
-    fpth = resource_filename(__name__, 'niftypet/nipet/def.h')
+    path_current = os.path.dirname(os.path.realpath(__file__))
+    fpth = os.path.join(path_current, "niftypet", "nipet", "def.h")
     with open(fpth, 'r') as fd:
         def_h = fd.read()
     # get the region of keeping in synch with Python
@@ -85,7 +85,8 @@ def chck_sct_h(Cnt):
     the CUDA header files accordingly.
     '''
     rflg = False
-    fpth = resource_filename(__name__, 'niftypet/nipet/sct/src/sct.h')
+    path_current = os.path.dirname(os.path.realpath(__file__))
+    fpth = os.path.join(path_current, "niftypet", "nipet", "sct", "src", "sct.h")
     #pthcmpl = os.path.dirname(resource_filename(__name__, ''))
     with open(fpth, 'r') as fd:
         sct_h = fd.read()
@@ -204,10 +205,8 @@ if True:
     if not hmu_flg:
         prompt = dict(title='Folder for hardware mu-maps: ',
                       initialdir=os.path.expanduser('~'))
-        if os.getenv('DISPLAY', False):
-            Tk().withdraw()
-        else:
-            prompt['name'] = 'HMUDIR'
+        if not os.getenv("DISPLAY", False):
+            prompt["name"] = "HMUDIR"
         Cnt['HMUDIR'] = tls.askdirectory(**prompt)
     #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     # update the path in resources.py
