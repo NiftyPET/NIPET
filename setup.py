@@ -14,7 +14,6 @@ from textwrap import dedent
 
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import install_tools as tls
-from niftypet.ninst.tools import LogHandler
 
 __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__ = "Copyright 2020"
@@ -22,7 +21,7 @@ __licence__ = __license__ = "Apache 2.0"
 
 logging.basicConfig(level=logging.INFO)
 logroot = logging.getLogger("nipet")
-logroot.addHandler(LogHandler())
+logroot.addHandler(tls.LogHandler())
 log = logging.getLogger("nipet.setup")
 
 tls.check_platform()
