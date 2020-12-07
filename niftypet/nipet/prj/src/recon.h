@@ -46,6 +46,4 @@ void osem(float *imgout,
 	int N0crs, int N1crs,
 	Cnst Cnt);
 
-void getMemUse(Cnst Cnt);
-
 #endif

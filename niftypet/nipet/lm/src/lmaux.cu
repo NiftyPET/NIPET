@@ -14,29 +14,6 @@ Copyrights: 2020
 #endif
 
 
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
-
-//************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(void) {
-	size_t free_mem;
-	size_t total_mem;
-	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
-	double free_db = (double)free_mem;
-	double total_db = (double)total_mem;
-	double used_db = total_db - free_db;
-	printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
-	// printf("\ni> GPU memory usage:\n   used  = %f MB,\n   free  = %f MB,\n   total = %f MB\n",
-	//        used_db/1024.0/1024.0, free_db/1024.0/1024.0, total_db/1024.0/1024.0);
-}
-//************************************************************
-
-
 LMprop lmprop; //global variable
 int* lm; //global variable
 
@@ -337,7 +314,7 @@ void dsino_ucmpr(unsigned int *d_dsino,
 	HANDLE_ERROR(cudaMalloc(&d_d1sino, tot_bins * sizeof(unsigned char)));
 	HANDLE_ERROR(cudaMalloc(&d_p1sino, tot_bins * sizeof(unsigned char)));
 
-	//getMemUse();
+	//getMemUse(Cnt);
 
 	printf("i> uncompressing dynamic sino...");
 
@@ -351,7 +328,7 @@ void dsino_ucmpr(unsigned int *d_dsino,
 	for (int i = 0; i<nfrm; i++) {
 
 		sino_uncmprss << < grid, block >> >(d_dsino, d_p1sino, d_d1sino, i, tot_bins / 2);
-		cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 
 		HANDLE_ERROR(cudaMemcpy(&pdsn[i*tot_bins], d_p1sino,
 			tot_bins * sizeof(unsigned char), cudaMemcpyDeviceToHost));

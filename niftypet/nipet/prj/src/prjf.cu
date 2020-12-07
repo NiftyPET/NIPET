@@ -269,7 +269,7 @@ void gpu_fprj(float * prjout,
 		// number of "positive" michelogram elements used for projection (can be smaller than the maximum)
 		nil2r_c = (nrng_c + 1)*nrng_c / 2;
 		snno = nrng_c*nrng_c;
-		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
 		if (nrng_c == NRINGS) {
 			snno -= 12;
 			nil2r_c -= 6;
@@ -311,6 +311,7 @@ void gpu_fprj(float * prjout,
 		dim3 THRD(nvz, nar, 1);
 		dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
 		imExpand <<<BLCK, THRD >>>(d_im, d_imr, vz0, nvz);
+		HANDLE_ERROR(cudaGetLastError());
 		cudaFree(d_imr);
 	}
 	else {
@@ -345,8 +346,7 @@ void gpu_fprj(float * prjout,
 
 	//============================================================================
 	fprj_drct <<<Nprj, nrng_c >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel direct projector error: %s\n", cudaGetErrorString(error)); exit(-1); }
+	HANDLE_ERROR(cudaGetLastError());
 	// ============================================================================
 
 	int zoff = nrng_c;
@@ -356,17 +356,17 @@ void gpu_fprj(float * prjout,
 	//first for reduced number of detector rings
 	if (Cnt.SPN == 1 && Noblq <= 1024 && Noblq>0){
 		fprj_oblq <<< Nprj, Noblq >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
+
 	}
 	else {
 		fprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique projector error (p1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
+
 		zoff += NSINOS / 4;
 		fprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique projector error (p2): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
+
 	}
 
 
@@ -441,22 +441,19 @@ void rec_fprj(float *d_sino,
 
 	//============================================================================
 	fprj_drct << <Nprj, NRINGS >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0);
-	// cudaError_t error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel direct projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	int zoff = NRINGS;
 	//============================================================================
 	fprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (+) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	zoff += NSINOS / 4;
 	//============================================================================
 	fprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (-) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	cudaEventRecord(stop, 0);

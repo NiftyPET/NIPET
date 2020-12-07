@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-Python extension for CUDA auxiliary routines used in 
+Python extension for CUDA auxiliary routines used in
 voxel-driven scatter modelling (VSM)
 
 author: Pawel Markiewicz
@@ -7,26 +7,6 @@ Copyrights: 2018
 ------------------------------------------------------------------------*/
 #include <stdlib.h>
 #include "sctaux.h"
-
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
-//************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(Cnst Cnt) {
-	size_t free_mem;
-	size_t total_mem;
-	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
-	double free_db = (double)free_mem;
-	double total_db = (double)total_mem;
-	double used_db = total_db - free_db;
-	if (Cnt.LOG <= LOGDEBUG) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
-}
-//************************************************************
-
 
 //==========================================================================================
 //  S C A T T E R
@@ -155,7 +135,7 @@ int * get_2DsctLUT(scrsDEF d_scrsdef, Cnst Cnt) {
 		for (int i = 0; i<d_scrsdef.nscrs / 2; i++) {
 			//scatter crystal based on the position of unscatter crystal <uc>
 			int sc = (uc + d_scrsdef.nscrs / 4 + i) & (d_scrsdef.nscrs - 1);
-			//sino linear index (full including the gaps)      
+			//sino linear index (full including the gaps)
 			h_sct2aw[d_scrsdef.nscrs / 2 * uc + i] = c2s[(int)h_scrsdefCrs[3 * uc] + Cnt.NCRS*(int)h_scrsdefCrs[3 * sc]];
 
 			//scattered and unscattered crystal positions (used for determining +/- sino segments)
@@ -188,7 +168,7 @@ int * get_2DsctLUT(scrsDEF d_scrsdef, Cnst Cnt) {
 		for (int i = 0; i<d_scrsdef.nscrs / 2; i++) {
 			//scatter crystal based on the position of unscatter crystal <uc>
 			int sc = (uc + d_scrsdef.nscrs / 4 + i) & (d_scrsdef.nscrs - 1);
-			//sino linear index (full including the gaps)      
+			//sino linear index (full including the gaps)
 			d_sct2aw[d_scrsdef.nscrs / 2 * uc + i] = c2s[(int)d_scrsdef.crs[3 * uc] + Cnt.NCRS*(int)d_scrsdef.crs[3 * sc]];
 
 			//scattered and unscattered crystal positions (used for determining +/- sino segments)
@@ -435,7 +415,7 @@ float * srslt2sino(float *d_srslt,
 	Cnst Cnt)
 {
 
-	//scatter pre-sino in span-1 (tmporary) 
+	//scatter pre-sino in span-1 (tmporary)
 	float *d_scts1;
 	HANDLE_ERROR(cudaMalloc(&d_scts1, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(float)));
 
@@ -454,7 +434,7 @@ float * srslt2sino(float *d_srslt,
 	//number of all scatter estimated values (sevn) for one TOF 3D sino
 	int sevn = d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs / 2;
 
-	//---- constants  
+	//---- constants
 	int4 *d_sctaxR;
 	HANDLE_ERROR(cudaMalloc(&d_sctaxR, Cnt.NSN64 * sizeof(int4)));
 	HANDLE_ERROR(cudaMemcpy(d_sctaxR, sctaxR, Cnt.NSN64 * sizeof(int4), cudaMemcpyHostToDevice));
@@ -505,8 +485,7 @@ float * srslt2sino(float *d_srslt,
 			d_offseg,
 			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs / 2),
 			Cnt.MRD);
-		cudaError_t err = cudaGetLastError();
-		if (err != cudaSuccess) printf("Error in d_sct2sn1: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		cudaEventRecord(stop, 0);
 		cudaEventSynchronize(stop);
@@ -538,8 +517,7 @@ float * srslt2sino(float *d_srslt,
 			Cnt.NSN1,
 			Cnt.SPN,
 			i*tbins);
-		err = cudaGetLastError();
-		if (err != cudaSuccess) printf("Error in d_sct_axinterp: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		cudaEventRecord(stop, 0);
 		cudaEventSynchronize(stop);
@@ -703,8 +681,3 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt)
 	mlut.v2i = d_v2i;
 	return mlut;
 }
-
-
-
-
-

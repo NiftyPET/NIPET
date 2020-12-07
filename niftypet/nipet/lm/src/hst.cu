@@ -75,7 +75,7 @@ __global__ void hst(
 
 	//random number generator for bootstrapping when requested
 	curandState locState = state[idb];
-	//weight for number of events, only for parametric bootstrap it can be different than 1. 
+	//weight for number of events, only for parametric bootstrap it can be different than 1.
 	unsigned int Nevnt = 1;
 
 	int i_start, i_stop;
@@ -157,7 +157,7 @@ __global__ void hst(
 
 			if (word>0){
 
-				if ((Nevnt>0)&&(Nevnt<32)){ 
+				if ((Nevnt>0)&&(Nevnt<32)){
 
 					si = val / NSBINANG;
 					aw = val - si*NSBINANG;
@@ -203,7 +203,7 @@ __global__ void hst(
 						if ((a0 || a126) && (itag<MXNITAG)) {
 							atomicAdd(snview + (itag >> VTIME)*SEG0*NSBINS + si_ssrb*NSBINS + w, Nevnt << (a126 * 8));
 						}
-						
+
 					}
 
 					//> delayeds
@@ -258,9 +258,9 @@ __global__ void hst(
 	}// <--for
 
 	// put back the state for random generator when bootstrapping is requested
-	// if (btp>0) 
+	// if (btp>0)
 	state[idb] = locState;
-	
+
 }
 
 
@@ -282,15 +282,15 @@ curandState* setup_curand() {
 	//Setup RANDOM NUMBERS even when bootstrapping was not requested
 	if (LOG <= LOGINFO) printf("\ni> setting up CUDA pseudorandom number generator... ");
 	curandState *d_prng_states;
-	
+
 	// cudaMalloc((void **)&d_prng_states,	MIN(NSTREAMS, lmprop.nchnk)*BTHREADS*NTHREADS * sizeof(curandStatePhilox4_32_10_t));
 	// setup_rand <<< MIN(NSTREAMS, lmprop.nchnk)*BTHREADS, NTHREADS >>>(d_prng_states);
-	
+
 	cudaMalloc((void **)&d_prng_states,	BTHREADS*NTHREADS * sizeof(curandState));
 	setup_rand <<< BTHREADS, NTHREADS >>>(d_prng_states);
-	
+
 	if (LOG <= LOGINFO) printf("DONE.\n");
-	
+
 	return d_prng_states;
 }
 
@@ -307,10 +307,10 @@ bool dataready[NSTREAMS];
 
 FILE* open_lm(){
 	FILE* f;
-	if ((f = fopen(lmprop.fname, "rb")) == NULL) 
-	{ 
-		fprintf(stderr, "e> Can't open input file: %s \n", lmprop.fname); 
-		exit(1); 
+	if ((f = fopen(lmprop.fname, "rb")) == NULL)
+	{
+		fprintf(stderr, "e> Can't open input file: %s \n", lmprop.fname);
+		exit(1);
 	}
 	return f;
 }
@@ -327,7 +327,7 @@ void seek_lm(FILE* f){
 	_fseeki64(f, seek_offset, SEEK_SET); //<<<<------------------- IMPORTANT!!!
 	#endif
 
-	if (LOG <= LOGDEBUG) 
+	if (LOG <= LOGDEBUG)
 		printf("ic> fseek adrress: %zd\n", lmprop.lmoff + lmprop.atag[nchnkrd]);
 }
 
@@ -340,21 +340,21 @@ void get_lm_chunk(FILE* f, int stream_idx){
 	int n = lmprop.ele4chnk[nchnkrd];
 
 	size_t r = fread(&lmbuff[stream_idx*ELECHNK], lmprop.bpe, n, f);
-	if (r != n) 
+	if (r != n)
 	{
 		printf("ele4chnk = %d, r = %zd\n", n, r);
-		fputs("Reading error (CUDART callback)\n", stderr); 
+		fputs("Reading error (CUDART callback)\n", stderr);
 		fclose(f);
 		exit(3);
 	}
 
 	// Increment the number of chunk read
 	nchnkrd++;
-	
+
 	// Set a flag: stream[i] is free now and the new data is ready.
 	dataready[stream_idx] = true;
 
-	if (LOG <= LOGDEBUG) 
+	if (LOG <= LOGDEBUG)
 		printf("[%4d / %4d] chunks read\n\n", nchnkrd, lmprop.nchnk);
 }
 
@@ -465,7 +465,7 @@ void gpu_hst(
 	int *d_lmbuff;
 	//> host pinned memory
 	HANDLE_ERROR(cudaMallocHost((void**)&lmbuff, NSTREAMS * ELECHNK * sizeof(int)));
-	//> device memory 
+	//> device memory
 	HANDLE_ERROR(cudaMalloc((void**)&d_lmbuff, NSTREAMS * ELECHNK * sizeof(int)));
 
 
@@ -482,7 +482,7 @@ void gpu_hst(
 
 
 	// ****** check memory usage
-	if (Cnt.LOG <= LOGINFO) getMemUse();
+	getMemUse(Cnt);
 	//*******
 
 	//__________________________________________________________________________________________________
@@ -501,7 +501,7 @@ void gpu_hst(
 		get_lm_chunk(fr, i);
 	}
 	fclose(fr);
-	
+
 	if (Cnt.LOG <= LOGINFO){
 		printf("DONE.\n");
 		printf("\n+> histogramming the LM data:\n");
@@ -571,10 +571,10 @@ void gpu_hst(
 	cudaEventDestroy(stop);
 	if (Cnt.LOG <= LOGDEBUG) printf("+> histogramming DONE in %fs.\n\n", 0.001*elapsedTime);
 
-	
+
 	for (int i = 0; i < nstreams; ++i)
 	{
-		cudaError_t err = cudaStreamSynchronize(stream[i]); 
+		cudaError_t err = cudaStreamSynchronize(stream[i]);
 		if (Cnt.LOG <= LOGDEBUG)
 			printf("--> sync CPU with stream[%d/%d], %s\n", i, nstreams, cudaGetErrorName( err ));
 		HANDLE_ERROR( err );

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 
-# set project name as the module name of the .dll/.pyd 
-project(nifty_scatter) 
+# set project name as the module name of the .dll/.pyd
+project(nifty_scatter)
 # set name of folder, because it isnt set to the project name :(
 set(CURR_FOLDER_NAME "sct")
 
@@ -28,10 +28,11 @@ execute_process(
 include_directories(${PYTHON_NUMPY_INCLUDE})
 
 
-cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
+cuda_add_library(${PROJECT_NAME} SHARED ${SRC})
 
 target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES})
+target_link_libraries(${PROJECT_NAME} mmr_auxe)
 
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".pyd")

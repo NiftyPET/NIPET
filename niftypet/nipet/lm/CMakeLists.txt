@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 
-# set project name as the module name of the .dll/.pyd 
-project(mmr_lmproc) 
+# set project name as the module name of the .dll/.pyd
+project(mmr_lmproc)
 set(CURR_FOLDER_NAME "lm")
 
 # get the site packages location, then strip the trailing white space
@@ -26,10 +26,11 @@ execute_process(
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 include_directories(${PYTHON_NUMPY_INCLUDE})
 
-cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
+cuda_add_library(${PROJECT_NAME} SHARED ${SRC})
 
 target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
 target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES} ${CUDA_curand_LIBRARY})
+target_link_libraries(${PROJECT_NAME} mmr_auxe)
 
 
 if(WIN32)
@@ -53,6 +54,3 @@ if(UNIX)
         ${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.so
     )
 endif()
-
-
-
