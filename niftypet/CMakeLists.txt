@@ -10,7 +10,6 @@ find_package(CUDA REQUIRED)
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 cmake_policy(POP)
 
-set(PYTHON_PREFIX_PATH)
 
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
@@ -19,13 +18,3 @@ add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
 
 set(CMAKE_BUILD_TYPE Release)
 
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "import sys; print(sys.prefix)"
-  OUTPUT_VARIABLE PYTHON_ENV_ROOT
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  SET(CMAKE_INSTALL_PREFIX
-    ${PYTHON_ENV_ROOT} CACHE PATH "Set the path of the anaconda environment to which you wish to install this package to" FORCE
-    )
-ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
