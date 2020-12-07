@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include "def.h"
 
-#ifndef AUX_H
-#define AUX_H
+#ifndef SCANNER_0_H
+#define SCANNER_0_H
 
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -198,4 +198,4 @@ void remove_gaps(
 	Cnst Cnt);
 //------------------------
 
-#endif //AUX_H
+#endif //SCANNER_0_H

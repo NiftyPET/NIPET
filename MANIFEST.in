@@ -3,10 +3,7 @@ graft niftypet/nipet/src
 graft niftypet/nipet/lm/src
 graft niftypet/nipet/prj/src
 graft niftypet/nipet/sct/src
-recursive-include ./ *.py
-include niftypet/nipet/def.h
+include niftypet/nipet/include/*.h
 recursive-include niftypet CMakeLists.txt
-include LICENCE
-include README.rst
 exclude niftypet/nipet/sigaux.py
 exclude niftypet/nipet/xnat

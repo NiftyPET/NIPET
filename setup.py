@@ -37,7 +37,7 @@ def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
     path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "def.h")
+    fpth = os.path.join(path_current, "niftypet", "nipet", "include", "def.h")
     with open(fpth, "r") as fd:
         def_h = fd.read()
     # get the region of keeping in synch with Python
@@ -255,8 +255,7 @@ cmds = [
     [
         "cmake",
         os.path.join("..", "niftypet"),
-        "-DPYTHON_INCLUDE_DIRS=" + cs.pyhdr,
-        "-DPYTHON_PREFIX_PATH=" + cs.prefix,
+        "-DPython3_ROOT_DIR=" + cs.prefix,
         "-DCUDA_NVCC_FLAGS=" + gpuarch,
     ],
     ["cmake", "--build", "./"],
