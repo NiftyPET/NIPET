@@ -183,8 +183,8 @@ void getLMinfo(char *flm, const Cnst Cnt)
 			c += 1;
 		}
 		if (Cnt.LOG <= LOGDEBUG){
-			printf("i> break time tag [%d] is:       %dms at position %lu. \n", i, btag[i], atag[i]);
-			printf("   # elements: %d/per chunk, %d/per thread. c = %d.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
+			printf("i> break time tag [%d] is:       %lums at position %lu. \n", i, btag[i], atag[i]);
+			printf("   # elements: %d/per chunk, %d/per thread. c = %lu.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
 		}
 		else if (Cnt.LOG <= LOGINFO)
 			printf("i> break time tag [%d] is:     %lums at position %lu.\r", i, btag[i], atag[i]); // ele = %lu ele-atag[i] = %lu , , ele, ele-atag[i]
@@ -197,7 +197,7 @@ void getLMinfo(char *flm, const Cnst Cnt)
 	ele4thrd[i - 1] = (ele - atag[i - 1] + (TOTHRDS - 1)) / TOTHRDS;
 	ele4chnk[i - 1] = ele - atag[i - 1];
 	if (Cnt.LOG <= LOGDEBUG){
-		printf("i> break time tag [%d] is:       %dms at position %lu.\n", i, btag[i], atag[i]);
+		printf("i> break time tag [%d] is:       %lums at position %lu.\n", i, btag[i], atag[i]);
 		printf("   # elements: %d/per chunk, %d/per thread.\n", ele4chnk[i - 1], ele4thrd[i - 1]);
 	}
 	if (Cnt.LOG <= LOGINFO)
@@ -234,7 +234,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 			if (ntag[0] == -1) ntag[0] = n;
 			ntag[1] = n;
 			if (Cnt.LOG <= LOGDEBUG)
-				printf("   > time break [%d] <%d, %d> is in. ele={%d, %d}.\n", n + 1, lmprop.btag[n], lmprop.btag[n + 1], lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
+				printf("   > time break [%d] <%lu, %lu> is in. ele={%d, %d}.\n", n + 1, lmprop.btag[n], lmprop.btag[n + 1], lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
 			newn += 1;
 		}
 	}
@@ -256,7 +256,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 		tmp_ele4thrd[nn] = lmprop.ele4thrd[n];
 		tmp_ele4chnk[nn] = lmprop.ele4chnk[n];
 		if (Cnt.LOG <= LOGDEBUG)
-			printf("   > break time tag (original) [%d] @%dms ele={%d, %d}.\n",
+			printf("   > break time tag (original) [%d] @%lums ele={%d, %d}.\n",
 				n + 1, tmp_btag[nn + 1], tmp_ele4thrd[nn], tmp_ele4chnk[nn]);
 
 		nn += 1;

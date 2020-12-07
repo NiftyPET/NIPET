@@ -189,10 +189,10 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 
 
 	//-------- SCATTER --------
-	// number of axial scatter crystals (rings) for modelling 
+	// number of axial scatter crystals (rings) for modelling
 	PyObject* pd_NSRNG = PyDict_GetItemString(o_sctLUT, "NSRNG");
 	Cnt.NSRNG = (int)PyLong_AsLong(pd_NSRNG);
-	// number of transaxial scatter crystals for modelling 
+	// number of transaxial scatter crystals for modelling
 	PyObject* pd_NSCRS = PyDict_GetItemString(o_sctLUT, "NSCRS");
 	Cnt.NSCRS = (int)PyLong_AsLong(pd_NSCRS);
 
@@ -203,8 +203,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
 	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
 	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
-	
-	PyArrayObject 	*p_SCTCRS=NULL, *p_KN=NULL, *p_isrng=NULL, 
+
+	PyArrayObject 	*p_SCTCRS=NULL, *p_KN=NULL, *p_isrng=NULL,
 					*p_offseg=NULL, *p_sctaxR=NULL, *p_sctaxW=NULL;
 
 	p_SCTCRS	= (PyArrayObject *)PyArray_FROM_OTF(pd_SCTCRS,  NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
@@ -285,7 +285,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	emIMG.nvx = (size_t)(PyArray_DIM(p_emimg, 0) * PyArray_DIM(p_emimg, 1) * PyArray_DIM(p_emimg, 2));
 
 	if ((muIMG.nvx != emIMG.nvx) && (Cnt.LOG <= LOGWARNING))
-		printf("\nw> mu-map and emission image have different dims: mu.nvx = %d, em.nvx = %d\n", muIMG.nvx, emIMG.nvx);
+		printf("\nw> mu-map and emission image have different dims: mu.nvx = %lu, em.nvx = %lu\n", muIMG.nvx, emIMG.nvx);
 
 	//get the stats in the image structure
 	float mumx = -1e12, emmx = -1e12, mumn = 1e12, emmn = 1e12;
@@ -316,7 +316,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 
 	// sets the device on which to calculate
 	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
-	
+
 	//<><><><><><><><><> S C A T T E R    K E R N E L <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 	prob_scatt(
 		sctout,
