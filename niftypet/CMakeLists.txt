@@ -7,8 +7,25 @@ set(PREINSTALL_NAME "_preinstall")
 cmake_policy(PUSH)
 cmake_policy(SET CMP0074 NEW)
 find_package(CUDA REQUIRED)
-find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.12.0)
+  find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+else()
+  find_package(FindPythonInterp 3 REQUIRED)
+  set(Python3_EXECUTABLE "${PYTHON_EXECUTABLE}")
+  find_package(FindPythonLibs 3 REQUIRED)
+  set(Python3_INCLUDE_DIRS "${PYTHON_INCLUDE_DIRS}")
+  set(Python3_LIBRARIES "${PYTHON_LIBRARIES}")
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE Python3_NumPy_INCLUDE_DIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
 cmake_policy(POP)
+
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.7.0)
+  cuda_select_nvcc_arch_flags(NVCC_ARCH_FLAGS)
+  list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
+endif()
 
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
