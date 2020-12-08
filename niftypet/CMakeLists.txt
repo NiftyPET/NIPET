@@ -24,8 +24,14 @@ cmake_policy(POP)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.7.0)
   cuda_select_nvcc_arch_flags(NVCC_ARCH_FLAGS)
-  list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
+else()
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -m miutil.cuinfo -f
+    OUTPUT_VARIABLE NVCC_ARCH_FLAGS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
+list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
+message(STATUS "CUDA nvcc flags: ${CUDA_NVCC_FLAGS}")
 
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
