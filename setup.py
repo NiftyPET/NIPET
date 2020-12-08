@@ -19,9 +19,7 @@ __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__ = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
 
-logging.basicConfig(level=logging.INFO)
-logroot = logging.getLogger("nipet")
-logroot.addHandler(tls.LogHandler())
+logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
 
 tls.check_platform()
