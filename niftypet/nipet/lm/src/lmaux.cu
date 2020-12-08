@@ -14,11 +14,6 @@ Copyrights: 2020
 #endif
 
 
-LMprop lmprop; //global variable
-int* lm; //global variable
-
-
-
 //********** LIST MODA DATA FILE PROPERTIES (Siemens mMR) **************
 void getLMinfo(char *flm, const Cnst Cnt)
 {

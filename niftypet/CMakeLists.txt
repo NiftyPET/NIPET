@@ -10,11 +10,9 @@ find_package(CUDA REQUIRED)
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 cmake_policy(POP)
 
-
 add_subdirectory(${CMAKE_PROJECT_NAME})
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
 add_subdirectory(${CMAKE_PROJECT_NAME}/prj)
 add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
 
 set(CMAKE_BUILD_TYPE Release)
-
