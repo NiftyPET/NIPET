@@ -369,8 +369,7 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 	int stream_idx = (int)(size_t)data;
 
 	if (LOG <= LOGINFO){
-		printf("   +> stream[%d]:   ", stream_idx);
-		printf("%d chunks of data are DONE.  ", ichnk + 1);
+		printf("\r   +> stream[%d]:   %d chunks of data are DONE.  ", stream_idx, ichnk + 1);
 	}
 
 	ichnk += 1;
@@ -380,7 +379,7 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data)
 		get_lm_chunk(fr, stream_idx);
 		fclose(fr);
 	}
-	if (LOG <= LOGINFO) printf("\n");
+	if (LOG <= LOGDEBUG) printf("\n");
 
 }
 
