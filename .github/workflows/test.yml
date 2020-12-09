@@ -9,4 +9,10 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - run: pip install -U .[dev]
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        repository: NiftyPET/NIMPA
+        ref: dev2
+        path: NIMPA
+    - run: pip install -U ./NIMPA .[dev]
