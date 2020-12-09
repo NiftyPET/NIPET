@@ -1,0 +1,12 @@
+name: Test
+on:
+- push
+jobs:
+  test:
+    runs-on: [self-hosted, cuda]
+    name: Test
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - run: pip install -U .[dev]
