@@ -181,13 +181,13 @@ def check_constants():
     )
 
 
-if ext["cuda"] and ext["cmake"]:
+if ext["cmake"]:
     cs.resources_setup(gpu=False)  # install resources.py
     # check and update the constants in C headers according to resources.py
     check_constants()
     gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
 else:
-    raise SystemError("Need nvcc and cmake")
+    raise SystemError("Need cmake")
 
 
 log.info(
