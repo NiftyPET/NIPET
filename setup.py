@@ -276,17 +276,7 @@ elif platform.system() == "Windows":
     fex = "*.pyd"
 # ----------------------------
 setup(
-    name="nipet",
-    license=__licence__,
     version="2.0.0",
-    description="CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.",
-    long_description=long_description,
-    author=__author__[0],
-    author_email="p.markiewicz@ucl.ac.uk",
-    url="https://github.com/NiftyPET/NiftyPET",
-    keywords="PET image reconstruction and analysis",
-    python_requires=">=3.6",
-    packages=find_packages(exclude=["docs"]),
     package_data={
         "niftypet": ["auxdata/*"],
         "niftypet.nipet.lm": [fex],
@@ -294,23 +284,4 @@ setup(
         "niftypet.nipet.sct": [fex],
         "niftypet.nipet": [fex],
     },
-    zip_safe=False,
-    # namespace_packages=['niftypet'],
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Intended Audience :: Education",
-        "Intended Audience :: Healthcare Industry",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: C",
-        "Programming Language :: C++",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3 :: Only",
-        "Topic :: Scientific/Engineering :: Medical Science Apps.",
-    ],
 )
