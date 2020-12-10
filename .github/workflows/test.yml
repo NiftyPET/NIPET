@@ -13,7 +13,7 @@ jobs:
       with:
         fetch-depth: 0
         repository: NiftyPET/NIMPA
-        ref: cuda-tidy
+        ref: dev2
         path: NIMPA
     - run: pip install -U ./NIMPA -e .[dev]
     - run: python -m pytest --cov-report=term-missing --cov-report=xml
