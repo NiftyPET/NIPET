@@ -147,8 +147,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 		texo_mu3d,
 		d_mu_msk.i2v,
 		d_scrsdef);
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel <satt> error: %s\n", cudaGetErrorString(error)); exit(-1); }
+	HANDLE_ERROR(cudaGetLastError());
 
 	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	cudaEventRecord(stop, 0);

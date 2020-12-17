@@ -8,7 +8,6 @@ import os
 import platform
 import re
 from setuptools import setup, find_packages
-from subprocess import run, PIPE
 import sys
 from textwrap import dedent
 
@@ -19,9 +18,7 @@ __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__ = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
 
-logging.basicConfig(level=logging.INFO)
-logroot = logging.getLogger("nipet")
-logroot.addHandler(tls.LogHandler())
+logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
 
 tls.check_platform()
@@ -37,7 +34,7 @@ def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
     path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "def.h")
+    fpth = os.path.join(path_current, "niftypet", "nipet", "include", "def.h")
     with open(fpth, "r") as fd:
         def_h = fd.read()
     # get the region of keeping in synch with Python
@@ -184,13 +181,13 @@ def check_constants():
     )
 
 
-if ext["cuda"] and ext["cmake"]:
+if ext["cmake"]:
     cs.resources_setup(gpu=False)  # install resources.py
     # check and update the constants in C headers according to resources.py
     check_constants()
     gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
 else:
-    raise SystemError("Need nvcc and cmake")
+    raise SystemError("Need cmake")
 
 
 log.info(
@@ -233,87 +230,19 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-
-# CUDA installation
-log.info(
-    dedent(
-        """
-        --------------------------------------------------------------
-        CUDA compilation for NIPET ...
-        --------------------------------------------------------------"""
-    )
-)
-
+# ===============================================================
+# CUDA BUILD
+# ===============================================================
 path_current = os.path.dirname(os.path.realpath(__file__))
 path_build = os.path.join(path_current, "build")
-if not os.path.isdir(path_build):
-    os.makedirs(path_build)
-os.chdir(path_build)
-
-# cmake installation commands
-cmds = [
-    [
-        "cmake",
-        os.path.join("..", "niftypet"),
-        "-DPYTHON_INCLUDE_DIRS=" + cs.pyhdr,
-        "-DPYTHON_PREFIX_PATH=" + cs.prefix,
-        "-DCUDA_NVCC_FLAGS=" + gpuarch,
-    ],
-    ["cmake", "--build", "./"],
-]
-
-if platform.system() == "Windows":
-    cmds[0] += ["-G", Cnt["MSVC_VRSN"]]
-    cmds[1] += ["--config", "Release"]
-
-# error string for later reporting
-errs = []
-# the log files the cmake results are written
-cmakelogs = ["nipet_cmake_config.log", "nipet_cmake_build.log"]
-# run commands with logging
-for cmd, cmakelog in zip(cmds, cmakelogs):
-    p = run(cmd, stdout=PIPE, stderr=PIPE)
-    stdout = p.stdout.decode("utf-8")
-    stderr = p.stderr.decode("utf-8")
-
-    with open(cmakelog, "w") as fd:
-        fd.write(stdout)
-
-    ei = stderr.find("error")
-    if ei >= 0:
-        errs.append(stderr[ei : ei + 60] + "...")
-    else:
-        errs.append("_")
-
-    if p.stderr:
-        log.warning(
-            dedent(
-                """
-                ---------- process warnings/errors ------------
-                {}
-                --------------------- end ---------------------"""
-            ).format(stderr)
-        )
-
-    log.info(
-        dedent(
-            """
-            ---------- compilation output ------------
-            {}
-            ------------------- end ------------------"""
-        ).format(stdout)
-    )
-
-log.info("\n------------- error report -------------")
-for cmd, err in zip(cmds, errs):
-    if err != "_":
-        log.error(" found error(s) in %s >> %s", " ".join(cmd), err)
-log.info("------------------ end -----------------")
-
-# come back from build folder
-os.chdir(path_current)
-# ===============================================================
-
+path_source = os.path.join(path_current, "niftypet")
+cs.cmake_cuda(
+    path_source,
+    path_build,
+    gpuarch,
+    logfile_prefix="nipet_",
+    msvc_version=Cnt["MSVC_VRSN"],
+)
 
 # ===============================================================
 # PYTHON SETUP
@@ -347,17 +276,7 @@ elif platform.system() == "Windows":
     fex = "*.pyd"
 # ----------------------------
 setup(
-    name="nipet",
-    license=__licence__,
     version="2.0.0",
-    description="CUDA-accelerated Python utilities for high-throughput PET/MR image reconstruction and analysis.",
-    long_description=long_description,
-    author=__author__[0],
-    author_email="p.markiewicz@ucl.ac.uk",
-    url="https://github.com/NiftyPET/NiftyPET",
-    keywords="PET image reconstruction and analysis",
-    python_requires=">=3.6",
-    packages=find_packages(exclude=["docs"]),
     package_data={
         "niftypet": ["auxdata/*"],
         "niftypet.nipet.lm": [fex],
@@ -365,23 +284,4 @@ setup(
         "niftypet.nipet.sct": [fex],
         "niftypet.nipet": [fex],
     },
-    zip_safe=False,
-    # namespace_packages=['niftypet'],
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Intended Audience :: Education",
-        "Intended Audience :: Healthcare Industry",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: Apache Software License",
-        "Operating System :: Microsoft :: Windows",
-        "Operating System :: POSIX :: Linux",
-        "Programming Language :: C",
-        "Programming Language :: C++",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3 :: Only",
-        "Topic :: Scientific/Engineering :: Medical Science Apps.",
-    ],
 )

@@ -207,18 +207,6 @@ void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, i
 }
 /** end of separable convolution */
 
-//************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(Cnst Cnt) {
-	size_t free_mem;
-	size_t total_mem;
-	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
-	double free_db = (double)free_mem;
-	double total_db = (double)total_mem;
-	double used_db = total_db - free_db;
-	if (Cnt.LOG <= LOGDEBUG) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
-}
-//************************************************************
-
 
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 //Element-wise multiplication

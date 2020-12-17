@@ -42,7 +42,7 @@ __global__ void bprj_drct(const float * sino,
 	const int * subs,
 	const short snno)
 {
-	int ixt = subs[blockIdx.x]; // transaxial indx 
+	int ixt = subs[blockIdx.x]; // transaxial indx
 	int ixz = threadIdx.x; // axial (z)
 
 	float bin = sino[c_li2sn[ixz].x + blockIdx.x*snno];
@@ -248,7 +248,7 @@ void gpu_bprj(float *bimg,
 		// number of "positive" michelogram elements used for projection (can be smaller than the maximum)
 		nil2r_c = (nrng_c + 1)*nrng_c / 2;
 		snno = nrng_c*nrng_c;
-		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
 		if (nrng_c == NRINGS) {
 			snno -= 12;
 			nil2r_c -= 6;
@@ -295,8 +295,7 @@ void gpu_bprj(float *bimg,
 
 	//============================================================================
 	bprj_drct << <Nprj, nrng_c >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno);
-	cudaError_t error = cudaGetLastError();
-	if(error != cudaSuccess){printf("CUDA kernel direct back-projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	int zoff = nrng_c;
@@ -316,18 +315,14 @@ void gpu_bprj(float *bimg,
 
 	if (Cnt.SPN == 1 && Noblq <= 1024){
 		bprj_oblq <<< Nprj, Noblq >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 	}
 	else {
 		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 		zoff += NSINOS / 4;
 		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p2): %s\n", cudaGetErrorString(error)); exit(-1); }
-
+		HANDLE_ERROR(cudaGetLastError());
 	}
 	//============================================================================
 
@@ -357,6 +352,7 @@ void gpu_bprj(float *bimg,
 		dim3 THRD(nvz, nar, 1);
 		dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
 		imReduce << <BLCK, THRD >> >(d_imr, d_im, vz0, nvz);
+		HANDLE_ERROR(cudaGetLastError());
 		//copy to host memory
 		HANDLE_ERROR(cudaMemcpy(bimg, d_imr, SZ_IMX*SZ_IMY*nvz * sizeof(float), cudaMemcpyDeviceToHost));
 		cudaFree(d_im);
@@ -425,22 +421,19 @@ void rec_bprj(float *d_bimg,
 
 	//============================================================================
 	bprj_drct << <Nprj, NRINGS >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
-	// cudaError_t error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel direct projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	int zoff = NRINGS;
 	//============================================================================
 	bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (+) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	zoff += NSINOS / 4;
 	//============================================================================
 	bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (-) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	cudaEventRecord(stop, 0);

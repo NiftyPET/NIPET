@@ -14,34 +14,6 @@ Copyrights: 2020
 #endif
 
 
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
-
-//************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(void) {
-	size_t free_mem;
-	size_t total_mem;
-	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
-	double free_db = (double)free_mem;
-	double total_db = (double)total_mem;
-	double used_db = total_db - free_db;
-	printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
-	// printf("\ni> GPU memory usage:\n   used  = %f MB,\n   free  = %f MB,\n   total = %f MB\n",
-	//        used_db/1024.0/1024.0, free_db/1024.0/1024.0, total_db/1024.0/1024.0);
-}
-//************************************************************
-
-
-LMprop lmprop; //global variable
-int* lm; //global variable
-
-
-
 //********** LIST MODA DATA FILE PROPERTIES (Siemens mMR) **************
 void getLMinfo(char *flm, const Cnst Cnt)
 {
@@ -206,8 +178,8 @@ void getLMinfo(char *flm, const Cnst Cnt)
 			c += 1;
 		}
 		if (Cnt.LOG <= LOGDEBUG){
-			printf("i> break time tag [%d] is:       %dms at position %lu. \n", i, btag[i], atag[i]);
-			printf("   # elements: %d/per chunk, %d/per thread. c = %d.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
+			printf("i> break time tag [%d] is:       %lums at position %lu. \n", i, btag[i], atag[i]);
+			printf("   # elements: %d/per chunk, %d/per thread. c = %lu.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
 		}
 		else if (Cnt.LOG <= LOGINFO)
 			printf("i> break time tag [%d] is:     %lums at position %lu.\r", i, btag[i], atag[i]); // ele = %lu ele-atag[i] = %lu , , ele, ele-atag[i]
@@ -220,7 +192,7 @@ void getLMinfo(char *flm, const Cnst Cnt)
 	ele4thrd[i - 1] = (ele - atag[i - 1] + (TOTHRDS - 1)) / TOTHRDS;
 	ele4chnk[i - 1] = ele - atag[i - 1];
 	if (Cnt.LOG <= LOGDEBUG){
-		printf("i> break time tag [%d] is:       %dms at position %lu.\n", i, btag[i], atag[i]);
+		printf("i> break time tag [%d] is:       %lums at position %lu.\n", i, btag[i], atag[i]);
 		printf("   # elements: %d/per chunk, %d/per thread.\n", ele4chnk[i - 1], ele4thrd[i - 1]);
 	}
 	if (Cnt.LOG <= LOGINFO)
@@ -257,7 +229,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 			if (ntag[0] == -1) ntag[0] = n;
 			ntag[1] = n;
 			if (Cnt.LOG <= LOGDEBUG)
-				printf("   > time break [%d] <%d, %d> is in. ele={%d, %d}.\n", n + 1, lmprop.btag[n], lmprop.btag[n + 1], lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
+				printf("   > time break [%d] <%lu, %lu> is in. ele={%d, %d}.\n", n + 1, lmprop.btag[n], lmprop.btag[n + 1], lmprop.ele4thrd[n], lmprop.ele4chnk[n]);
 			newn += 1;
 		}
 	}
@@ -279,7 +251,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt)
 		tmp_ele4thrd[nn] = lmprop.ele4thrd[n];
 		tmp_ele4chnk[nn] = lmprop.ele4chnk[n];
 		if (Cnt.LOG <= LOGDEBUG)
-			printf("   > break time tag (original) [%d] @%dms ele={%d, %d}.\n",
+			printf("   > break time tag (original) [%d] @%lums ele={%d, %d}.\n",
 				n + 1, tmp_btag[nn + 1], tmp_ele4thrd[nn], tmp_ele4chnk[nn]);
 
 		nn += 1;
@@ -337,7 +309,7 @@ void dsino_ucmpr(unsigned int *d_dsino,
 	HANDLE_ERROR(cudaMalloc(&d_d1sino, tot_bins * sizeof(unsigned char)));
 	HANDLE_ERROR(cudaMalloc(&d_p1sino, tot_bins * sizeof(unsigned char)));
 
-	//getMemUse();
+	//getMemUse(Cnt);
 
 	printf("i> uncompressing dynamic sino...");
 
@@ -351,7 +323,7 @@ void dsino_ucmpr(unsigned int *d_dsino,
 	for (int i = 0; i<nfrm; i++) {
 
 		sino_uncmprss << < grid, block >> >(d_dsino, d_p1sino, d_d1sino, i, tot_bins / 2);
-		cudaError_t err = cudaGetLastError(); if (err != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 
 		HANDLE_ERROR(cudaMemcpy(&pdsn[i*tot_bins], d_p1sino,
 			tot_bins * sizeof(unsigned char), cudaMemcpyDeviceToHost));

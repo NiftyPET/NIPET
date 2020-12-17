@@ -12,7 +12,7 @@ from textwrap import dedent
 
 from tqdm.auto import tqdm
 
-from niftypet.ninst.tools import LogHandler, path_resources, resources
+from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resources
 from niftypet.ninst import cudasetup as cs
 
 # log = logging.getLogger(__name__)

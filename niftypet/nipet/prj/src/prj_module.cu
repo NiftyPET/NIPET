@@ -174,7 +174,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 
 	float *im  = (float*)PyArray_DATA(p_im);
 	if (Cnt.LOG <= LOGDEBUG)
-		printf("i> forward-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1));
+		printf("i> forward-projection image dimensions: %ld, %ld\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1));
 
 	// input/output projection sinogram
 	float *prjout = (float*)PyArray_DATA(p_prjout);
@@ -380,7 +380,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	float *im = (float*)PyArray_DATA(p_im);
 
 	if (Cnt.LOG <= LOGDEBUG)
-		printf("i> forward-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1), PyArray_DIM(p_im, 2));
+		printf("i> forward-projection image dimensions: %ld, %ld, %ld\n", PyArray_DIM(p_im, 0), PyArray_DIM(p_im, 1), PyArray_DIM(p_im, 2));
 
 	int Nprj = PyArray_DIM(p_subs, 0);
 	int N0crs = PyArray_DIM(p_crs, 0);
@@ -603,7 +603,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	float *bimg = (float*)PyArray_DATA(p_bim);
 
 	if (Cnt.LOG <= LOGDEBUG)
-		printf("i> back-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_bim, 0), PyArray_DIM(p_bim, 1), PyArray_DIM(p_bim, 2));
+		printf("i> back-projection image dimensions: %ld, %ld, %ld\n", PyArray_DIM(p_bim, 0), PyArray_DIM(p_bim, 1), PyArray_DIM(p_bim, 2));
 
 	// sets the device on which to calculate
 	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));

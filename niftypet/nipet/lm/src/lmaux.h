@@ -5,12 +5,7 @@
 #ifndef LAUX_H
 #define LAUX_H
 
-#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
-void HandleError(cudaError_t err, const char *file, int line);
-
 extern LMprop lmprop;
-
-void getMemUse(void);
 
 //get the properties of LM and the chunks into which the LM is divided
 void getLMinfo(char *flm, const Cnst Cnt);
@@ -22,6 +17,5 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt);
 void dsino_ucmpr(unsigned int *d_dsino,
 	unsigned char *pdsn, unsigned char *ddsn,
 	int tot_bins, int nfrm);
-
 
 #endif //LAUX_H
