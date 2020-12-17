@@ -9,8 +9,8 @@ from niftypet import nimpa
 from niftypet import nipet
 
 mMRpars = nipet.get_mmrparams()
-mMRpars['Cnt']['VERBOSE'] = True
-mMRpars['Cnt']['LOG'] = logging.INFO
+mMRpars["Cnt"]["VERBOSE"] = True
+mMRpars["Cnt"]["LOG"] = logging.INFO
 
 pvcroi = []  # from amyroi_def import pvcroi
 # expected %error for static (SUVr) and PVC reconstructions
@@ -31,13 +31,42 @@ def test_histogramming(folder_in, folder_ref):
     hst = nipet.mmrhist(datain, mMRpars)
 
     # prompt counts: head curve & sinogram
-    assert np.sum(hst['phc']) == np.sum(hst['psino'])
+    assert np.sum(hst["phc"]) == np.sum(hst["psino"])
 
     # delayed counts: head curve & sinogram
-    assert np.sum(hst['dhc']) == np.sum(hst['dsino'])
+    assert np.sum(hst["dhc"]) == np.sum(hst["dsino"])
 
     # prompt counts: head curve & reference
-    assert np.sum(hst['phc']) == refpaths['histo']['p']
+    assert np.sum(hst["phc"]) == refpaths["histo"]["p"]
 
     # delayed counts: head curve & reference
-    assert np.sum(hst['dhc']) == refpaths['histo']['d']
+    assert np.sum(hst["dhc"]) == refpaths["histo"]["d"]
+
+
+def test_basic_reconstruction(folder_in, folder_ref, tmp_path):
+    datain = nipet.classify_input(folder_in, mMRpars)
+    refpaths, testext = nipet.resources.get_refimg(folder_ref)
+    opth = str(tmp_path / "basic_reconstruction")
+
+    muhdct = nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+    muodct = nipet.obj_mumap(datain, mMRpars, outpath=opth, store=True)
+
+    recon = nipet.mmrchain(
+        datain,
+        mMRpars,
+        frames=["timings", [3000, 3600]],
+        mu_h=muhdct,
+        mu_o=muodct,
+        itr=4,
+        fwhm=0.0,
+        outpath=opth,
+        fcomment="_suvr",
+        store_img=True,
+        store_img_intrmd=True,
+    )
+
+    testout = {"pet": recon["fpet"], "hmu": muhdct["im"], "omu": muodct["im"]}
+
+    for k in testext["basic"]:
+        diff = nimpa.imdiff(refpaths["basic"][k], testout[k], verbose=True, plot=False)
+        assert diff["mape"] <= emape_basic
