@@ -249,18 +249,6 @@ cs.cmake_cuda(
 # ===============================================================
 log.info("""found those packages:\n{}""".format(find_packages(exclude=["docs"])))
 
-freadme = os.path.join(os.path.dirname(os.path.realpath(__file__)), "README.rst")
-log.info(
-    """\
-    \rUsing this README file:
-    {}
-    """.format(
-        freadme
-    )
-)
-
-with open(freadme) as file:
-    long_description = file.read()
 
 # ---- for setup logging -----
 stdout = sys.stdout

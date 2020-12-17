@@ -70,7 +70,7 @@ void getLMinfo(char *flm, const Cnst Cnt)
 	//time offset based on the first time tag
 	int toff;
 	size_t last_taddr, first_taddr;
-	size_t c = 1;
+	long long c = 1;
 	//--
 	while (tag == 0) {
 		r = fread(buff, 4, 1, fr);
@@ -87,10 +87,10 @@ void getLMinfo(char *flm, const Cnst Cnt)
 	tag = 0; c = 1;
 	while (tag == 0) {
 #ifdef __linux__
-		fseek(fr, -4 * c, SEEK_END);
+		fseek(fr, c * -4, SEEK_END);
 #endif
 #ifdef WIN32
-		_fseeki64(fr, -4 * c, SEEK_END);
+		_fseeki64(fr, c * -4, SEEK_END);
 #endif
 
 		r = fread(buff, 4, 1, fr);
@@ -179,7 +179,7 @@ void getLMinfo(char *flm, const Cnst Cnt)
 		}
 		if (Cnt.LOG <= LOGDEBUG){
 			printf("i> break time tag [%d] is:       %lums at position %lu. \n", i, btag[i], atag[i]);
-			printf("   # elements: %d/per chunk, %d/per thread. c = %lu.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
+			printf("   # elements: %d/per chunk, %d/per thread. c = %lld.\n", ele4chnk[i - 1], ele4thrd[i - 1], c);
 		}
 		else if (Cnt.LOG <= LOGINFO)
 			printf("i> break time tag [%d] is:     %lums at position %lu.\r", i, btag[i], atag[i]); // ele = %lu ele-atag[i] = %lu , , ele, ele-atag[i]
