@@ -332,19 +332,19 @@ void gpu_randoms(float *rsn,
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 
 	// //===== Number of Crystal in Coincidence ======
 	dim3 dBpG(Cnt.NRNG, Cnt.NCRSR, 1);
 	dim3 dTpB(Cnt.NRNG, 16, 1);//16 is chosen as with Cnt.NRNG it makes max for no of threads ie 1024
 	rnd << <dBpG, dTpB >> >(d_ncrs, d_ones);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	// //=============================================
 
 
 	//========= INIT ==============================
 	rinit << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_fsum, d_ncrs);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 
 	//========= ITERATE ===========================
@@ -353,13 +353,13 @@ void gpu_randoms(float *rsn,
 		rdiv << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_res2, d_fsum, d_res1);
 		radd << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_res2, 0.5);
 	}
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 	HANDLE_ERROR(cudaDeviceSynchronize());
 
 	//=== form randoms sino ===
 	sgl2sino << <(NSINOS*AW + 1024) / 1024, 1024 >> >(d_rsino, d_resp, d_s2cr, d_aw2sn, d_sn2rng, Cnt.SPN);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//===
 
 	HANDLE_ERROR(cudaDeviceSynchronize());
@@ -660,19 +660,19 @@ void p_randoms(float *rsn,
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 
 	// //===== Number of Crystal in Coincidence ======
 	dim3 dBpG(Cnt.NRNG, Cnt.NCRSR, 1);
 	dim3 dTpB(Cnt.NRNG, 16, 1);//16 is chosen as with Cnt.NRNG it makes max for no of threads ie 1024
 	p_rnd << <dBpG, dTpB >> >(d_ncrs, d_ones, d_pmsksn, d_Msn1, d_cr2s);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	// //=============================================
 
 
 	//========= INIT ==============================
 	rinit << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_fsum, d_ncrs);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 
 	//========= ITERATE ===========================
@@ -681,13 +681,13 @@ void p_randoms(float *rsn,
 		rdiv << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_res2, d_fsum, d_res1);
 		radd << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_res2, 0.5);
 	}
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 	HANDLE_ERROR(cudaDeviceSynchronize());
 
 	//=== form randoms sino ===
 	sgl2sino << <(NSINOS*AW + 1024) / 1024, 1024 >> >(d_rsino, d_resp, d_s2cr, d_aw2sn, d_sn2rng, Cnt.SPN);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//===
 
 	HANDLE_ERROR(cudaDeviceSynchronize());

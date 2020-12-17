@@ -15,7 +15,7 @@ import scipy.ndimage as ndi
 
 from . import mmr_auxe
 from niftypet import nimpa
-import resources
+from . import resources
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)

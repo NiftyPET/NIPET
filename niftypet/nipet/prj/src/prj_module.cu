@@ -72,17 +72,6 @@ PyMODINIT_FUNC PyInit_petprj(void) {
 //====================== END PYTHON INIT ===============================
 
 
-#define CUDA_CHECK(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
-{
-   if (code != cudaSuccess)
-   {
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
-      if (abort) exit(code);
-   }
-}
-
-
 //==============================================================================
 // T R A N S A X I A L   P R O J E C T O R
 //------------------------------------------------------------------------------
@@ -198,7 +187,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	// CUDA --------------------------------------------------------------------
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
@@ -422,7 +411,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	float *prjout = (float*)PyArray_DATA(p_prjout);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><<><><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
 	gpu_fprj(prjout, im,
@@ -617,7 +606,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 		printf("i> back-projection image dimensions: %d, %d, %d\n", PyArray_DIM(p_bim, 0), PyArray_DIM(p_bim, 1), PyArray_DIM(p_bim, 2));
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 	gpu_bprj(bimg, sino, li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs, Nprj, Naw, N0crs, N1crs, Cnt);
@@ -825,7 +814,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	int *subs = (int*)PyArray_DATA(p_subs);
 
 	// sets the device on which to calculate
-	CUDA_CHECK( cudaSetDevice(Cnt.DEVID) );
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><<><><><><<><><><><><><><><><><>
 	osem(imgout, rcnmsk, psng, rsng, ssng, nsng, asng, subs, imgsens,

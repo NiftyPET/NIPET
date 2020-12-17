@@ -315,7 +315,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	if (Cnt.LOG <= LOGDEBUG) printf("i> mumx = %f, mumin = %f, emmx = %f, emmn = %f\n", mumx, mumn, emmx, emmn);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 	
 	//<><><><><><><><><> S C A T T E R    K E R N E L <><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 	prob_scatt(
