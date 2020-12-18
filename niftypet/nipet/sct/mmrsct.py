@@ -644,7 +644,7 @@ def vsm(
     if emmsk and os.path.isfile(datain['em_nocrr']):
         nim = nib.load(datain['em_nocrr'])
         A   = nim.get_sform()
-        eim = np.float32( nim.get_data() )
+        eim = nim.get_fdata(dtype=np.float32)
         eim = eim[:,::-1,::-1]
         eim = np.transpose(eim, (2, 1, 0))
 

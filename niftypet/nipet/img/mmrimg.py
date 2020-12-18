@@ -392,7 +392,7 @@ def obj_mumap(
     nim = nib.load(fmu)
     # get the affine transform
     A = nim.get_sform()
-    mu = nim.get_data()
+    mu = nim.get_fdata(dtype=np.float32)
     mu = np.transpose(mu[:,::-1,::-1], (2, 1, 0))
     # convert to mu-values
     mu = np.float32(mu)/1e4
@@ -696,7 +696,7 @@ def align_mumap(
 
         #> convert to mu-values before resampling to avoid artefacts with negative values
         nii = nib.load(datain['pCT'])
-        img = np.float32(nii.get_data())
+        img = nii.get_fdata(dtype=np.float32)
         img_mu = hu2mu(img)
         nii_mu = nib.Nifti1Image(img_mu, nii.affine)
         fflo = os.path.join(tmpdir, 'pct2mu-not-aligned.nii.gz')
@@ -746,7 +746,7 @@ def align_mumap(
     #-get the NIfTI of registered image
     nim = nib.load(freg)
     A   = nim.affine
-    imreg = np.float32( nim.get_data() )
+    imreg = nii.get_fdata(dtype=np.float32)
     imreg = imreg[:,::-1,::-1]
     imreg = np.transpose(imreg, (2, 1, 0))
 
@@ -969,7 +969,7 @@ def pct_mumap(
     # get the NIfTI of the pCT
     nim = nib.load(fpct)
     A   = nim.get_sform()
-    pct = np.float32( nim.get_data() )
+    pct = nii.get_fdata(dtype=np.float32)
     pct = pct[:,::-1,::-1]
     pct = np.transpose(pct, (2, 1, 0))
     # convert the HU units to mu-values
@@ -1294,14 +1294,14 @@ def hdw_mumap(
         # just to get the dims, get the ref image
         nimo = nib.load(hmupos[0]['niipath'])
         A = nimo.affine
-        imo = np.float32( nimo.get_data() )
+        imo = nimo.get_fdata(dtype=np.float32)
         imo[:] = 0
 
         for i in hparts:
             fin  = os.path.join(os.path.dirname (hmupos[0]['niipath']),
                                 'r'+os.path.basename(hmupos[i]['niipath']).split('.')[0]+'.nii.gz' )
             nim = nib.load(fin)
-            mu = nim.get_data()
+            mu = nim.get_fdata(dtype=np.float32)
             mu[mu<0] = 0
 
             imo += mu
