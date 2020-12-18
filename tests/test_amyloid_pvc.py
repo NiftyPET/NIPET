@@ -75,10 +75,15 @@ def muhdct(mMRpars, datain, tmp_path_factory, worker_id):
     opth = str(tmp_path / "muhdct")
 
     if worker_id == "master":  # not xdist, auto-reuse
-        return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+        return nipet.hdw_mumap(
+            datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True
+        )
 
-    with FileLock(str(opth) + ".lock"):  # xdist, force auto-reuse via flock
-        return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+    flock = FileLock(str(opth) + ".lock")
+    with flock.acquire(poll_intervall=0.5):  # xdist, force auto-reuse via flock
+        return nipet.hdw_mumap(
+            datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True
+        )
 
 
 @pytest.fixture(scope="session")
