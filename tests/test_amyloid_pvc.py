@@ -9,10 +9,6 @@ import pytest
 from niftypet import nimpa
 from niftypet import nipet
 
-mMRpars = nipet.get_mmrparams()
-mMRpars["Cnt"]["VERBOSE"] = True
-mMRpars["Cnt"]["LOG"] = logging.INFO
-
 # segmentation/parcellation for PVC, with unique regions numbered from 0 onwards
 pvcroi = []
 pvcroi.append([66, 67] + list(range(81, 95)))  # white matter
@@ -59,10 +55,103 @@ emape_algnd = {
 }
 
 
-def test_histogramming(folder_in, folder_ref):
-    datain = nipet.classify_input(folder_in, mMRpars)
-    refpaths, testext = nipet.resources.get_refimg(folder_ref)
-    hst = nipet.mmrhist(datain, mMRpars)
+@pytest.fixture(scope="session")
+def mMRpars():
+    params = nipet.get_mmrparams()
+    params["Cnt"]["VERBOSE"] = True
+    params["Cnt"]["LOG"] = logging.INFO
+    return params
+
+
+@pytest.fixture(scope="session")
+def datain(mMRpars, folder_in):
+    return nipet.classify_input(folder_in, mMRpars)
+
+
+@pytest.fixture()
+def muhdct(mMRpars, datain, tmp_path):
+    opth = str(tmp_path / "muhdct")
+    return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+
+
+@pytest.fixture(scope="session")
+def refimg(folder_ref):
+    # predetermined structure of the reference folder
+    basic = path.join(folder_ref, "basic")
+    spm = path.join(folder_ref, "dyn_aligned", "spm")
+    niftyreg = path.join(folder_ref, "dyn_aligned", "niftyreg")
+    refpaths = {
+        "histo": {"p": 1570707830, "d": 817785422},
+        "basic": {
+            "pet": path.join(basic, "17598013_t-3000-3600sec_itr-4_suvr.nii.gz"),
+            "omu": path.join(basic, "mumap-from-DICOM_no-alignment.nii.gz"),
+            "hmu": path.join(basic, "hardware_umap.nii.gz"),
+        },
+        "aligned": {
+            "spm": {
+                "hmu": path.join(spm, "hardware_umap.nii.gz"),
+                "omu": path.join(spm, "mumap-PCT-aligned-to_t0-3600_AC.nii.gz"),
+                "pos": path.join(spm, "17598013_t0-3600sec_itr2_AC-UTE.nii.gz"),
+                "pet": path.join(spm, "17598013_nfrm-2_itr-4.nii.gz"),
+                "trm": path.join(
+                    spm, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz"
+                ),
+                "pvc": path.join(
+                    spm, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz"
+                ),
+            },
+            "niftyreg": {
+                "hmu": path.join(niftyreg, "hardware_umap.nii.gz"),
+                "omu": path.join(niftyreg, "mumap-PCT-aligned-to_t0-3600_AC.nii.gz"),
+                "pos": path.join(niftyreg, "17598013_t0-3600sec_itr2_AC-UTE.nii.gz"),
+                "pet": path.join(niftyreg, "17598013_nfrm-2_itr-4.nii.gz"),
+                "trm": path.join(
+                    niftyreg, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz"
+                ),
+                "pvc": path.join(
+                    niftyreg,
+                    "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz",
+                ),
+            },
+        },
+    }
+
+    testext = {
+        "basic": {
+            "pet": "static reconstruction with unaligned UTE mu-map",
+            "hmu": "hardware mu-map for the static unaligned reconstruction",
+            "omu": "object mu-map for the static unaligned reconstruction",
+        },
+        "aligned": {
+            "hmu": "hardware mu-map for the 2-frame aligned reconstruction",
+            "omu": "object mu-map for the 2-frame aligned reconstruction",
+            "pos": "AC reconstruction for positioning (full acquisition used)",
+            "pet": "2-frame scan with aligned UTE mu-map",
+            "trm": "trimming post reconstruction",
+            "pvc": "PVC post reconstruction",
+        },
+    }
+
+    # check basic files
+    frefs = refpaths["basic"]
+    for k in frefs:
+        if not path.isfile(frefs[k]):
+            raise FileNotFoundError(errno.ENOENT, frefs[k])
+
+    # check reg tools: niftyreg and spm
+    frefs = refpaths["aligned"]
+    for r in frefs:
+        for k in frefs[r]:
+            if not path.isfile(frefs[r][k]):
+                raise FileNotFoundError(errno.ENOENT, frefs[r][k])
+
+    return refpaths, testext
+
+
+def test_histogramming(mMRpars, datain, refimg, tmp_path):
+    refpaths, _ = refimg
+    opth = str(tmp_path / "histogramming")
+    hst = nipet.mmrhist(datain, mMRpars, outpath=opth, store=True)
 
     # prompt counts: head curve & sinogram
     assert np.sum(hst["phc"]) == np.sum(hst["psino"])
@@ -74,12 +163,10 @@ def test_histogramming(folder_in, folder_ref):
     assert np.sum(hst["dhc"]) == refpaths["histo"]["d"]
 
 
-def test_basic_reconstruction(folder_in, folder_ref, tmp_path):
-    datain = nipet.classify_input(folder_in, mMRpars)
-    refpaths, testext = nipet.resources.get_refimg(folder_ref)
+def test_basic_reconstruction(mMRpars, datain, muhdct, refimg, tmp_path):
+    refpaths, testext = refimg
     opth = str(tmp_path / "basic_reconstruction")
 
-    muhdct = nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
     muodct = nipet.obj_mumap(datain, mMRpars, outpath=opth, store=True)
     recon = nipet.mmrchain(
         datain,
@@ -102,12 +189,10 @@ def test_basic_reconstruction(folder_in, folder_ref, tmp_path):
 
 
 @pytest.mark.parametrize("reg_tool", ["niftyreg", "spm"])
-def test_aligned_reconstruction(reg_tool, folder_in, folder_ref, tmp_path):
-    datain = nipet.classify_input(folder_in, mMRpars)
-    refpaths, testext = nipet.resources.get_refimg(folder_ref)
+def test_aligned_reconstruction(reg_tool, mMRpars, datain, muhdct, refimg, tmp_path):
+    refpaths, testext = refimg
     opth = str(tmp_path / "aligned_reconstruction")
 
-    muhdct = nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
     muopct = nipet.align_mumap(
         datain,
         mMRpars,
