@@ -1,12 +1,13 @@
 """auxilary functions for raw PET data processing."""
 import glob
 import logging
-from math import pi
 import os
-from os.path import join as pjoin
-from pkg_resources import resource_filename
 import re
 import sys
+from math import pi
+from os.path import join as pjoin
+from pkg_resources import resource_filename
+from textwrap import dedent
 
 import nibabel as nib
 import numpy as np
@@ -128,9 +129,9 @@ def hdr_lm(datain, Cnt):
             if loc in dhdr:
                 lmhdr = dhdr[loc].value
                 if '!INTERFILE' in lmhdr and 'start horizontal bed position' in lmhdr:
-                    log.info('''\
-                        \robtained list-mode interfile header from:
-                        \r[{}, {}]'''.format(hex(loc[0]), hex(loc[1])))
+                    log.info(dedent('''\
+                        obtained list-mode interfile header from:
+                        [{}, {}]''').format(hex(loc[0]), hex(loc[1])))
                     found_lmhdr = True
                     break
         if not found_lmhdr:
@@ -269,10 +270,10 @@ def time_diff_norm_acq(datain):
         log.warning('time difference between calibration and acquisition is: {} hrs and {} mins'.format(dhrs, dmns))
 
     if np.sum([cy-y, cm-m, cd-d])!=0:
-        log.warning('''\
-            \rdaily QC/calibration was performed on different day(!):
-            \r{}-{}-{} vs. {}-{}-{}
-            '''.format(cy, cm, cd, y,m,d))
+        log.warning(dedent('''\
+            daily QC/calibration was performed on different day(!):
+            {}-{}-{} vs. {}-{}-{}
+            ''').format(cy, cm, cd, y,m,d))
 
 
 def timings_from_list(flist, offset=0):
@@ -814,11 +815,11 @@ def transaxial_lut(Cnt, visualisation=False):
 
 def get_npfiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger('''\
-        \r------------------------------------------------------------------
+    logger(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     # pCT mu-map
     if os.path.basename(dfile)=='mumap_pCT.npy':
@@ -845,11 +846,11 @@ def get_npfiles(dfile, datain, v=False):
 
 def get_niifiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger('''\
-        \r------------------------------------------------------------------
+    logger(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     #> NIfTI file of converted MR-based mu-map from DICOMs
     if os.path.basename(dfile).split('.nii')[0]=='mumap-from-DICOM':
@@ -935,11 +936,11 @@ def get_niifiles(dfile, datain, v=False):
 
 def get_dicoms(dfile, datain, Cnt):
     # v = Cnt['VERBOSE']
-    log.debug('''\
-        \r------------------------------------------------------------------
+    log.debug(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     d = dcm.dcmread(dfile)
     dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])

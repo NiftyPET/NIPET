@@ -1,27 +1,21 @@
 '''
 Voxel-driven scatter modelling for PET data
 '''
-
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
-
-#-----------------------------------------------------------------------
-
-
-import os, sys
+import os
+import sys
+import logging
+import time
 from math import pi
-import scipy.ndimage as ndi
+
 import nibabel as nib
 import numpy as np
-from scipy.interpolate import CloughTocher2DInterpolator
-import scipy.spatial.qhull as qhull
+import scipy.ndimage as ndi
 from concurrent.futures import ThreadPoolExecutor
+from scipy.interpolate import CloughTocher2DInterpolator
+from scipy.spatial import qhull
 from scipy.interpolate import interp2d
 from scipy.special import erfc
-import time
-
-import logging
-log = logging.getLogger(__name__)
+from tqdm.auto import trange
 
 from ..img import mmrimg
 from .. import mmraux
@@ -30,13 +24,16 @@ from .. import mmrnorm
 from . import nifty_scatter
 from ..prj import mmrprj, petprj, mmrrec
 
-#-----------------------------------------------------------------------
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
+
+
 def fwhm2sig (fwhm, Cnt):
     '''
     Convert FWHM to sigma (standard deviation)
     '''
     return (fwhm/Cnt['SO_VXY']) / (2*(2*np.log(2))**.5)
-#-----------------------------------------------------------------------
 
 
 #=======================================================================
@@ -70,26 +67,24 @@ def get_scrystals(scanner_params):
     #> initialise list of transaxial scatter crystal table
     scrs = []
 
-    logtxt = ''
-
     #> transaxial scatter crystal selection for modelling
-    for c in range(Cnt['NCRS']):
-        if (((c + 1) % 9) == 0): continue
-        cntr += 1
-        if (cntr == SCRS_T):
-            cntr = 0
-            scrs.append([
-                c,
-                0.5*(crs[c, 0] + crs[c, 2]),
-                0.5*(crs[c, 1] + crs[c, 3])
+    with trange(
+        Cnt['NCRS'],
+        desc="transaxial scatter",
+        disable=log.getEffectiveLevel() > logging.INFO,
+    ) as pbar:
+        for c in pbar:
+            if (((c + 1) % 9) == 0):
+                continue
+            cntr += 1
+            if (cntr == SCRS_T):
+                cntr = 0
+                scrs.append([
+                    c, 0.5*(crs[c, 0] + crs[c, 2]), 0.5*(crs[c, 1] + crs[c, 3])
                 ])
 
-            logtxt += '''\
-                \r{}-th scatter crystal is #{}: (x,y) = {}, {}
-                '''.format(iscrs, c, scrs[-1][1], scrs[-1][2])
-            iscrs += 1
-
-    log.info('transaxial scatter crystal definitions:\n\n'+logtxt)
+                pbar.set_postfix(crystal=iscrs, num=c, x=scrs[-1][1], y=scrs[-1][2])
+                iscrs += 1
 
     #> convert the scatter crystal table to Numpy array
     scrs = np.array(scrs, dtype=np.float32)
