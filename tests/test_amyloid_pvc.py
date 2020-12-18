@@ -68,7 +68,7 @@ def datain(mMRpars, folder_in):
     return nipet.classify_input(folder_in, mMRpars)
 
 
-@pytest.fixture()
+@pytest.fixture()  # scope="session" https://github.com/pytest-dev/pytest/issues/6888
 def muhdct(mMRpars, datain, tmp_path):
     opth = str(tmp_path / "muhdct")
     return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
