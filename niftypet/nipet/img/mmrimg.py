@@ -406,8 +406,8 @@ def obj_mumap(
     #> store the mu-map if requested
     if store_npy:
         # to numpy array
-        fnp = os.path.join(fmudir, 'mumap-from-DICOM.npy' )
-        np.save(fnp, (mu, A))
+        fnp = os.path.join(fmudir, "mumap-from-DICOM.npz")
+        np.savez(fnp, mu=mu, A=A)
 
     if store:
         # with this file name
@@ -780,8 +780,8 @@ def align_mumap(
     if store_npy:
         #> Numpy
         if store_to_npy:
-            fnp = os.path.join(opth, fname + '.npy')
-            np.save(fnp, (mu, A, fnp))
+            fnp = os.path.join(opth, fname + ".npz")
+            np.save(fnp, mu=mu, A=A)
     if store:
         #> NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
@@ -991,8 +991,8 @@ def pct_mumap(
         mmraux.create_dir(pctumapdir)
         #> Numpy
         if store_npy:
-            fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
-            np.save(fnp, (mu, A, fnp))
+            fnp = os.path.join(pctumapdir, "mumap-pCT.npz")
+            np.save(fnp, mu=mu, A=A)
 
         #> NIfTI
         fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
@@ -1284,9 +1284,10 @@ def hdw_mumap(
             hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
             log.info('loaded hardware mu-map from file: {}'.format(datain['hmumap']))
             fnp = datain['hmumap']
-    elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        hmu, A, fmu = np.load(fnp, allow_pickle=True)
+    elif outpath!='' and os.path.isfile(os.path.join(fmudir, "hmumap.npz")):
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        arr = np.load(fnp, allow_pickle=True)
+        hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
         datain['hmumap'] = fnp
     # otherwise generate it from the parts through resampling the high resolution CT images
     else:
@@ -1316,8 +1317,8 @@ def hdw_mumap(
         hmu = np.transpose(imo[:,::-1,::-1], (2, 1, 0))
 
         # save the objects to numpy arrays
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        np.save(fnp, (hmu, A, fmu))
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        np.savez(fnp, hmu=hmu, A=A, fmu=fmu)
         #update the datain dictionary (assuming it is mutable)
         datain['hmumap'] = fnp
 
