@@ -1,4 +1,4 @@
-graft niftypet/auxdata
+graft niftypet/nipet/auxdata
 graft niftypet/nipet/src
 graft niftypet/nipet/lm/src
 graft niftypet/nipet/prj/src

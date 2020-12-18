@@ -266,7 +266,7 @@ elif platform.system() == "Windows":
 setup(
     version="2.0.0",
     package_data={
-        "niftypet": ["auxdata/*"],
+        "niftypet": ["nipet/auxdata/*"],
         "niftypet.nipet.lm": [fex],
         "niftypet.nipet.prj": [fex],
         "niftypet.nipet.sct": [fex],
