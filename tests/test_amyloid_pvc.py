@@ -1,5 +1,6 @@
 import errno
 import logging
+from filelock import FileLock
 from os import path
 from textwrap import dedent
 
@@ -68,10 +69,16 @@ def datain(mMRpars, folder_in):
     return nipet.classify_input(folder_in, mMRpars)
 
 
-@pytest.fixture()  # scope="session" https://github.com/pytest-dev/pytest/issues/6888
-def muhdct(mMRpars, datain, tmp_path):
+@pytest.fixture(scope="session")
+def muhdct(mMRpars, datain, tmp_path_factory, worker_id):
+    tmp_path = tmp_path_factory.getbasetemp().parent
     opth = str(tmp_path / "muhdct")
-    return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+
+    if worker_id == "master":  # not xdist, auto-reuse
+        return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
+
+    with FileLock(str(opth) + ".lock"):  # xdist, force auto-reuse via flock
+        return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
 
 
 @pytest.fixture(scope="session")
