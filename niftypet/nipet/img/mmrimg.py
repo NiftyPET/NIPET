@@ -723,12 +723,11 @@ def align_mumap(
                 raise IOError('The provided NIfTI UTE path is not valid.')
 
     #> call the resampling routine to get the pCT/UTE in place
-    if 'matlab_eng' in regdct:
+    if reg_tool == "spm":
         nimpa.resample_spm(
             fpet,
             fflo,
             faff_mrpet,
-            matlab_eng=regdct['matlab_eng'],
             fimout=freg,
             del_ref_uncmpr=True,
             del_flo_uncmpr=True,
