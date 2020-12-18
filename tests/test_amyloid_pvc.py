@@ -1,6 +1,5 @@
+import errno
 import logging
-import sys
-from collections import Iterable
 from os import path
 from textwrap import dedent
 
@@ -14,7 +13,40 @@ mMRpars = nipet.get_mmrparams()
 mMRpars["Cnt"]["VERBOSE"] = True
 mMRpars["Cnt"]["LOG"] = logging.INFO
 
-pvcroi = []  # from amyroi_def import pvcroi
+# segmentation/parcellation for PVC, with unique regions numbered from 0 onwards
+pvcroi = []
+pvcroi.append([66, 67] + list(range(81, 95)))  # white matter
+pvcroi.append([36])  # brain stem
+pvcroi.append([35])  # pons
+pvcroi.append([39, 40, 72, 73, 74])  # cerebellum GM
+pvcroi.append([41, 42])  # cerebellum WM
+pvcroi.append([48, 49])  # hippocampus
+pvcroi.append([167, 168])  # posterior cingulate gyrus
+pvcroi.append([139, 140])  # middle cingulate gyrus
+pvcroi.append([101, 102])  # anterior cingulate gyrus
+pvcroi.append([169, 170])  # precuneus
+pvcroi.append([32, 33])  # amygdala
+pvcroi.append([37, 38])  # caudate
+pvcroi.append([56, 57])  # pallidum
+pvcroi.append([58, 59])  # putamen
+pvcroi.append([60, 61])  # thalamus
+pvcroi.append([175, 176, 199, 200])  # parietal without precuneus
+pvcroi.append([133, 134, 155, 156, 201, 202, 203, 204])  # temporal
+pvcroi.append([4, 5, 12, 16, 43, 44, 47, 50, 51, 52, 53])  # CSF
+pvcroi.append([24, 31, 62, 63, 70, 76, 77, 96, 97])  # basal ganglia + optic chiasm
+pvcroi.append(
+    list(range(103, 110 + 1))
+    + list(range(113, 126 + 1))
+    + list(range(129, 130 + 1))
+    + list(range(135, 138 + 1))
+    + list(range(141, 154 + 1))
+    + list(range(157, 158 + 1))
+    + list(range(161, 166 + 1))
+    + list(range(171, 174 + 1))
+    + list(range(177, 188 + 1))
+    + list(range(191, 198 + 1))
+    + list(range(205, 208 + 1))
+)  # remaining neocortex
 # expected %error for static (SUVr) and PVC reconstructions
 emape_basic = 0.1
 emape_algnd = {
