@@ -89,16 +89,13 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	// axial LUTs
 	PyObject * o_axLUT;
 
-	// transaxial LUT dictionary (e.g., 2D sino where dead bins are out).
-	PyObject * o_txLUT;
-
 	//output dictionary for scatter results
 	PyObject * o_sctout;
 
 
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "OOOOOOOO", &o_sctout, &o_mumap, &o_mumsk, &o_emimg, &o_sctLUT, &o_txLUT, &o_axLUT, &o_mmrcnst))
+	if (!PyArg_ParseTuple(args, "OOOOOOO", &o_sctout, &o_mumap, &o_mumsk, &o_emimg, &o_sctLUT, &o_axLUT, &o_mmrcnst))
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -131,6 +128,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	PyObject* pd_AXR = PyDict_GetItemString(o_mmrcnst, "AXR");
 	Cnt.AXR = (float)PyFloat_AsDouble(pd_AXR);
 
+
 	PyObject* pd_TOFBINN = PyDict_GetItemString(o_mmrcnst, "TOFBINN");
 	Cnt.TOFBINN = (int)PyLong_AsLong(pd_TOFBINN);
 	PyObject* pd_TOFBINS = PyDict_GetItemString(o_mmrcnst, "TOFBINS");
@@ -156,6 +154,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	PyObject* pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
 	Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
 
+
 	//> images
 	PyArrayObject *p_mumap=NULL, *p_mumsk=NULL, *p_emimg=NULL;
 	p_mumap = (PyArrayObject *)PyArray_FROM_OTF(o_mumap, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
@@ -163,22 +162,13 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	p_emimg = (PyArrayObject *)PyArray_FROM_OTF(o_emimg, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	//> output dictionary for results
-	PyObject* pd_bind = PyDict_GetItemString(o_sctout, "bin_indx");
 	PyObject* pd_sct3 = PyDict_GetItemString(o_sctout, "sct_3d");
 	PyObject* pd_sval = PyDict_GetItemString(o_sctout, "sct_val");
-	PyObject* pd_xsxu = PyDict_GetItemString(o_sctout, "xsxu");
 
-	PyArrayObject *p_bind=NULL, *p_sct3=NULL, *p_xsxu=NULL, *p_sval=NULL;
-	p_bind = (PyArrayObject *)PyArray_FROM_OTF(pd_bind, NPY_INT32, NPY_ARRAY_INOUT_ARRAY2);
+	PyArrayObject *p_sct3=NULL,  *p_sval=NULL;
 	p_sct3 = (PyArrayObject *)PyArray_FROM_OTF(pd_sct3, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
-	p_xsxu = (PyArrayObject *)PyArray_FROM_OTF(pd_xsxu, NPY_INT8, NPY_ARRAY_INOUT_ARRAY2);
 	p_sval = (PyArrayObject *)PyArray_FROM_OTF(pd_sval, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
 
-
-	//> transaxial crystal LUTs:
-	PyObject* pd_crs = PyDict_GetItemString(o_txLUT, "crs");
-	PyArrayObject *p_crs=NULL;
-	p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	//> axial LUTs:
 	PyObject* pd_sn1_rno  = PyDict_GetItemString(o_axLUT, "sn1_rno");
@@ -197,53 +187,56 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Cnt.NSCRS = (int)PyLong_AsLong(pd_NSCRS);
 
 	//> scatter LUTs:
-	PyObject* pd_SCTCRS = PyDict_GetItemString(o_sctLUT, "SCTCRS");
+	PyObject* pd_scrs   = PyDict_GetItemString(o_sctLUT, "scrs");
+	PyObject* pd_xsxu   = PyDict_GetItemString(o_sctLUT, "xsxu");
 	PyObject* pd_KN 	= PyDict_GetItemString(o_sctLUT, "KN");
-	PyObject* pd_isrng 	= PyDict_GetItemString(o_sctLUT, "isrng");
+	PyObject* pd_sirng 	= PyDict_GetItemString(o_sctLUT, "sirng");
+	PyObject* pd_srng 	= PyDict_GetItemString(o_sctLUT, "srng");
 	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
 	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
 	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
 	
-	PyArrayObject 	*p_SCTCRS=NULL, *p_KN=NULL, *p_isrng=NULL, 
+	PyArrayObject 	*p_scrs=NULL, *p_KN=NULL, 
+					*p_isrng=NULL, *p_srng=NULL, *p_xsxu=NULL,
 					*p_offseg=NULL, *p_sctaxR=NULL, *p_sctaxW=NULL;
 
-	p_SCTCRS	= (PyArrayObject *)PyArray_FROM_OTF(pd_SCTCRS,  NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
-	p_KN 		= (PyArrayObject *)PyArray_FROM_OTF(pd_KN, 		NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
-	p_isrng 	= (PyArrayObject *)PyArray_FROM_OTF(pd_isrng, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
-	p_offseg 	= (PyArrayObject *)PyArray_FROM_OTF(pd_offseg, 	NPY_INT16, 		NPY_ARRAY_IN_ARRAY);
-	p_sctaxR 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxR, 	NPY_INT32, 		NPY_ARRAY_IN_ARRAY);
-	p_sctaxW 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxW, 	NPY_FLOAT32, 	NPY_ARRAY_IN_ARRAY);
+	p_scrs  	= (PyArrayObject *)PyArray_FROM_OTF(pd_scrs,   NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_xsxu 		= (PyArrayObject *)PyArray_FROM_OTF(pd_xsxu,   NPY_INT8,	NPY_ARRAY_IN_ARRAY);
+	p_KN 		= (PyArrayObject *)PyArray_FROM_OTF(pd_KN, 	   NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_isrng 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sirng,  NPY_INT16,   NPY_ARRAY_IN_ARRAY);
+	p_srng 		= (PyArrayObject *)PyArray_FROM_OTF(pd_srng,   NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+	p_offseg 	= (PyArrayObject *)PyArray_FROM_OTF(pd_offseg, NPY_INT16, 	NPY_ARRAY_IN_ARRAY);
+	p_sctaxR 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxR, NPY_INT32, 	NPY_ARRAY_IN_ARRAY);
+	p_sctaxW 	= (PyArrayObject *)PyArray_FROM_OTF(pd_sctaxW, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 	//-------------------------
+
 
 	/* If that didn't work, throw an exception. */
 	if (p_mumap == NULL || p_mumsk == NULL 	|| p_emimg == NULL ||
-		p_bind == NULL 	|| p_sct3 == NULL 	|| p_sval == NULL  || p_xsxu == NULL ||
-		p_crs == NULL   || p_sn1_rno == NULL|| p_sn1_sn11 == NULL ||
-		p_SCTCRS == NULL|| p_KN == NULL 	|| p_isrng == NULL 	||
-		p_offseg == NULL|| p_sctaxR == NULL || p_sctaxW == NULL )
+		p_sct3 == NULL 	|| p_sval == NULL  || p_xsxu == NULL ||
+		p_sn1_sn11 == NULL || p_sn1_rno == NULL|| p_srng == NULL ||
+		p_scrs == NULL|| p_KN == NULL 	|| p_isrng == NULL ||
+		p_offseg == NULL|| p_sctaxR == NULL || p_sctaxW == NULL)
 	{
 		Py_XDECREF(p_mumap);
 		Py_XDECREF(p_mumsk);
 		Py_XDECREF(p_emimg);
-		Py_XDECREF(p_crs);
+		Py_XDECREF(p_xsxu);
 		Py_XDECREF(p_sn1_rno);
 		Py_XDECREF(p_sn1_sn11);
 
-		Py_XDECREF(p_SCTCRS);
+		Py_XDECREF(p_scrs);
 		Py_XDECREF(p_KN);
 		Py_XDECREF(p_isrng);
+		Py_XDECREF(p_srng);
 		Py_XDECREF(p_offseg);
 		Py_XDECREF(p_sctaxR);
 		Py_XDECREF(p_sctaxW);
 
-		PyArray_DiscardWritebackIfCopy(p_bind);
-		Py_XDECREF(p_bind);
 		PyArray_DiscardWritebackIfCopy(p_sct3);
 		Py_XDECREF(p_sct3);
 		PyArray_DiscardWritebackIfCopy(p_sval);
 		Py_XDECREF(p_sval);
-		PyArray_DiscardWritebackIfCopy(p_xsxu);
-		Py_XDECREF(p_xsxu);
 
 		printf("e> problem with getting the images and LUTs in C functions... :(\n");
 		return NULL;
@@ -257,10 +250,11 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	short *sn1_rno = (short*)PyArray_DATA(p_sn1_rno);
 	short *sn1_sn11 = (short*)PyArray_DATA(p_sn1_sn11);
 
-	float *crs = (float*)PyArray_DATA(p_crs);
-
 	//indexes of rings included in scatter estimation
 	short *isrng = (short*)PyArray_DATA(p_isrng);
+	//axial scatter ring position
+	float *srng = (float*)PyArray_DATA(p_srng);
+
 	//offset in each segment used for rings to sino LUT
 	short *offseg = (short*)PyArray_DATA(p_offseg);
 	//scatter sino indexes in axial dimensions through Michelogram used for interpolation in 3D
@@ -271,12 +265,12 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	float *KNlut = (float*)PyArray_DATA(p_KN);
 
 	// transaxial scatter crystal table
-	float *scrs = (float*)PyArray_DATA(p_SCTCRS);
+	float *scrs = (float*)PyArray_DATA(p_scrs);
+
+	char *xsxu = (char*)PyArray_DATA(p_xsxu);
 
 	//output structure
 	scatOUT sctout;
-	sctout.xsxu = (char*)PyArray_DATA(p_xsxu);
-	sctout.bind = (int*)PyArray_DATA(p_bind);
 	sctout.sval = (float*)PyArray_DATA(p_sval);
 	sctout.s3d = (float*)PyArray_DATA(p_sct3);
 
@@ -327,7 +321,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 		offseg,
 		scrs,
 		isrng,
-		crs,
+		srng,
+		xsxu,
 		sn1_rno,
 		sn1_sn11,
 		Cnt);
@@ -343,21 +338,19 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Py_DECREF(p_sn1_rno);
 	Py_DECREF(p_sn1_sn11);
 	Py_DECREF(p_isrng);
+	Py_DECREF(p_srng);
+	Py_DECREF(p_xsxu);
 	Py_DECREF(p_offseg);
 	Py_DECREF(p_sctaxR);
 	Py_DECREF(p_sctaxW);
 	Py_DECREF(p_KN);
-	Py_DECREF(p_SCTCRS);
+	Py_DECREF(p_scrs);
 
-	PyArray_ResolveWritebackIfCopy(p_bind);
-	Py_DECREF(p_bind);
 	PyArray_ResolveWritebackIfCopy(p_sct3);
 	Py_DECREF(p_sct3);
 	PyArray_ResolveWritebackIfCopy(p_sval);
 	Py_DECREF(p_sval);
-	PyArray_ResolveWritebackIfCopy(p_xsxu);
-	Py_DECREF(p_xsxu);
-
+	
 	Py_INCREF(Py_None);
 	if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
 	return Py_None;

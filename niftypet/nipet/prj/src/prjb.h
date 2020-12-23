@@ -18,7 +18,7 @@ void gpu_bprj(float *bimg,
 	int *subs,
 	int Nprj,
 	int Naw,
-	int n0crs, int n1crs,
+	int N0crs,
 	Cnst Cnt);
 
 //to be used within CUDA C reconstruction

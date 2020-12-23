@@ -610,74 +610,201 @@ def reduce_rings(pars, rs=0, re=64):
     pars['axLUT'] = raxLUT
 
 
-def transaxial_lut(Cnt):
-    """
-    Creates a template 2D sino with gaps represented by 0;
-    otherwise any valid bin is represented as 1.
-    Also creates linear index for the whole sino with only valid bins.
+def transaxial_lut(Cnt, visualisation=False):
+    '''
+    Create a template 2D sinogram with gaps represented by 0 and
+    any valid bin being represented by 1.
+    Also create linear index for the whole sino with only valid bins.
     Angle index of the sino is used as the primary index (fast changing).
-    """
-    # #---visualisation of the crystal ring in trasaxial view
-    # p = 8 #pixel density of the visualiastion
-    # VISXY = 344*p
-    # T = np.zeros((VISXY,VISXY), dtype=np.float32)
-    # #---
+    '''
+
+    if visualisation:
+        #---visualisation of the crystal ring in transaxial view
+        p = 8 #pixel density of the visualisation
+        VISXY = Cnt['SO_IMX']*p
+        T = np.zeros((VISXY,VISXY), dtype=np.float32)
+        #---
 
     #--- crystal coordinates transaxially
-    #block width
+    #> block width
     bw = 3.209
-    #block gap [cm]
+    
+    #> block gap [cm]
     dg = 0.474
     NTBLK = 56
     alpha = 0.1122  #2*pi/NTBLK
-    crs = np.zeros((4,Cnt['NCRS']), dtype=np.float32)
-    # phi angle points in the middle and is used for obtaining the normal of detector block
+    crs = np.zeros((Cnt['NCRS'],4), dtype=np.float32)
+    
+    #> phi angle points in the middle and is used for obtaining the normal of detector block
     phi = 0.5*pi - alpha/2 -0.001
     for bi in range(NTBLK):
-        #-tangent point (ring against detector block)
+        #> tangent point (ring against detector block)
         # ye = RE*np.sin(phi)
         # xe = RE*np.cos(phi)
         y  =  Cnt['R_RING']*np.sin(phi)
         x  =  Cnt['R_RING']*np.cos(phi)
-        #-vector for the face of crystals
+        
+        #> vector for the face of crystals
         pv  = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
-        #update phi for next block
+        
+        #> update phi for next block
         phi -= alpha
-        #-end block points
+        
+        #> end block points
         xcp = x + (bw/2)*pv[0]
         ycp = y + (bw/2)*pv[1]
-        # u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
-        # v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
-        # T[v,u] = 5
+
+        if visualisation:
+            u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
+            v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
+            T[v,u] = 5
+        
         for n in range(1,9):
             c = bi*9 +n-1
-            crs[0,c] = xcp
-            crs[1,c] = ycp
+            crs[c,0] = xcp
+            crs[c,1] = ycp
             xc = x + (bw/2-n*bw/8)*pv[0]
             yc = y + (bw/2-n*bw/8)*pv[1]
-            crs[2,c] = xc
-            crs[3,c] = yc
+            crs[c,2] = xc
+            crs[c,3] = yc
             xcp = xc
             ycp = yc
 
-    # cij    - a square matrix of crystals in coincidence (transaxially)
-    # crsri  - indexes of crystals with the gap crystals taken out (therefore reduced)
-    # aw2sn  - LUT array [AW x 2] translating linear index into a 2D sinogram with dead LOR (gaps)
-    # aw2ali - LUT from linear index of 2D full sinogram with gaps and bin-driven to
-    #          linear index without gaps and angle driven
-    # msino  - 2D sinogram with gaps marked (0). like a mask.
-    Naw, s2cAll, crsri, cij, aw2sn, aw2ali, msino = mmr_auxe.txlut( Cnt )
-    s2cF = s2cAll[0]
-    s2c  = s2cAll[1]
-    s2cr = s2cAll[2]
-    c2sF = s2cAll[3]
-    cr2s = s2cAll[4]
+            if visualisation:
+                u = int(.5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)))
+                v = int(.5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)))
+                T[v,u] = 2.5
 
-    txLUT = {'cij':cij, 'crs':crs, 'crsri':crsri, 'msino':msino, 'aw2sn':aw2sn,
-             'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
-             'c2sF':c2sF, 'cr2s':cr2s}
-    return txLUT
+    out = dict(crs=crs)
+
+    if visualisation:
+        out['visual'] = T
+
+
+
+    #> crystals reduced by the gaps (dead crystals)
+    crsr = -1*np.ones(Cnt['NCRS'], dtype=np.int16)
+    ci = 0
+    for i in range(Cnt['NCRS']):
+        if (((i + Cnt['OFFGAP']) % Cnt['TGAP'])>0):
+            crsr[i] = ci
+            ci += 1
+        if visualisation:
+            print('crsr[{}] = {}\n'.format(i, crsr[i]))
+
+    out['crsri'] = crsr
+
+    #----------------------------------
+    # sinogram definitions
+    #> sinogram mask for dead crystals (gaps)
+    msino = np.zeros((Cnt['NSBINS'], Cnt['NSANGLES']), dtype=np.int8)
+
+    # LUT: sino -> crystal and crystal -> sino
+    s2cF = np.zeros((Cnt['NSBINS']*Cnt['NSANGLES'], 2), dtype=np.int16)
+    c2sF = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
+    
+    #> with projection bin <w> fast changing (c2s has angle changing fast).
+    #> this is used in scatter estimation
+    c2sFw = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
+
+    #> global sinogram index (linear) of live crystals (excludes gaps)
+    awi = 0
+
+    for iw in range(Cnt['NSBINS']):
+        for ia in range(Cnt['NSANGLES']):
+            c0 = int( np.floor( (ia + 0.5*(Cnt['NCRS'] - 2 + Cnt['NSBINS']/2 - iw))   % Cnt['NCRS'] ) )
+            c1 = int( np.floor( (ia + 0.5*(2*Cnt['NCRS'] - 2 - Cnt['NSBINS']/2 + iw)) % Cnt['NCRS'] ) )
+
+            s2cF[ia + iw*Cnt['NSANGLES'], 0] = c0
+            s2cF[ia + iw*Cnt['NSANGLES'], 1] = c1
+
+            c2sF[c1, c0] = ia + iw*Cnt['NSANGLES']
+            c2sF[c0, c1] = ia + iw*Cnt['NSANGLES']
+
+            if (((((c0 + Cnt['OFFGAP']) % Cnt['TGAP']) * ((c1 + Cnt['OFFGAP']) % Cnt['TGAP']))>0)):
+                #> masking gaps in 2D sinogram
+                msino[iw, ia] = 1
+                awi += 1
+
+            c2sFw[c1, c0] = iw + ia*Cnt['NSBINS']
+            c2sFw[c0, c1] = iw + ia*Cnt['NSBINS']
+
+    out['s2cF']  = s2cF
+    out['c2sF']  = c2sF
+    out['c2sFw'] = c2sFw
+    out['msino'] = msino
+
+    #> number of total transaxial live crystals (excludes gaps)
+    out['Naw'] = awi
+
+    s2c    = np.zeros((out['Naw'],2), dtype=np.int16)
+    s2cr   = np.zeros((out['Naw'],2), dtype=np.int16)
+    cr2s   = np.zeros((Cnt['NCRSR'],Cnt['NCRSR']), dtype=np.int32);
+    aw2sn  = np.zeros((out['Naw'],2), dtype=np.int16)
+    aw2ali = np.zeros(out['Naw'], dtype=np.int32)
+
+    #> live crystals which are in coincidence
+    cij = np.zeros((Cnt['NCRSR'],Cnt['NCRSR']), dtype=np.int8)
+
+    awi = 0
+
+    for iw in range(Cnt['NSBINS']):
+        for ia in range(Cnt['NSANGLES']):
+
+            if (msino[iw,ia]>0):
+                c0 = s2cF[Cnt['NSANGLES']*iw + ia, 0]
+                c1 = s2cF[Cnt['NSANGLES']*iw + ia, 1]
+
+                s2c[awi,0] = c0
+                s2c[awi,1] = c1
+
+                s2cr[awi,0] = crsr[c0]
+                s2cr[awi,1] = crsr[c1]
+
+                #> reduced crystal index (after getting rid of crystal gaps)
+                cr2s[crsr[c1], crsr[c0]] = awi
+                cr2s[crsr[c0], crsr[c1]] = awi
+
+                aw2sn[awi,0] = ia
+                aw2sn[awi,1] = iw
+
+                aw2ali[awi] = iw + Cnt['NSBINS']*ia
+
+                #> square matrix of crystals in coincidence
+                cij[crsr[c0], crsr[c1]] = 1
+                cij[crsr[c1], crsr[c0]] = 1
+
+                awi += 1
+
+    out['s2c']    = s2c
+    out['s2cr']   = s2cr
+    out['cr2s']   = cr2s
+    out['aw2sn']  = aw2sn
+    out['aw2ali'] = aw2ali
+    out['cij']    = cij
+    #----------------------------------
+
+
+    # # cij    - a square matrix of crystals in coincidence (transaxially)
+    # # crsri  - indexes of crystals with the gap crystals taken out (therefore reduced)
+    # # aw2sn  - LUT array [AW x 2] translating linear index into a 2D sinogram with dead LOR (gaps)
+    # # aw2ali - LUT from linear index of 2D full sinogram with gaps and bin-driven to
+    # #          linear index without gaps and angle driven
+    # # msino  - 2D sinogram with gaps marked (0). like a mask.
+    # Naw, s2cAll, crsri, cij, aw2sn, aw2ali, msino = mmr_auxe.txlut( Cnt )
+    # s2cF = s2cAll[0]
+    # s2c  = s2cAll[1]
+    # s2cr = s2cAll[2]
+    # c2sF = s2cAll[3]
+    # cr2s = s2cAll[4]
+
+    # txLUT = {'cij':cij, 'crs':crs, 'crsri':crsri, 'msino':msino, 'aw2sn':aw2sn,
+    #          'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
+    #          'c2sF':c2sF, 'cr2s':cr2s}
+    
+
+    return out
 
 
 #=================================================================================================

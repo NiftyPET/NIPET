@@ -19,6 +19,13 @@ __constant__ float2 c_KN[NCOS];
 __constant__ float c_TOFBIN[4];
 
 
+__device__
+char sgn(float x)
+{
+    return x > 0 ? 1 : (x<0 ? -1 : 0);
+}
+
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 __inline__ __device__
 float warpsum(float val)
@@ -56,7 +63,8 @@ void Psct(float *rslt,
 	iMSK em_msk,
 	const float *em)
 {
-	//general sampling index
+	// general sampling index
+	// used for scatter crystals and sampling scatter patches/points
 	int idx = threadIdx.x;
 	//index of scatter rings (default 8) (for singly scattered photons)
 	int isr = threadIdx.y;
@@ -140,24 +148,57 @@ void Psct(float *rslt,
 	aux.x *= -1;
 	aux.y *= -1;
 
-	// get a_length which is now the other direction, ie along the scattering path.
+	// NEW<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	// get a_length which is now the other direction, i.e., along the scattering path.
+	// first start in the transaxial plane only
 	float Br = 2 * (x*aux.x + y*aux.y);
-	// get the full 3D ersion dividing by the ratio which is cos(beta), angle between transaxial and axial parts of the vector
-	a_lgth = .5*(-Br + sqrtf(Br*Br - 4 * (-R_2 + x*x + y*y))) / (a_lgth / an);
+	float t = .5*(-Br + sqrtf(Br*Br - 4 * (-R_2 + x*x + y*y)));
+
+	// main/most scatter receiving location on the transaxial ring
+	float2 ms;
+	ms.x = aux.x*t + x;
+	ms.y = aux.y*t + y;
+
+	// scatter crystal index, opposing to unscattered photons receiving crystal
+	char isuc = (iuc + scrsdef.nscrs/2) & (scrsdef.nscrs - 1);
+
+	// the coordinates of the opposing scatter crystal
+	aux.x = scrsdef.crs[3*isuc+1];
+	aux.y = scrsdef.crs[3*isuc+2];
+
+	// crystal offset (multi-line equation)
+	char imsc = isuc +
+		(char)(
+		// offset direction sign:
+		// (1) subtract mc vector from sc vector for the determination of offset direction
+		// (2) get the direction of crystal numbering by increasing the index of the opposing crystal
+		// (3) get the sign of the dot product of (1) and (2) 
+		sgn((ms.x-aux.x)*(scrsdef.crs[3*((isuc+1)&(scrsdef.nscrs-1))+1]-aux.x) + (ms.y-aux.y)*(scrsdef.crs[3*((isuc+1)&(scrsdef.nscrs-1))+2]-aux.y))  *
+		// crystal offset as an angle fraction based on the scatter opposing and main scatter vectors
+		scrsdef.nscrs * acosf((ms.x*aux.x + ms.y*aux.y) / (sqrtf(aux.x*aux.x+aux.y*aux.y) * sqrtf(ms.x*ms.x+ms.y*ms.y))) / (2*PI)
+		);
+
+	// get the full 3D version dividing by the ratio which is cos(beta), angle between transaxial and axial parts of the vector
+	a_lgth = t/(a_lgth/an);
+
+	//scattering crystals (half considered, 32 out of 64, found using the index main scatter beam index <imsc>
+	char isc = (imsc-(scrsdef.nscrs/4)+idx) & (scrsdef.nscrs - 1);
+
+	// if ((iuc==31) && isr==4 && iur==4)
+	  // printf(">> iuc = %d; isc = %d; isuc = %d; >> imsc = %d >> em = (%2.3f, %2.3f), t = %f; ms = (%2.3f, %2.3f)\n", iuc, isc, isuc, imsc, x, y, t, ms.x, ms.y);
+	// NEW<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-	//find the most scatter receiving crystal (ms, on the opposite side of the unscatter crystal)
-	//  float2 ms;
-	//  ms.x = x+a.x*t;
-	//  ms.y = y+a.y*t;
-	//  int mscrs =  (int)floorf(  ((-acosf(ms.y/R_RING) + 2*PI)*(ms.x<0) + acosf(ms.y/R_RING)*(ms.x>0)) /  (2*PI/nscrs)  ) ;
-	//  //if(idx==0) printf("[%d]: %d x=%4.2f, y=%4.2f \n", icrs, mscrs, ms.x, ms.y);
-	//  char is = (mscrs+3*nscrs/4 + idx) & (nscrs-1);
-	//  //--
-
-	//scattering crystals (half considered, 32 out of 64, found using the index of unscattered photon crystal
-	char isc = (iuc + (scrsdef.nscrs / 4) + idx) & (scrsdef.nscrs - 1);
-
+	// // OLD<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	// //> get a_length which is now the other direction, i.e., along the scattering path.
+	// //> first start in the transaxial plane only
+	// float Br = 2 * (x*aux.x + y*aux.y);
+	// //> get the full 3D version dividing by the ratio which is cos(beta), angle between transaxial and axial parts of the vector
+	// a_lgth = .5*(-Br + sqrtf(Br*Br - 4 * (-R_2 + x*x + y*y))) / (a_lgth / an);
+	// //> scattering crystals (half considered, 32 out of 64, found using the index of unscattered photon crystal
+	// char isc = (iuc + (scrsdef.nscrs / 4) + idx) & (scrsdef.nscrs - 1);
+	// // OLD<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+	
 	//---find out how far to go with scatter points (number of warps, Nw)
 	int Nw = 0;
 	for (int k = 0; k <= (int)(a_lgth / (SS_WRP*SSTP)); k++) {
@@ -230,14 +271,23 @@ void Psct(float *rslt,
 		//within scattering point
 		char aid = idx&((1 << LSCT2) - 1);
 
-		//#pragma unroll
+		/* NOTE:
+		The size of the scattering patch (with its corresponding point
+		in the middle) is always a power of two and govern by LSCT2.
+		This also helps to divide the loop over scatter crystal (32)
+		done partly by threads (which are used for scattering points)
+		and partly by the following for-loop of size (SS_WRP>>LSCT2).
+		Therefore, the crs_shft accounts for both as seen below.		
+		*/
+
+
 		for (int j = 0; j<(SS_WRP >> LSCT2); j++) {
 
 			char crs_shft = aid + j*(1 << LSCT2);
 
 			//distance from the emission point to the scattering point
 
-			//scatter vector used first for the scattering point
+			//scatter vector used first for the scattering point (fixed for all j's)
 			float3 s;
 			s.x = (x + a.x * __shfl_sync(0xffffffff, tt, sct_id));
 			s.y = (y + a.y * __shfl_sync(0xffffffff, tt, sct_id));
@@ -252,10 +302,16 @@ void Psct(float *rslt,
 			//get the masked voxel index for scatter points:
 			int i_smsk;
 			char infov = 1;
-			if ((fabsf(s.z)<(SS_VXZ*SS_IMZ / 2)) && (fabsf(s.x)<(SS_VXY*SS_IMX / 2)) && (fabsf(s.y)<(SS_VXY*SS_IMY / 2)))
+			if ((fabsf(s.z)<(SS_VXZ*SS_IMZ/2-0.01*SS_VXZ)) &&
+				(fabsf(s.x)<(SS_VXY*SS_IMX/2-0.01*SS_VXY)) && 
+				(fabsf(s.y)<(SS_VXY*SS_IMY/2-0.01*SS_VXY))){
+				// subtract one hundredth of a voxel to be on the conservative side 
+				// and not let indices go out
+				
 				i_smsk = mu_msk.v2i[(int)(.5*SS_IMX + floorf(s.x / SS_VXY)                       //u
 					+ SS_IMX*(.5*SS_IMY - ceilf(s.y / SS_VXY))             //v
 					+ SS_IMX*SS_IMY*floorf(.5*SS_IMZ + s.z*IS_VXZ))];  //w
+			}
 			else { infov = 0; i_smsk = 0; }
 			// else {s.x=1e7; i_smsk = 0;}
 
@@ -289,7 +345,7 @@ void Psct(float *rslt,
 			//indexing resutls: singly_scattered_crystal_index + singly_scattered_ring_index * no_of_scatter_crystals +
 			//unscattered_crystal_ring_index * no_of_scattered_crastals_rings.
 			//normal vector of scatter receiving crystals has the z-component always zero for cylindrical scanners
-			//(__shfl(sc.x, crs_shft)*IR_RING) is the x-comonent norm of scatter crystal
+			//(__shfl(sc.x, crs_shft)*IR_RING) is the x-component norm of scatter crystal
 
 			if (c_TOFBIN[0]>1) {
 				//TOF bin index with determination of the sign
@@ -299,18 +355,25 @@ void Psct(float *rslt,
 				);
 				atomicAdd(rslt + m * scrsdef.nsrng*scrsdef.nscrs*scrsdef.nsrng*scrsdef.nscrs / 2 +
 					__shfl_sync(0xffffffff, idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
-
 					infov*em_vox * c_KN[icos].x *
 					(SRFCRS*(s.x*__shfl_sync(0xffffffff, sc.x, crs_shft)*IR_RING + s.y*__shfl_sync(0xffffffff, sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
 					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl_sync(0xffffffff, isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
 					__shfl_sync(0xffffffff, p_scatter, sct_id));
 			}
 			else {
-				atomicAdd(rslt + __shfl_sync(0xffffffff, idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
-					infov*em_vox * c_KN[icos].x *
+				// atomicAdd(rslt + __shfl_sync(0xffffffff, idx, crs_shft) + isr*(scrsdef.nscrs / 2) + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs / 2),
+				// 	infov*em_vox * c_KN[icos].x *
+				// 	(SRFCRS*(s.x*__shfl_sync(0xffffffff, sc.x, crs_shft)*IR_RING + s.y*__shfl_sync(0xffffffff, sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
+				// 	expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl_sync(0xffffffff, isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
+				// 	__shfl_sync(0xffffffff, p_scatter, sct_id));
+
+
+				atomicAdd(rslt + __shfl_sync(0xffffffff, isc, crs_shft) + isr*scrsdef.nscrs + (iuc + iur*scrsdef.nscrs) * (scrsdef.nsrng*scrsdef.nscrs),
+					infov * c_KN[icos].x * em_vox *
 					(SRFCRS*(s.x*__shfl_sync(0xffffffff, sc.x, crs_shft)*IR_RING + s.y*__shfl_sync(0xffffffff, sc.y, crs_shft)*IR_RING) * (_s_lgth*_s_lgth)) *
 					expf(-c_KN[icos].y * rays[i_smsk*scrsdef.nscrs*scrsdef.nsrng + __shfl_sync(0xffffffff, isc, crs_shft)*scrsdef.nsrng + isr] * RES_SUM) *
-					__shfl_sync(0xffffffff, p_scatter, sct_id));
+					__shfl_sync(0xffffffff, p_scatter, sct_id)
+								);
 			}
 
 			// #endif
@@ -336,7 +399,8 @@ scatOUT prob_scatt(
 	short *offseg,
 	float *scrs,
 	short *isrng,
-	float *crs,
+	float *srng,
+	char  *xsxu,
 	short *sn1_rno,
 	short *sn1_sn11,
 	Cnst Cnt)
@@ -375,9 +439,19 @@ scatOUT prob_scatt(
 	//----------------------------------------------------
 
 	//==================================================================
-	//scatter crystals definition [crs no, centre.x, centre.y]
-	scrsDEF d_scrsdef = def_scrs(isrng, scrs, Cnt);
+	//scatter crystals definitions [crs no, centre.x, centre.y]
+	scrsDEF d_scrsdef;
+	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.rng, 2*Cnt.NSRNG * sizeof(float)));
+	HANDLE_ERROR(cudaMemcpy(d_scrsdef.rng, srng, 2*Cnt.NSRNG * sizeof(float), cudaMemcpyHostToDevice));
+
+	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.crs, 3*Cnt.NSCRS * sizeof(float)));
+	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, scrs, 3*Cnt.NSCRS * sizeof(float), cudaMemcpyHostToDevice));
+
+	d_scrsdef.nscrs = Cnt.NSCRS;
+	d_scrsdef.nsrng = Cnt.NSRNG;
 	if (Cnt.LOG <= LOGINFO) printf("i> number of scatter crystals used:\n  >transaxially: %d\n  >axially: %d\n", d_scrsdef.nscrs, d_scrsdef.nsrng);
+
+	// test the scatter ring and crystal sampling
 	// for(int i=0; i<d_scrsdef.nsrng; i++)    printf("rng[%d]=%f\n", (int)d_scrsdef.rng[2*i], d_scrsdef.rng[2*i+1]);
 	// for(int i=0; i<d_scrsdef.nscrs; i++)    printf("crs[%d]=%f, %f\n", (int)d_scrsdef.crs[3*i], d_scrsdef.crs[3*i+1], d_scrsdef.crs[3*i+2]);
 	//==================================================================
@@ -388,68 +462,21 @@ scatOUT prob_scatt(
 	HANDLE_ERROR(cudaMemcpy(d_em, &em.im[0], SSE_IMX*SSE_IMY*SSE_IMZ * sizeof(float), cudaMemcpyHostToDevice));
 	//==================================================================
 
+
 	//========= GPU down-sampled results ===============================
 	float * d_rslt;
-#ifdef WIN32
-	HANDLE_ERROR(cudaMalloc(&d_rslt, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*(d_scrsdef.nscrs / 2) * sizeof(float)));
-#else
-	HANDLE_ERROR(cudaMallocManaged(&d_rslt, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*(d_scrsdef.nscrs / 2) * sizeof(float)));
-#endif
-	HANDLE_ERROR(cudaMemset(d_rslt, 0, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*(d_scrsdef.nscrs / 2) * sizeof(float)));
+	HANDLE_ERROR(cudaMalloc(&d_rslt,   Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs * sizeof(float)));
+	HANDLE_ERROR(cudaMemset(d_rslt, 0, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs * sizeof(float)));
 	//==================================================================
 
-	//================ results sino bins LUT ===========================
-	int *d_sct2D_AW = get_2DsctLUT(d_scrsdef, Cnt);
-	//number of sinos in different spans
-	int snno, tbins;
-	if (Cnt.SPN == 1) {
-		snno = Cnt.NSN64;
-		tbins = snno*d_scrsdef.nscrs*d_scrsdef.nscrs / 2;
-	}
-	else if (Cnt.SPN == 11) {
-		snno = Cnt.NSN11;
-		tbins = snno*d_scrsdef.nscrs*d_scrsdef.nscrs / 2;
-	}
 
-	sctout.nscrs = d_scrsdef.nscrs;
-	sctout.nsrng = d_scrsdef.nsrng;
-
-#ifdef WIN32
-
-	int *h_sct2aw;
-	HANDLE_ERROR(cudaMallocHost(&h_sct2aw, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int)));
-
-	HANDLE_ERROR(cudaMemcpy(h_sct2aw, d_sct2D_AW, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int), cudaMemcpyDeviceToHost));
-
-	//sino indeces.  done once for all oblique sinos as the patttern of downsampling is the same for all.
-	for (int i = 0; i<d_scrsdef.nscrs; i++) {
-		for (int j = 0; j<d_scrsdef.nscrs / 2; j++) {
-
-			int ind = d_scrsdef.nscrs / 2 * i + j;
-			sctout.bind[ind] = h_sct2aw[ind] & 0x3fffffff;
-			sctout.xsxu[ind] = 2 * (h_sct2aw[ind] >> 30) - 1;
-
-		}
-	}
+	//============= LUT for oblique sinogram positioning ===============
+	char *d_xsxu;
+	HANDLE_ERROR(cudaMalloc(&d_xsxu, d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(char)));
+	HANDLE_ERROR(cudaMemcpy(d_xsxu, xsxu, d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(char), cudaMemcpyHostToDevice));
 	//==================================================================
 
-	HANDLE_ERROR(cudaFreeHost(h_sct2aw));
-
-
-#else
-
-	//sino indeces.  done once for all oblique sinos as the patttern of downsampling is the same for all.
-	for (int i = 0; i<d_scrsdef.nscrs; i++) {
-		for (int j = 0; j<d_scrsdef.nscrs / 2; j++) {
-
-			int ind = d_scrsdef.nscrs / 2 * i + j;
-			sctout.bind[ind] = d_sct2D_AW[ind] & 0x3fffffff;
-			sctout.xsxu[ind] = 2 * (d_sct2D_AW[ind] >> 30) - 1;
-
-		}
-	}
-	//==================================================================
-#endif
+	
 
 	//======================== TEXTURE for the mu-map ============
 	// create 3D array of the mu-map
@@ -490,7 +517,6 @@ scatOUT prob_scatt(
 	cudaCreateTextureObject(&texo_mu3d, &resDesc, &texDesc, NULL);
 
 	if (Cnt.LOG <= LOGINFO) printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
-	// printf("i> memory usage after setting up 3D mu-map texture:");
 	//====================================================================
 
 	//============================================================
@@ -506,6 +532,7 @@ scatOUT prob_scatt(
 		short *d_rays = raysLUT(texo_mu3d, d_mu_msk, d_scrsdef, Cnt);
 		//============================================================
 
+
 		if (Cnt.LOG <= LOGINFO) printf("i> calculating scatter probabilities for %d emission voxels...", d_em_msk.nvx);
 		cudaEvent_t start, stop;
 		cudaEventCreate(&start);
@@ -514,8 +541,9 @@ scatOUT prob_scatt(
 		//<<<<<<<<<<<<<<<<<<<<<<<<<<<< KERNEL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 		//dimension of the grid.  depending on how many crystals (receiving an unscattered photon) there are.
 		//MAKE SURE <nsrng> and <nscrs> are less than 255 due to data type limits (uchar)
-		//printf("\n   i> nvx %d nsrng %d nscrs %d\n", d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);
-		dim3 grid(d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);//d_em_msk.nvx
+		if (Cnt.LOG <= LOGDEBUG) printf("\n   i>> kernel setup: nvx: %d, nsrng: %d, nscrs: %d, SS_WRP: %d\n", d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs, SS_WRP);
+		
+		dim3 grid(d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);
 		dim3 block(SS_WRP, d_scrsdef.nsrng, 1);
 		Psct <<<grid, block >>>(
 			d_rslt,
@@ -541,27 +569,35 @@ scatOUT prob_scatt(
 		if (error != cudaSuccess) { printf("CUDA kernel Psct error: %s\n", cudaGetErrorString(error)); exit(-1); }
 	}
 
+
+	//> number of sinograms in different spans
+	int tbins;
+	if (Cnt.SPN == 1) {
+		tbins = Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs;
+	}
+	else if (Cnt.SPN == 11) {
+		tbins = Cnt.NSN11*d_scrsdef.nscrs*d_scrsdef.nscrs;
+	}
+	else{
+		if (Cnt.LOG <= LOGWARNING) {
+			printf("e> Unrecognised span definition.\n");
+		}
+	}
+
+
 	//3D scatter pre-sino out
-	float *d_sct3d = srslt2sino(d_rslt, d_sct2D_AW, d_scrsdef, sctaxR, sctaxW, offseg, isrng, sn1_rno, sn1_sn11, Cnt);
+	float *d_sct3d = srslt2sino(d_rslt, d_xsxu, d_scrsdef, sctaxR, sctaxW, offseg, isrng, sn1_rno, sn1_sn11, Cnt);
 	HANDLE_ERROR(cudaMemcpy(sctout.s3d, d_sct3d, Cnt.TOFBINN*tbins * sizeof(float), cudaMemcpyDeviceToHost));
 
 	//raw result
-#ifdef WIN32
-	float * h_rslt;
-	HANDLE_ERROR(cudaMallocHost(&h_rslt, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*(d_scrsdef.nscrs / 2) * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(h_rslt, d_rslt, Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*(d_scrsdef.nscrs / 2) * sizeof(float), cudaMemcpyDeviceToHost));
-
-	for (int i = 0; i<(Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nsrng * d_scrsdef.nscrs*d_scrsdef.nscrs / 2); i++) {
-		sctout.sval[i] = h_rslt[i];
-	}
-
-	HANDLE_ERROR(cudaFreeHost(h_rslt));
-
-#else
-	for (int i = 0; i<(Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nsrng * d_scrsdef.nscrs*d_scrsdef.nscrs / 2); i++) {
-		sctout.sval[i] = d_rslt[i];
-	}
-#endif
+	// for (int i = 0; i<(Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nsrng * d_scrsdef.nscrs*d_scrsdef.nscrs); i++) {
+	// 	sctout.sval[i] = d_rslt[i];
+	// }
+	HANDLE_ERROR(cudaMemcpy(
+		sctout.sval,
+		d_rslt,
+		Cnt.TOFBINN*d_scrsdef.nsrng*d_scrsdef.nsrng * d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(float),
+		cudaMemcpyDeviceToHost));
 
 	// Destroy texture object
 	cudaDestroyTextureObject(texo_mu3d);
@@ -576,7 +612,7 @@ scatOUT prob_scatt(
 	cudaFree(d_em);
 	cudaFree(d_scrsdef.rng);
 	cudaFree(d_scrsdef.crs);
-	cudaFree(d_sct2D_AW);
+	cudaFree(d_xsxu);
 
 	cudaFree(d_rslt);
 

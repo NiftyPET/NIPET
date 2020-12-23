@@ -17,7 +17,7 @@ void gpu_fprj(float * prjout,
 	int *subs,
 	int Nprj,
 	int Naw,
-	int n0crs, int n1crs,
+	int N0crs,
 	Cnst Cnt, char att);
 
 void rec_fprj(float *d_sino,

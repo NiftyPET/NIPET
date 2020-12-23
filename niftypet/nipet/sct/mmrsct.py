@@ -1,21 +1,27 @@
+'''
+Voxel-driven scatter modelling for PET data
+'''
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 
+#-----------------------------------------------------------------------
 
-"""Voxel-driven scatter modelling for PET data"""
-from concurrent.futures import ThreadPoolExecutor
-import logging
+
+import os, sys
 from math import pi
-import os
-import random
-import re
 import scipy.ndimage as ndi
-import sys
-
 import nibabel as nib
 import numpy as np
 from scipy.interpolate import CloughTocher2DInterpolator
 import scipy.spatial.qhull as qhull
+from concurrent.futures import ThreadPoolExecutor
+from scipy.interpolate import interp2d
+from scipy.special import erfc
+import time
+
+import logging
+log = logging.getLogger(__name__)
 
 from ..img import mmrimg
 from .. import mmraux
@@ -23,23 +29,26 @@ from .. import mmr_auxe
 from .. import mmrnorm
 from . import nifty_scatter
 from ..prj import mmrprj, petprj, mmrrec
-log = logging.getLogger(__name__)
 
-
+#-----------------------------------------------------------------------
 def fwhm2sig (fwhm, Cnt):
+    '''
+    Convert FWHM to sigma (standard deviation)
+    '''
     return (fwhm/Cnt['SO_VXY']) / (2*(2*np.log(2))**.5)
+#-----------------------------------------------------------------------
 
 
-#=================================================================================================
+#=======================================================================
 # S C A T T E R
-#-------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------
 
 
 def get_scrystals(scanner_params):
-    """
-    get table of selected transaxial and axial (ring) crystals
-    for scatter modelling
-    """
+    '''
+    Get table of selected transaxial and axial (ring) crystals
+    used for scatter modelling
+    '''
     #> decompose constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
@@ -71,8 +80,8 @@ def get_scrystals(scanner_params):
             cntr = 0
             scrs.append([
                 c,
-                0.5*(crs[0, c] + crs[2, c]),
-                0.5*(crs[1, c] + crs[3, c])
+                0.5*(crs[c, 0] + crs[c, 2]),
+                0.5*(crs[c, 1] + crs[c, 3])
                 ])
 
             logtxt += '''\
@@ -80,7 +89,7 @@ def get_scrystals(scanner_params):
                 '''.format(iscrs, c, scrs[-1][1], scrs[-1][2])
             iscrs += 1
 
-    log.debug('transaxial scatter crystal definitions:\n\n'+logtxt)
+    log.info('transaxial scatter crystal definitions:\n\n'+logtxt)
 
     #> convert the scatter crystal table to Numpy array
     scrs = np.array(scrs, dtype=np.float32)
@@ -94,20 +103,77 @@ def get_scrystals(scanner_params):
     NSRNG = len(sct_irng)
     #------------------------------------------------------
 
-    return dict(SCTRNG=sct_irng, NSRNG=NSRNG, SCTCRS=scrs)
+
+    logtxt = ''
+
+    srng = np.zeros((NSRNG,2), dtype=np.float32)
+    z = 0.5*(-Cnt['NRNG']*Cnt['AXR'] + Cnt['AXR'])
+    for ir in range(NSRNG):
+        srng[ir,0] = float(sct_irng[ir])
+        srng[ir,1] = axLUT['rng'][sct_irng[ir],:].mean()
+        logtxt += '> [{}]: ring_i={}, ring_z={}\n'.format(ir, int(srng[ir,0]), srng[ir,1])
+
+    log.debug(logtxt)
 
 
+    return dict(scrs=scrs, srng=srng, sirng=sct_irng, NSCRS=scrs.shape[0], NSRNG=NSRNG)
+
+
+#=======================================================================
+def get_sctlut2d(txLUT, scrs_def):
+
+    #> scatter to sinogram bin index LUT
+    sct2aw = np.zeros(scrs_def['NSCRS']*scrs_def['NSCRS'], dtype=np.int32)
+
+    # scatter/unscattered crystal x-coordinate (used for determining +/- sino segments)
+    xsxu = np.zeros((scrs_def['NSCRS'], scrs_def['NSCRS']), dtype=np.int8)
+
+    #> loop over unscattered crystals
+    for uc in range(scrs_def['NSCRS']):
+
+        #> loop over scatter crystals
+        for sc in range(scrs_def['NSCRS']):
+
+            #> sino linear index (full including any gaps)
+            #> scrs_def['scrs'] is a 2D array of rows [sct_crs_idx, mid_x, mid_y]
+            sct2aw[scrs_def['NSCRS']*uc + sc] = \
+                txLUT['c2sFw'][
+                    int(scrs_def['scrs'][uc,0]),
+                    int(scrs_def['scrs'][sc,0])
+                ]
+
+            #> scattered and unscattered crystal positions (used for determining +/- sino segments)
+            xs = scrs_def['scrs'][sc,1]
+            xu = scrs_def['scrs'][uc,1]
+
+            if (xs>xu):
+                xsxu[uc, sc] = 1
+
+    sct2aw.shape = (scrs_def['NSCRS'], scrs_def['NSCRS'])
+
+    return dict(sct2aw=sct2aw, xsxu=xsxu, c2sFw=txLUT['c2sFw'])
+
+#=======================================================================
+
+
+#=======================================================================
 def get_knlut(Cnt):
-    """get Klein-Nishina LUTs"""
-    from scipy.special import erfc
+    '''
+    get Klein-Nishina LUTs
+    '''
+
     SIG511 = Cnt['ER']*Cnt['E511']/2.35482
 
     CRSSavg = (2*(4/3.0-np.log(3)) + .5*np.log(3)-4/9.0)
 
+    COSSTP = (1-Cnt['COSUPSMX'])/(Cnt['NCOS']-1)
+
+    log.debug('using these scatter constants:\nCOS(UPSMAX) = {},\nCOSSTP = {}'.format(Cnt['COSUPSMX'], COSSTP))
+
     knlut = np.zeros((Cnt['NCOS'],2), dtype = np.float32)
 
     for i in range(Cnt['NCOS']):
-        cosups = (Cnt['COSUPSMX']+i*Cnt['COSSTP'])
+        cosups = Cnt['COSUPSMX']+i*COSSTP
         alpha = 1/(2 - cosups)
         KNtmp = ( (0.5*Cnt['R02']) * alpha*alpha * ( alpha + 1/alpha - (1-cosups*cosups) ) )
         knlut[i,0] = KNtmp / ( 2*pi*Cnt['R02'] * CRSSavg);
@@ -117,7 +183,7 @@ def get_knlut(Cnt):
         # Add energy resolution:
         if Cnt['ER']>0:
             log.info('using energy resolution for scatter simulation, ER = {}'.format(Cnt['ER']))
-            knlut[i,0] *= .5*erfc( (Cnt['LLD']-alpha*Cnt['E511'])/(SIG511*np.sqrt(2*alpha)) );
+            knlut[i,0] *= .5*erfc( (Cnt['LLD']-alpha*Cnt['E511'])/(SIG511*np.sqrt(2*alpha)) )
             #knlut[i,0] *= .5*erfc( (Cnt['LLD']-alpha*Cnt['E511'])/(SIG511) );
 
         # for large angles (small cosups) when the angle in GPU calculations is greater than COSUPSMX
@@ -125,19 +191,19 @@ def get_knlut(Cnt):
             knlut[0,0] = 0;
 
     return knlut
+#=======================================================================
+
 
 
 #==================================================================================================
 # GET SCATTER LUTs
 #--------------------------------------------------------------------------------------------------
-
-
 def rd2sni(offseg, r1, r0):
     rd = np.abs(r1-r0)
     rdi = (2*rd - 1*(r1>r0))
     sni = offseg[rdi] + np.minimum(r0,r1)
     return sni
-
+#--------------------------------------------------------------------------------------------------
 
 def get_sctLUT(scanner_params):
 
@@ -153,8 +219,11 @@ def get_sctLUT(scanner_params):
     #> get scatter crystal tables:
     scrs_def = get_scrystals(scanner_params)
 
+    #> get 2D scatter LUT (for transaxial sinograms)
+    sctlut2d = get_sctlut2d(txLUT, scrs_def)
+
     # get the indexes of rings used for scatter estimation
-    irng = scrs_def['SCTRNG']
+    irng = scrs_def['sirng']
 
     # get number of ring accounting for the possible ring reduction (to save computation time)
     # NRNG = Cnt['RNG_END']-Cnt['RNG_STRT']
@@ -173,7 +242,7 @@ def get_sctLUT(scanner_params):
 
 
     J, I =  np.meshgrid(irng, irng)
-    mich[J,I] = np.reshape(np.arange(len(scrs_def['SCTRNG'])**2), (len(scrs_def['SCTRNG']), len(scrs_def['SCTRNG'])))
+    mich[J,I] = np.reshape(np.arange(scrs_def['NSRNG']**2), (scrs_def['NSRNG'], scrs_def['NSRNG']))
     # plt.figure(64), plt.imshow(mich, interpolation='none')
 
     for r1 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
@@ -236,15 +305,16 @@ def get_sctLUT(scanner_params):
 
     # plt.figure(65), plt.imshow(mich2, interpolation='none')
 
+
     sctLUT = {
         'sctaxR':sctaxR,
         'sctaxW':sctaxW,
-        'isrng':irng,
         'offseg':offseg,
         'KN':KN,
         'mich_chck':[mich, mich2],
         **scrs_def,
-        'NSCRS':scrs_def['SCTCRS'].shape[0]}
+        **sctlut2d,
+        }
 
     return sctLUT
 
@@ -254,124 +324,98 @@ def get_sctLUT(scanner_params):
 #-------------------------------------------------------------------------------------------------
 
 
-def intrp_sct(sctind, sct3d, Cnt, snno, ssrlut, dtype=np.float32):
+#==============================================================================
+def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
     '''
-    perform 2D interpolation for all scatter sinograms
-    to form a 3D scatter sionogram.
+    interpolate the basic scatter distributions which are then
+    transferred into the scatter sinograms.
     '''
-    #> indecies
-    iAW = np.unique(sctind)
-    nsbins = len(iAW)
-
-    ai = iAW // Cnt['NSBINS']
-    wi = iAW - ai*Cnt['NSBINS']
-
-    #---add extra points (from the top) at the bottom of sino
-    #find the indexes where angle indx is 0
-    ai0 = np.where(ai==0)
-    wie = abs((Cnt['NSBINS']-1)-wi[ai0])
-    wien = len(wie)
-    aie = Cnt['NSANGLES']*np.ones(wien, dtype=np.int32)
-
-    #---prepare the array for qhull.Delaunay input
-    sind = np.zeros( (wien + nsbins,2), dtype=np.int32)
-    # append to the sino bottom in order to get a properly interpolated sino
-    sind[:,1] = np.append(wi,wie)
-    sind[:,0] = np.append(ai,aie)
-
-    #> get the traingulations based on data points (sctind)
-    tri = qhull.Delaunay(sind)
-
-    grid_x, grid_y = np.mgrid[0:Cnt['NSANGLES'], 0:Cnt['NSBINS']]
-
-    #-----------------------------------------------------
-    log.info('scatter sinogram interpolation...')
-
-    def func(i):
-        #> temporary 2D scatter sinogram, initially as 1D vector
-        tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=dtype)
-        tmp2d[:] = 0
-        for ti in range(len(sctind)):
-            tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
-
-        ssn2d = np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS']))
-
-        #> prepare the array for interpolation input
-        sval = np.zeros( (wien + nsbins,1), dtype=dtype)
-
-        #> append to the sino bottom in order to get a properly interpolated sino
-        sval = ssn2d[
-            np.append( ai, np.zeros(len(ai0[0]), dtype=np.int32) ),
-            np.append(wi, wi[ai0]) ]
-
-        intrp = CloughTocher2DInterpolator(tri, sval, fill_value=0.0)
-        issn = intrp((grid_x, grid_y))
-        issn = np.nan_to_num(issn)
-        issn[issn<0] = 0.
-        return issn
-    #-----------------------------------------------------
-
-    ssn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-    sssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-
-    #> begin Casper's threading magic:
-    with ThreadPoolExecutor() as exec:
-        for i, issn in enumerate(exec.map(func, range(snno))):
-            ssn[i,...] = issn
-            sssr[ssrlut[i],:,:] += ssn[i,:,:]
-    #> end of Casper's magic
-
-    return ssn, sssr
 
 
-# def get_sctinterp(ssn2d, sct2AW, Cnt):
+    #> number of sinograms
+    snno = sct3d.shape[1]
 
-#     from scipy.interpolate import griddata #used for scatter interpolation
+    i_scrs = sctLUT['scrs'][:,0].astype(int)
 
-#     iAW = np.unique(sct2AW)
-#     nsbins = len(iAW)
+    x = i_scrs
+    y = np.append([-1], i_scrs)
+    xnew = np.arange(Cnt['NCRS'])
+    ynew = np.arange(Cnt['NCRS'])
 
-#     ai = iAW // Cnt['NSBINS']
-#     wi = iAW - ai*Cnt['NSBINS']
+    #> advanced indexing matrix for rolling the non-interpolated results
+    jj, ii = np.mgrid[0:sctLUT['NSCRS'], 0:sctLUT['NSCRS']]
+    
+    #> roll each row according to the position
+    for i in range(sctLUT['NSCRS']):
+        ii[i,:] = np.roll(ii[i,:], -1*i)
 
-#     #---add extra points (from the top) at the bottom of sino
-#     #find the indexes where angle indx is 0
-#     ai0 = np.where(ai==0)
-#     wie = abs((Cnt['NSBINS']-1)-wi[ai0])
-#     wien = len(wie)
-#     aie = Cnt['NSANGLES']*np.ones(wien, dtype=np.int32)
+    jjnew, iinew = np.mgrid[0:Cnt['NCRS'], 0:Cnt['NCRS']]
+    for i in range(Cnt['NCRS']):
+        iinew[i,:] = np.roll(iinew[i,:], i)
 
-#     #---prepare the arrays for interpolation input
-#     # indexes
-#     sind = np.zeros( (wien + nsbins,2), dtype=np.int32)
-#     # scatter values for the above indecies
-#     sval = np.zeros( (wien + nsbins,1), dtype=np.float32)
-#     # append to the sino bottom in order to get a properly interpolated sino
-#     sind[:,1] = np.append(wi,wie)
-#     sind[:,0] = np.append(ai,aie)
-#     sval = ssn2d[ np.append( ai, np.zeros(len(ai0[0]),dtype=np.int32) ), np.append(wi, wi[ai0]) ]
+    ssn = np.zeros((Cnt['TOFBINN'], snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=dtype);
+    sssr = np.zeros((Cnt['TOFBINN'], Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=dtype);
 
-#     # do the interpolation after creating the grid
-#     grid_x, grid_y = np.mgrid[0:Cnt['NSANGLES'], 0:Cnt['NSBINS']]
-#     issino = griddata(sind, sval, (grid_x, grid_y), method='cubic')
-#     issino = np.nan_to_num(issino)
-#     issino[issino<0] = 0
 
-#     return issino
+    for ti in range(Cnt['TOFBINN']):
+        sn2d = np.zeros(Cnt['NSANGLES']*Cnt['NSBINS'], dtype=dtype)
+
+        for si in range(snno):
+            
+            sn2d[:] = 0
+
+            sct2d = sct3d[0, si, jj, ii]
+
+            z = np.vstack([sct2d[-1,:], sct2d])
+            f = interp2d(x, y, z, kind='cubic')
+            znew = f(xnew, ynew)
+
+            # unroll
+            znew = znew[jjnew, iinew]
+
+            #> upper triangle
+            #> add '1' to include index zero (distinguished from after triangulation)
+            qi = np.triu(sctLUT['c2sFw']+1)>0
+            sidx = sctLUT['c2sFw'][qi]
+            s = znew[qi]
+            sn2d[sidx] = s
+
+            #> lower triangle
+            qi = np.tril(sctLUT['c2sFw']+1)>0
+            sidx = sctLUT['c2sFw'][qi]
+            s = znew[qi]
+            sn2d[sidx] += s
+        
+            ssn [ti, si, ...] = np.reshape(sn2d, (Cnt['NSANGLES'],Cnt['NSBINS']))
+            sssr[ti, ssrlut[si], ...] += ssn[ti, si,:,:]
+
+
+    return np.squeeze(ssn), np.squeeze(sssr)
+    #-------------------------------------------------
+
+#====================================================================================================
 
 
 def vsm(
         datain,
         mumaps,
         em,
-        hst,
-        rsinos,
         scanner_params,
+        histo = None,
+        rsino = None,
         prcnt_scl = 0.1,
+        fwhm_input=0.42,
+        mask_threshlod = 0.999,
+        snmsk=None,
         emmsk=False,
+        interpolate=True,
         return_uninterp=False,
         return_ssrb=False,
         return_mask=False,
+        return_scaling=False,
+        scaling=True,
+        self_scaling=False,
+        save_sax=False,
     ):
     '''
     Voxel-driven scatter modelling (VSM).
@@ -384,9 +428,9 @@ def vsm(
                         emission image used for masking, when requested.
         - mumaps:       A tuple of hardware and object mu-maps (in this order).
         - em:           An estimate of the emission image.
-        - hst:          Dictionary containing the histogrammed measured data into
+        - histo:          Dictionary containing the histogrammed measured data into
                         sinograms.
-        - rsinos:       Randoms sinogram (3D).  Needed for proper scaling of
+        - rsino:       Randoms sinogram (3D).  Needed for proper scaling of
                         scatter to the prompt data.
         - scanner_params: Scanner specific parameters.
         - prcnt_scl:    Ratio of the maximum scatter intensities below which the
@@ -395,30 +439,49 @@ def vsm(
         - emmsk:        When 'True' it will use uncorrected emission image for
                         masking the sources (voxels) of photons to be used in the
                         scatter modelling.
+        - scaling:      performs scaling to the data (sinogram)
+        - self_scaling: Scaling is performed on span-1 without the help of SSR
+                        scaling and using the sax factors (scatter axial factors).
+                        If False (default), the sax factors have to be provided.
+        - sax:          Scatter axial factors used for scaling with SSR sinograms.
+
     '''
+
     #> decompose constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    if self_scaling:
+        scaling = True
 
     #> decompose mu-maps
     muh, muo = mumaps
 
     if emmsk and not os.path.isfile(datain['em_nocrr']):
         log.info('reconstructing emission data without scatter and attenuation corrections for mask generation...')
-        recnac = mmrrec.osemone(datain, mumaps, hst, scanner_params, recmod=0, itr=3, fwhm=2.0, store_img=True)
+        recnac = mmrrec.osemone(datain, mumaps, histo, scanner_params, recmod=0, itr=3, fwhm=2.0, store_img=True)
         datain['em_nocrr'] = recnac.fpet
 
+    # if rsino is None and not histo is None and 'rsino' in histo:
+    #     rsino = histo['rsino']
+            
+    #> if histogram data or randoms sinogram not given, then no scaling or normalisation
+    if (histo is None) or (rsino is None):
+        scaling = False
 
     #-get the normalisation components
     nrmcmp, nhdr = mmrnorm.get_components(datain, Cnt)
 
     #-smooth for defining the sino scatter only regions
-    mu_sctonly =  ndi.filters.gaussian_filter(
-        mmrimg.convert2dev(muo, Cnt),
-        fwhm2sig(0.42, Cnt),
-        mode='mirror'
-    )
+    if fwhm_input>0.:
+        mu_sctonly =  ndi.filters.gaussian_filter(
+            mmrimg.convert2dev(muo, Cnt),
+            fwhm2sig(fwhm_input, Cnt),
+            mode='mirror'
+        )
+    else:
+        mu_sctonly = muo
 
     if Cnt['SPN']==1:
         snno = Cnt['NSN1']
@@ -433,50 +496,114 @@ def vsm(
 
     #LUTs for scatter
     sctLUT = get_sctLUT(scanner_params)
+    
+    
+    #> smooth before scaling/down-sampling the mu-map and emission images
+    if fwhm_input>0.:
+        muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        emim = ndi.filters.gaussian_filter(em, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+    else:
+        muim = muo+muh
+        emim = em
 
-
-    #-smooth before down-sampling mu-map and emission image
-    muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(0.42, Cnt), mode='mirror')
     muim = ndi.interpolation.zoom( muim, Cnt['SCTSCLMU'], order=3 ) #(0.499, 0.5, 0.5)
-
-    emim = ndi.filters.gaussian_filter(em, fwhm2sig(0.42, Cnt), mode='mirror')
     emim = ndi.interpolation.zoom( emim, Cnt['SCTSCLEM'], order=3 ) #(0.34, 0.33, 0.33)
-    #emim = ndi.interpolation.zoom( emim, (0.499, 0.5, 0.5), order=3 )
-
 
     #-smooth the mu-map for mask creation.  the mask contains voxels for which attenuation ray LUT is found.
-    smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(0.84, Cnt), mode='mirror')
-    mumsk = np.int8(smomu>0.003)
+    if fwhm_input>0.:
+        smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        mumsk = np.int8(smomu>0.003)
+    else:
+        mumsk = np.int8(muim>0.001)
 
     #CORE SCATTER ESTIMATION
-    NSCRS, NSRNG = 64, 8
+    NSCRS, NSRNG = sctLUT['NSCRS'], sctLUT['NSRNG']
     sctout ={
-        'bin_indx':np.zeros((NSCRS, NSCRS//2), dtype=np.int32),
-        'sct_3d'  :np.zeros((Cnt['TOFBINN'], snno_, NSCRS, NSCRS//2), dtype=np.float32),
-        'sct_val' :np.zeros((Cnt['TOFBINN'], NSRNG, NSCRS, NSRNG, NSCRS//2), dtype=np.float32),
-        'xsxu'    :np.zeros((NSCRS, NSCRS//2), dtype=np.int8), #one when xs>xu, otherwise zero
+        'sct_3d'  :np.zeros((Cnt['TOFBINN'], snno_, NSCRS, NSCRS), dtype=np.float32),
+        'sct_val' :np.zeros((Cnt['TOFBINN'], NSRNG, NSCRS, NSRNG, NSCRS), dtype=np.float32),
     }
 
-    #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
-    nifty_scatter.vsm(sctout, muim, mumsk, emim, sctLUT, txLUT, axLUT, Cnt)
-    #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
-
+    #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
+    nifty_scatter.vsm(sctout, muim, mumsk, emim, sctLUT, axLUT, Cnt)
+    #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
+    
     sct3d  = sctout['sct_3d']
-    sctind = sctout['bin_indx']
-
-    # import pdb; pdb.set_trace()
+    sctind = sctLUT['sct2aw']
 
     log.debug('total scatter sum: {}'.format(np.sum(sct3d)))
+
+    #-------------------------------------------------------------------
+    #> initialise output dictionary
+    out = {}
+
+    if return_uninterp:
+        out['uninterp'] = sct3d
+        out['indexes'] = sctind
+    #-------------------------------------------------------------------
+    
+
     if np.sum(sct3d)<1e-04:
-        sss    = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        amsksn = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        sssr   = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        return sss, sssr, amsksn
+        log.warning('total scatter below threshold: {}'.format(np.sum(sct3d)))
+        sss    = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        asnmsk = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        sssr   = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        return sss, sssr, asnmsk
+
+   
+    # import pdb; pdb.set_trace()
+
+    #-------------------------------------------------------------------
+    if interpolate:
+        #> interpolate basic scatter distributions into full size and 
+        #> transfer them to sinograms
+
+        log.debug('transaxial scatter interpolation...')
+        start = time.time()
+        ssn, sssr = intrp_bsct(sct3d, Cnt, sctLUT, ssrlut)
+        stop = time.time()
+        log.debug('scatter interpolation done in {} sec.'.format(stop-start))
+
+        if not scaling:
+            out['ssrb'] = sssr
+            out['sino'] = ssn
+            return out
+    else:
+        return out
+    #-------------------------------------------------------------------
+
+
+    #-------------------------------------------------------------------
+    # import pdb; pdb.set_trace()
+    
+    '''
+    debugging scatter:
+    import matplotlib.pyplot as plt
+    ss = np.squeeze(sct3d)
+    ss = np.sum(ss, axis=0)
+    plt.matshow(ss)
+    plt.matshow(sct3d[0,41,...])
+    plt.matshow(np.sum(sct3d[0,0:72,...],axis=0))
+
+    plt.plot(np.sum(sct3d, axis=(0,2,3)))
+
+    rslt = sctout['sct_val']
+    rslt.shape
+    plt.matshow(rslt[0,4,:,4,:])
+
+    debugging scatter:
+    plt.matshow(np.sum(sssr, axis=(0,1)))
+    plt.matshow(np.sum(ssn, axis=(0,1)))
+    plt.matshow(sssr[0,70,...])
+    plt.matshow(sssr[0,50,...])
+    '''
+    #-------------------------------------------------------------------
+
 
     #> get SSR for randoms from span-1 or span-11
-    rssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-    for i in range(snno):
-        rssr[ssrlut[i],:,:] += rsinos[i,:,:]
+    rssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+    if scaling:
+        for i in range(snno):
+            rssr[ssrlut[i],:,:] += rsino[i,:,:]
 
     #ATTENUATION FRACTIONS for scatter only regions, and NORMALISATION for all SCATTER
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
@@ -486,19 +613,20 @@ def vsm(
     petprj.fprj(atto, mu_sctonly, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
     atto = mmraux.putgaps(atto, txLUT, Cnt)
     #--------------------------------------------------------------
-    #get norm components setting the geometry and axial to ones as they are accounted for differently
+    #> get norm components setting the geometry and axial to ones as they are accounted for differently
     nrmcmp['geo'][:] = 1
     nrmcmp['axe1'][:] = 1
     #get sino with no gaps
     nrmg = np.zeros((txLUT['Naw'], Cnt['NSN1']), dtype=np.float32)
-    mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
+    mmr_auxe.norm(nrmg, nrmcmp, histo['buckets'], axLUT, txLUT['aw2ali'], Cnt)
     nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
 
 
-    #get attenuation + norm in (span-11) and SSR
-    attossr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-    nrmsssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
+    #> get attenuation + norm in (span-11) and SSR
+    attossr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+    nrmsssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+    
     for i in range(Cnt['NSN1']):
         si = axLUT['sn1_ssrb'][i]
         attossr[si,:,:] += atto[i,:,:] / float(axLUT['sn1_ssrno'][si])
@@ -506,9 +634,11 @@ def vsm(
     if currentspan==11:
         Cnt['SPN']=11
         nrmg = np.zeros((txLUT['Naw'], snno), dtype=np.float32)
-        mmr_auxe.norm(nrmg, nrmcmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
+        mmr_auxe.norm(nrmg, nrmcmp, histo['buckets'], axLUT, txLUT['aw2ali'], Cnt)
         nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
+    
+    #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
 
     #get the mask for the object from uncorrected emission image
     if emmsk and os.path.isfile(datain['em_nocrr']):
@@ -531,83 +661,75 @@ def vsm(
 
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
 
-    #--------------------------------------------------------------------------------------------
-    #> get scatter sinos for TOF or non-TOF
-    if Cnt['TOFBINN']>1:
-        ssn = np.zeros((Cnt['TOFBINN'], snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float64);
-        sssr = np.zeros((Cnt['TOFBINN'], Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
-        tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float64)
-        log.info('interpolate each scatter sino...')
-        for k in range(Cnt['TOFBINN']):
-            log.info('interpolating TOF bin k = {}'.format(k))
-            for i in range(snno):
-                tmp2d[:] = 0
-                for ti in range(len(sctind)):
-                    tmp2d[ sctind[ti] ] += sct3d[k,i,ti]
-                #interpolate estimated scatter
-                ssn[k,i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
-                sssr[k, ssrlut[i], :, :] += ssn[k,i,:,:]
 
-    elif Cnt['TOFBINN']==1:
+    #======== SCALING ========
+    #> scale scatter using non-TOF SSRB sinograms
 
-        ssn, sssr = intrp_sct(sctind, sct3d, Cnt, snno, ssrlut)
-
-        # tmp2d = np.zeros((Cnt['NSANGLES']*Cnt['NSBINS']), dtype=np.float32)
-
-        # log.info('scatter sinogram interpolation...')
-        # for i in range(snno):
-        #     tmp2d[:] = 0
-        #     for ti in range(len(sctind)):
-        #         tmp2d[ sctind[ti] ] += sct3d[0,i,ti]
-        #     #interpolate estimated scatter
-        #     ssn[i,:,:] = get_sctinterp( np.reshape(tmp2d, (Cnt['NSANGLES'], Cnt['NSBINS'])), sctind, Cnt )
-        #     sssr[ssrlut[i],:,:] += ssn[i,:,:]
-        #     if (i%100)==0:
-        #         log.info('sinograms interpolated: {}'.format(i))
-
-
-    #--------------------------------------------------------------------------------------------
-
-    #=== scale scatter for ssr and non-TOF===
-    #mask
+    #> gap mask
     rmsk = (txLUT['msino']>0).T
     rmsk.shape = (1,Cnt['NSANGLES'],Cnt['NSBINS'])
     rmsk = np.repeat(rmsk, Cnt['NSEG0'], axis=0)
-    amsksn = np.logical_and( attossr>=0.999, rmsk) * ~mssr
-    #scaling factors for ssr
+    
+    #> include attenuating object into the mask (and the emission if selected)
+    amsksn = np.logical_and( attossr>=mask_threshlod, rmsk) * ~mssr
+    
+    #> scaling factors for SSRB scatter
     scl_ssr = np.zeros( (Cnt['NSEG0']), dtype=np.float32)
+    
     for sni in range(Cnt['NSEG0']):
-        # region of choice for scaling
+        #> region for scaling defined by the percentage of lowest
+        #> but usable/significant scatter
         thrshld = prcnt_scl * np.max(sssr[sni,:,:])
         amsksn[sni,:,:] *= (sssr[sni,:,:]>thrshld)
         amsk = amsksn[sni,:,:]
-        #normalised estimated scatter
+
+        #> normalised estimated scatter
         mssn = sssr[sni,:,:] * nrmsssr[sni,:,:]
-        mssn[np.invert(amsk)] = 0
-        #vectorised masked sino
-        vssn = mssn[amsk]
-        vpsn = hst['pssr'][sni, amsk] - rssr[sni, amsk]
-        scl_ssr[sni] = np.sum(vpsn) / np.sum(mssn)
-        #ssr output
+        vpsn = histo['pssr'][sni, amsk] - rssr[sni, amsk]
+        scl_ssr[sni] = np.sum(vpsn) / np.sum(mssn[amsk])
+
+        #> scatter SSRB sinogram output
         sssr[sni,:,:] *= nrmsssr[sni,:,:]*scl_ssr[sni]
 
 
-    #=== scale scatter for the proper sino ===
+    #=== scale scatter for the full-size sinogram ===
     sss = np.zeros((snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32);
     for i in range(snno):
         sss[i,:,:] = ssn[i,:,:]*scl_ssr[ssrlut[i]]*saxnrm[i] * nrm[i,:,:]
 
-    out = {}
 
+    '''
+    #> debug
+    si = 60
+    ai = 60
+    matshow(sssr[si,...])
+    
+    figure()
+    plot(histo['pssr'][si,ai,:])
+    plot(rssr[si,ai,:]+sssr[si,ai,:])
+
+    plot(np.sum(histo['pssr'],axis=(0,1)))
+    plot(np.sum(rssr+sssr,axis=(0,1)))
+    '''
+
+
+    #=== OUTPUT ===
     if return_uninterp:
         out['uninterp'] = sct3d
         out['indexes'] = sctind
 
     if return_ssrb:
         out['ssrb'] = sssr
+        out['rssr'] = rssr
 
     if return_mask:
-        out['mask'] = amsk
+        out['mask'] = amsksn
+
+    if return_scaling:
+        out['scaling'] = scl_ssr
+
+    # if self_scaling:
+    #     out['scl_sn1'] = scl_ssn
 
 
     if not out:

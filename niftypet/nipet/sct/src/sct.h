@@ -5,12 +5,8 @@
 float *KN_LUT(void);
 
 typedef struct {
-	int		nscrs;	//no of scatter crystals and rings:
-	int		nsrng;
-	int 	* bind; //bin index
 	float 	* sval; //bin value
 	float 	* s3d; //scatter pre-sino in span-1
-	char	* xsxu; //xs>xu for scatter and unscattered crystals
 }scatOUT;
 
 scatOUT prob_scatt(
@@ -24,22 +20,28 @@ scatOUT prob_scatt(
 	short *offseg,
 	float *scrs,
 	short *isrng,
-	float *crs,
+	float *srng,
+	char  *xsxu,
 	short *sn1_rno,
 	short *sn1_sn11,
 	Cnst Cnt);
 
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-            
-//## start ##// constants definitions in synch with Python.   DO NOT MODIFY!
 
-// SCATTER IMAGE SIZE AND PROPERTIES
-// SS_* are used for the mu-map in scatter calculations
-// SSE_* are used for the emission image in scatter calculations
-// R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
-// NCOS is the number of samples for scatter angular sampling
-#define SS_IMX 172
+
+
+
+
+
+//## start ##// constants definitions in synch with Python.   DO NOT MODIFY!
+
+// SCATTER IMAGE SIZE AND PROPERTIES
+// SS_* are used for the mu-map in scatter calculations
+// SSE_* are used for the emission image in scatter calculations
+// R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+// NCOS is the number of samples for scatter angular sampling
+#define SS_IMX 172
 #define SS_IMY 172
 #define SS_IMZ 63
 #define SSE_IMX 114
@@ -60,23 +62,6 @@ scatOUT prob_scatt(
 //number of samples per scattering patch (point) length; used as the power of 2:  2**LSCT2 = patch length
 #define LSCT2 2
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-
-
-//====================================================
-/* R_RING: actual radius (radious + DOI)
-#define R_RING (32.8 + 0.67)
-// inverse of the above
-#define IR_RING 0.0298775
-// squared
-#define R_2 1120.2409f
-
-//number of samples for scatter angular sampling
-#define NCOS 256
-
-//detector surface
-#define SRFCRS    0.1695112f //2*math.pi/NCRS*(32.8 + 0.67)*0.40625
-*/
-//====================================================
 
 
 //============ RAY PATH SAMPLING =====================

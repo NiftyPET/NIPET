@@ -20,7 +20,7 @@ void HandleError(cudaError_t err, const char *file, int line) {
 
 /*************** TRANSAXIAL FWD/BCK *****************/
 __global__ void sddn_tx(
-	const float * crs,
+	const float4 * crs,
 	const short2 * s2c,
 	float * tt,
 	unsigned char * tv)
@@ -31,28 +31,27 @@ __global__ void sddn_tx(
 
 	if (idx<AW) {
 
-		const int C = nCRS;  // no of crystal per ring                             
-
 		// get crystal indexes from projection index
 		short c1 = s2c[idx].x;
 		short c2 = s2c[idx].y;
 
 		float cc1[3];
 		float cc2[3];
-		cc1[0] = .5*(crs[c1] + crs[c1 + C * 2]);
-		cc2[0] = .5*(crs[c2] + crs[c2 + C * 2]);
+		cc1[0] = .5*(crs[c1].x + crs[c1].z);
+		cc2[0] = .5*(crs[c2].x + crs[c2].z);
 
-		cc1[1] = .5*(crs[c1 + C] + crs[c1 + C * 3]);
-		cc2[1] = .5*(crs[c2 + C] + crs[c2 + C * 3]);
+		cc1[1] = .5*(crs[c1].y + crs[c1].w);
+		cc2[1] = .5*(crs[c2].y + crs[c2].w);
+
 
 		// crystal edge vector
 		float e[2];
-		e[0] = crs[c1 + 2 * C] - crs[c1];
-		e[1] = crs[c1 + 3 * C] - crs[c1 + C];
+		e[0] = crs[c1].z - crs[c1].x;
+		e[1] = crs[c1].w - crs[c1].y;
 
 		float px, py;
-		px = crs[c1] + 0.5*e[0];
-		py = crs[c1 + C] + 0.5*e[1];
+		px = crs[c1].x + 0.5*e[0];
+		py = crs[c1].y + 0.5*e[1];
 
 		float at[3], atn;
 		for (int i = 0; i<2; i++) {
@@ -191,7 +190,7 @@ __global__ void sddn_tx(
 }
 
 void gpu_siddon_tx(
-	float *d_crs,
+	float4 *d_crs,
 	short2 *d_s2c,
 	float *d_tt,
 	unsigned char *d_tv)

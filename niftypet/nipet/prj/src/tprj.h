@@ -9,7 +9,8 @@
 void HandleError(cudaError_t err, const char *file, int line);
 
 
-void gpu_siddon_tx(float *d_crs,
+void gpu_siddon_tx(
+	float4 *d_crs,
 	short2 *d_s2c,
 	float *d_tt,
 	unsigned char *d_tv);

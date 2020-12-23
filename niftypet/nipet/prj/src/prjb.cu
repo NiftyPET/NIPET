@@ -210,7 +210,7 @@ void gpu_bprj(float *bimg,
 	int *subs,
 	int Nprj,
 	int Naw,
-	int N0crs, int N1crs,
+	int N0crs,
 	Cnst Cnt)
 {
 
@@ -219,8 +219,8 @@ void gpu_bprj(float *bimg,
 	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- TRANSAXIAL COMPONENT
-	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs*N1crs * sizeof(float), cudaMemcpyHostToDevice));
+	float4 *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
 
 	short2 *d_s2c;  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
 	HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));

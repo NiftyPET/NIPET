@@ -3,7 +3,7 @@ Python extension for CUDA auxiliary routines used in
 voxel-driven scatter modelling (VSM)
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2020
 ------------------------------------------------------------------------*/
 #include <stdlib.h>
 #include "sctaux.h"
@@ -28,312 +28,26 @@ void getMemUse(Cnst Cnt) {
 //************************************************************
 
 
-//==========================================================================================
+//======================================================================
 //  S C A T T E R
-//==========================================================================================
+//======================================================================
 
-//------------- DEFINE A SUBSET OF CRYSTAL and THEIR CENTRES FOR SCATTER -------------------
-scrsDEF def_scrs(short * isrng, float *scrs, Cnst Cnt)
-{
 
-	// float * scrs = (float*)malloc(3 * nCRS * sizeof(float));
-	// //indx of scatter crystals, ending with the total number
-	// int iscrs = 0;
-	// //counter for crystal period, SCRS_T
-	// int cntr = 0;
-
-	// for (int c = 0; c<nCRS; c++) {
-	// 	// avoiding gaps
-	// 	if (((c + 1) % 9) == 0) continue;
-	// 	cntr += 1;
-	// 	if (cntr == SCRS_T) {
-	// 		cntr = 0;
-	// 		scrs[3 * iscrs] = (float)c;
-	// 		scrs[3 * iscrs + 1] = 0.5*(crs[c] + crs[c + 2 * nCRS]);
-	// 		scrs[3 * iscrs + 2] = 0.5*(crs[c + nCRS] + crs[c + 3 * nCRS]);
-
-	// 		//printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", iscrs, c, scrs[3*iscrs+1], scrs[3*iscrs+2]);
-	// 		iscrs += 1;
-	// 	}
-	// }
-
-
-	scrsDEF d_scrsdef;
-
-	//scatter ring definitions
-#ifdef WIN32
-	float *h_scrcdefRng, *h_scrsdefCrs;
-	HANDLE_ERROR(cudaMallocHost(&h_scrcdefRng, 2 * Cnt.NSRNG * sizeof(float)));
-	float z = 0.5*(-Cnt.NRNG*Cnt.AXR + Cnt.AXR);
-	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
-		h_scrcdefRng[2 * ir] = (float)isrng[ir];
-		h_scrcdefRng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.LOG <= LOGDEBUG)
-			printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)h_scrcdefRng[2 * ir], h_scrcdefRng[2 * ir + 1]);
-	}
-	HANDLE_ERROR(cudaMalloc(&d_scrsdef.rng, 2 * Cnt.NSRNG * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_scrsdef.rng, h_scrcdefRng, 2 * Cnt.NSRNG * sizeof(float), cudaMemcpyHostToDevice));
-	HANDLE_ERROR(cudaFreeHost(h_scrcdefRng));
-
-	//transaxial crystals to structure
-	HANDLE_ERROR(cudaMallocHost(&h_scrsdefCrs, 3 * Cnt.NSCRS * sizeof(float)));
-	for (int sc = 0; sc<Cnt.NSCRS; sc++) {
-		h_scrsdefCrs[3 * sc] = scrs[3 * sc];
-		h_scrsdefCrs[3 * sc + 1] = scrs[3 * sc + 1];
-		h_scrsdefCrs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.LOG <= LOGDEBUG)
-			printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)h_scrsdefCrs[3 * sc], h_scrsdefCrs[3 * sc + 1], h_scrsdefCrs[3 * sc + 2]);
-	}
-	HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * Cnt.NSCRS * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_scrsdef.crs, h_scrsdefCrs, 3 * Cnt.NSCRS * sizeof(float), cudaMemcpyHostToDevice));
-	HANDLE_ERROR(cudaFreeHost(h_scrsdefCrs));
-
-#else
-	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.rng, 2 * Cnt.NSRNG * sizeof(float)));
-	float z = 0.5*(-Cnt.NRNG*Cnt.AXR + Cnt.AXR);
-	for (int ir = 0; ir<Cnt.NSRNG; ir++) {
-		d_scrsdef.rng[2 * ir] = (float)isrng[ir];
-		d_scrsdef.rng[2 * ir + 1] = z + isrng[ir] * Cnt.AXR;
-		if (Cnt.LOG <= LOGDEBUG)
-			printf(">> [%d]: ring_i=%d, ring_z=%f\n", ir, (int)d_scrsdef.rng[2 * ir], d_scrsdef.rng[2 * ir + 1]);
-	}
-
-	//transaxial crs to structure
-	HANDLE_ERROR(cudaMallocManaged(&d_scrsdef.crs, 3 * Cnt.NSCRS * sizeof(float)));
-	for (int sc = 0; sc<Cnt.NSCRS; sc++) {
-		d_scrsdef.crs[3 * sc] 	  = scrs[3 * sc];
-		d_scrsdef.crs[3 * sc + 1] = scrs[3 * sc + 1];
-		d_scrsdef.crs[3 * sc + 2] = scrs[3 * sc + 2];
-		if (Cnt.LOG <= LOGDEBUG)
-			printf("i> %d-th scatter crystal (%d): (x,y) = (%2.2f, %2.2f). \n", sc, (int)d_scrsdef.crs[3 * sc], d_scrsdef.crs[3 * sc + 1], d_scrsdef.crs[3 * sc + 2]);
-	}
-#endif
-
-	d_scrsdef.nscrs = Cnt.NSCRS;
-	d_scrsdef.nsrng = Cnt.NSRNG;
-
-	return d_scrsdef;
-}
-
-
-//==========================================================================
-//---------- get 3D scatter look up tables ---------------------------------
-int * get_2DsctLUT(scrsDEF d_scrsdef, Cnst Cnt) {
-
-
-	//crystals -> sino bin LUT
-	short c0, c1;
-	int * c2s = (int*)malloc(Cnt.NCRS*Cnt.NCRS * sizeof(int));
-	for (int iw = 0; iw<Cnt.W; iw++) {
-		for (int ia = 0; ia<Cnt.A; ia++) {
-			c0 = floor(fmod(ia + .5*(Cnt.NCRS - 2 + Cnt.W / 2 - iw), Cnt.NCRS));
-			c1 = floor(fmod(ia + .5*(2 * Cnt.NCRS - 2 - Cnt.W / 2 + iw), Cnt.NCRS));
-			c2s[c0 + c1*Cnt.NCRS] = iw + ia*Cnt.W;//ia + iw*Cnt.A;
-			c2s[c1 + c0*Cnt.NCRS] = iw + ia*Cnt.W;//ia + iw*Cnt.A;
-		}
-	}
-
-	int *d_sct2aw;
-
-#ifdef WIN32
-	int *h_sct2aw;
-	float *h_scrsdefCrs;
-	HANDLE_ERROR(cudaMallocHost(&h_sct2aw, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int)));
-	HANDLE_ERROR(cudaMalloc(&d_sct2aw, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int)));
-	//HANDLE_ERROR(cudaMalloc(&d_scrsdef.crs, 3 * iscrs * sizeof(float)));
-
-	HANDLE_ERROR(cudaMallocHost(&h_scrsdefCrs, 3 * d_scrsdef.nscrs * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(h_scrsdefCrs, d_scrsdef.crs, 3 * d_scrsdef.nscrs * sizeof(float), cudaMemcpyDeviceToHost));
-
-	//printf("i> d_scrsdef: nrcs nsrng %d %d\n\n", d_scrsdef.nscrs, d_scrsdef.nsrng);
-
-
-	//loop over unscattered crystals
-	for (int uc = 0; uc<d_scrsdef.nscrs; uc++) {
-
-		//loop over scatter crystals
-		for (int i = 0; i<d_scrsdef.nscrs / 2; i++) {
-			//scatter crystal based on the position of unscatter crystal <uc>
-			int sc = (uc + d_scrsdef.nscrs / 4 + i) & (d_scrsdef.nscrs - 1);
-			//sino linear index (full including the gaps)      
-			h_sct2aw[d_scrsdef.nscrs / 2 * uc + i] = c2s[(int)h_scrsdefCrs[3 * uc] + Cnt.NCRS*(int)h_scrsdefCrs[3 * sc]];
-
-			//scattered and unscattered crystal positions (used for determining +/- sino segments)
-			float xs = h_scrsdefCrs[3 * sc + 1];
-			float xu = h_scrsdefCrs[3 * uc + 1];
-
-			if (xs>xu) { h_sct2aw[d_scrsdef.nscrs / 2 * uc + i] += (1 << 30); }
-
-			// printf("uc = %d (c=%d, xu = %f), sc = %d (c=%d, xs = %f), iAW = %d\n",
-			//        uc, (int)d_scrsdef.crs[3*uc], d_scrsdef.crs[3*uc+1],
-			//        sc, (int)d_scrsdef.crs[3*sc], d_scrsdef.crs[3*sc+1],
-			//        d_sct2aw[d_scrsdef.nscrs/2*uc + i] );
-		}
-
-	}
-	HANDLE_ERROR(cudaMemcpy(d_sct2aw, h_sct2aw, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int), cudaMemcpyHostToDevice));
-	HANDLE_ERROR(cudaFreeHost(h_sct2aw));
-	HANDLE_ERROR(cudaFreeHost(h_scrsdefCrs));
-
-
-
-#else
-
-	HANDLE_ERROR(cudaMallocManaged(&d_sct2aw, d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(int)));
-
-	//loop over unscattered crystals
-	for (int uc = 0; uc<d_scrsdef.nscrs; uc++) {
-
-		//loop over scatter crystals
-		for (int i = 0; i<d_scrsdef.nscrs / 2; i++) {
-			//scatter crystal based on the position of unscatter crystal <uc>
-			int sc = (uc + d_scrsdef.nscrs / 4 + i) & (d_scrsdef.nscrs - 1);
-			//sino linear index (full including the gaps)      
-			d_sct2aw[d_scrsdef.nscrs / 2 * uc + i] = c2s[(int)d_scrsdef.crs[3 * uc] + Cnt.NCRS*(int)d_scrsdef.crs[3 * sc]];
-
-			//scattered and unscattered crystal positions (used for determining +/- sino segments)
-			float xs = d_scrsdef.crs[3 * sc + 1];
-			float xu = d_scrsdef.crs[3 * uc + 1];
-
-			if (xs>xu) { d_sct2aw[d_scrsdef.nscrs / 2 * uc + i] += (1 << 30); }
-
-			// printf("uc = %d (c=%d, xu = %f), sc = %d (c=%d, xs = %f), iAW = %d\n",
-			//        uc, (int)d_scrsdef.crs[3*uc], d_scrsdef.crs[3*uc+1],
-			//        sc, (int)d_scrsdef.crs[3*sc], d_scrsdef.crs[3*sc+1],
-			//        d_sct2aw[d_scrsdef.nscrs/2*uc + i] );
-		}
-
-	}
-
-#endif
-
-	return d_sct2aw;
-}
-
-
-
-//---------------- Scatter crystals to sino bins -------------------------------------
-snLUT get_scrs2sn(int nscrs, float *scrs, Cnst Cnt) {
-
-	snLUT lut;
-
-	//first the usual crystals -> sino bin
-	short c1, c2;
-	int * c2s = (int*)malloc(nCRS*nCRS * sizeof(int));
-	for (int iw = 0; iw<NSBINS; iw++) {
-		for (int ia = 0; ia<NSANGLES; ia++) {
-			c1 = floor(fmod(ia + .5*(nCRS - 2 + NSBINS / 2 - iw), nCRS));
-			c2 = floor(fmod(ia + .5*(2 * nCRS - 2 - NSBINS / 2 + iw), nCRS));
-			c2s[c1 + c2*nCRS] = ia + iw*NSANGLES;
-			c2s[c2 + c1*nCRS] = ia + iw*NSANGLES;
-		}
-	}
-
-	lut.crs2sn = c2s;
-
-	//===========================================
-	//array of luts:
-	//[0]: scatter results -> linear sino index
-	//[1]: scatter results -> linear index of summed results (usually 2 results per sino bin)
-	int *d_sct2sn;
-
-#ifdef WIN32
-	int *h_sct2sn;
-	HANDLE_ERROR(cudaMallocHost(&h_sct2sn, nscrs*nscrs * sizeof(int)));
-	HANDLE_ERROR(cudaMalloc(&d_sct2sn, nscrs*nscrs * sizeof(int)));
-
-	//for checking if sino bin was already accounted for
-	int * chcksino = (int*)malloc(NSBINANG * sizeof(int));
-	memset(chcksino, 0, NSBINANG * sizeof(int));
-
-	int cnt = 0;
-
-	//uc: unscattered photon crystal, sc: scattered photon crystal
-	for (int uc = 0; uc<nscrs; uc++) {
-
-		for (int i = 0; i<nscrs / 2; i++) {
-			int sc = (uc + nscrs / 4 + i) & (nscrs - 1);
-			//sino linear index
-			int sn_i = c2s[(int)scrs[3 * uc] + nCRS*(int)scrs[3 * sc]];
-			h_sct2sn[nscrs*uc + 2 * i] = sn_i << 1;
-
-			if (chcksino[sn_i] == 0) {
-				cnt += 1;
-				chcksino[sn_i] = cnt;
-				h_sct2sn[nscrs*uc + 2 * i + 1] = cnt - 1;
-			}
-			else
-				h_sct2sn[nscrs*uc + 2 * i + 1] = chcksino[sn_i] - 1;
-
-			//printf("uc = %d, sci = %d, sni = %d, cnt = %d\n", uc, i, sn_i, d_sct2sn[nscrs*uc + 2*i+1]);
-		}
-
-	}
-
-	HANDLE_ERROR(cudaMemcpy(d_sct2sn, h_sct2sn, nscrs*nscrs * sizeof(int), cudaMemcpyHostToDevice));
-	HANDLE_ERROR(cudaFreeHost(h_sct2sn));
-
-#else
-
-	HANDLE_ERROR(cudaMallocManaged(&d_sct2sn, nscrs*nscrs * sizeof(int)));
-
-	//for checking if sino bin was already accounted for
-	int * chcksino = (int*)malloc(NSBINANG * sizeof(int));
-	memset(chcksino, 0, NSBINANG * sizeof(int));
-
-	int cnt = 0;
-
-	//uc: unscattered photon crystal, sc: scattered photon crystal
-	for (int uc = 0; uc<nscrs; uc++) {
-
-		for (int i = 0; i<nscrs / 2; i++) {
-			int sc = (uc + nscrs / 4 + i) & (nscrs - 1);
-			//sino linear index
-			int sn_i = c2s[(int)scrs[3 * uc] + nCRS*(int)scrs[3 * sc]];
-			d_sct2sn[nscrs*uc + 2 * i] = sn_i << 1;
-
-			if (chcksino[sn_i] == 0) {
-				cnt += 1;
-				chcksino[sn_i] = cnt;
-				d_sct2sn[nscrs*uc + 2 * i + 1] = cnt - 1;
-			}
-			else
-				d_sct2sn[nscrs*uc + 2 * i + 1] = chcksino[sn_i] - 1;
-
-			//printf("uc = %d, sci = %d, sni = %d, cnt = %d\n", uc, i, sn_i, d_sct2sn[nscrs*uc + 2*i+1]);
-		}
-
-	}
-
-#endif
-
-	lut.sct2sn = d_sct2sn;
-	lut.nsval = cnt;
-
-	if (Cnt.LOG <= LOGINFO) printf("i> number of sino bins used in scatter sinogram: %d\n\n", cnt);
-
-
-	return lut;
-}
-//----------------------------------------------------------------------------------
-
-
-
-
-
-//============================================================================
+//======================================================================
 //SCATTER RESULTS PROCESSING
-//============================================================================
+//======================================================================
 
 __constant__ short c_isrng[N_SRNG];
 
-__global__ void d_sct2sn1(float *scts1,
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+__global__ void d_sct2sn1(
+	float *scts1,
 	float *srslt,
 	size_t offtof,
-	int *sct2D_AW,
+	char *xsxu,
 	short *offseg,
-	int NBIN,
-	int MRD)
+	int NBIN)
 {
 	//scatter crystal index
 	char ics = threadIdx.x;
@@ -353,25 +67,25 @@ __global__ void d_sct2sn1(float *scts1,
 	char nsrng = gridDim.y;
 
 	//scatter bin index for one scatter sino/plane
-	short ssi = nscrs / 2 * icu + ics;
-	//int iAW = sct2D_AW[ ssi ] & 0x3fffffff;
-	bool pos = ((2 * (sct2D_AW[ssi] >> 30) - 1) * (irs - iru)) > 0;
+	short ssi = nscrs*icu + ics;
+	bool pos = ((2*xsxu[ssi] - 1) * (irs - iru)) > 0;
 
 	// ring difference index used for addressing the segment offset to obtain sino index in span-1
 	unsigned short rd = __usad(c_isrng[irs], c_isrng[iru], 0);
 
-	//if(rd<=MRD)
-	{
-		unsigned short rdi = (2 * rd - 1 * pos);
-		unsigned short sni = offseg[rdi] + MIN(c_isrng[irs], c_isrng[iru]);
+	unsigned short rdi = (2*rd - 1*pos);
+	unsigned short sni = offseg[rdi] + MIN(c_isrng[irs], c_isrng[iru]);
 
-		atomicAdd(scts1 + sni*NBIN + ssi,
-			srslt[offtof + iru * nscrs*nsrng*nscrs / 2 + icu * nsrng*nscrs / 2 + irs*nscrs / 2 + ics]);
-	}
+	atomicAdd(scts1 + sni*NBIN + ssi,
+		srslt[offtof + iru*nscrs*nsrng*nscrs + icu*nsrng*nscrs + irs*nscrs + ics]);
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-__global__ void d_sct_axinterp(float *sct3d,
+__global__ void d_sct_axinterp(
+	float *sct3d,
 	const float *scts1,
 	const int4 *sctaxR,
 	const float4 *sctaxW,
@@ -379,52 +93,37 @@ __global__ void d_sct_axinterp(float *sct3d,
 	int NBIN,
 	int NSN1,
 	int SPN,
-	int offtof)
+	int tof_off)
 {
 	//scatter crystal index
 	char ics = threadIdx.x;
 
-	//unscattered crystal index
-	char icu = 2 * threadIdx.y;
+	//unscattered crystal index (the 4s are done in the loop below)
+	char icu = blockIdx.x;
 
 	//span-1 sino index
-	short sni = blockIdx.x;
+	short sni = blockIdx.y;
 
-	float tmp1, tmp2;
-
-	tmp1 = sctaxW[sni].x * scts1[NBIN*sctaxR[sni].x + icu*blockDim.x + ics] +
-		sctaxW[sni].y * scts1[NBIN*sctaxR[sni].y + icu*blockDim.x + ics] +
-		sctaxW[sni].z * scts1[NBIN*sctaxR[sni].z + icu*blockDim.x + ics] +
-		sctaxW[sni].w * scts1[NBIN*sctaxR[sni].w + icu*blockDim.x + ics];
-
-	//for the rest of the unscattered crystals (due to limited indexing of 1024 in a block)
-	icu += 1;
-	tmp2 = sctaxW[sni].x * scts1[NBIN*sctaxR[sni].x + icu*blockDim.x + ics] +
-		sctaxW[sni].y * scts1[NBIN*sctaxR[sni].y + icu*blockDim.x + ics] +
-		sctaxW[sni].z * scts1[NBIN*sctaxR[sni].z + icu*blockDim.x + ics] +
-		sctaxW[sni].w * scts1[NBIN*sctaxR[sni].w + icu*blockDim.x + ics];
-
+	float tmp = sctaxW[sni].x * scts1[NBIN*sctaxR[sni].x + icu*blockDim.x + ics] +
+				sctaxW[sni].y * scts1[NBIN*sctaxR[sni].y + icu*blockDim.x + ics] +
+				sctaxW[sni].z * scts1[NBIN*sctaxR[sni].z + icu*blockDim.x + ics] +
+				sctaxW[sni].w * scts1[NBIN*sctaxR[sni].w + icu*blockDim.x + ics];
 
 	//span-1 or span-11 scatter pre-sinogram interpolation
-	if (SPN == 1) {
-		sct3d[offtof + sni*NBIN + (icu - 1)*blockDim.x + ics] = tmp1;
-		sct3d[offtof + sni*NBIN + icu*blockDim.x + ics] = tmp2;
-	}
-	else if (SPN == 11) {
-		//only converting to span-11 when MRD<=60
-		if (sni<NSN1) {
-			short sni11 = sn1_sn11[sni];
-			atomicAdd(sct3d + offtof + sni11*NBIN + (icu - 1)*blockDim.x + ics, tmp1);
-			atomicAdd(sct3d + offtof + sni11*NBIN + icu*blockDim.x + ics, tmp2);
-		}
-	}
+	if (SPN == 1) 
+		sct3d[tof_off + sni*NBIN + icu*blockDim.x + ics] = tmp;
+	else if (SPN == 11)
+		if (sni<NSN1) atomicAdd(sct3d + tof_off + sn1_sn11[sni]*NBIN + icu*blockDim.x + ics, tmp);
 
 }
 
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-//=============================================================================
-float * srslt2sino(float *d_srslt,
-	int *d_sct2D_AW,
+
+//======================================================================
+float * srslt2sino(
+	float *d_srslt,
+	char *d_xsxu,
 	scrsDEF d_scrsdef,
 	int *sctaxR,
 	float *sctaxW,
@@ -435,24 +134,28 @@ float * srslt2sino(float *d_srslt,
 	Cnst Cnt)
 {
 
-	//scatter pre-sino in span-1 (tmporary) 
+
+	getMemUse(Cnt);
+
+	//scatter pre-sino in span-1 (temporary) 
 	float *d_scts1;
-	HANDLE_ERROR(cudaMalloc(&d_scts1, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(float)));
+	HANDLE_ERROR(cudaMalloc(&d_scts1, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(float)));
 
 
 	//axially interpolated scatter pre-sino; full span-1 without MRD limit or span-11 with MRD=60
 	float *d_sct3di;
 	int tbins = 0;
 	if (Cnt.SPN == 1)
-		tbins = Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs / 2;
+		tbins = Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs;
 	//scatter pre-sino, span-11
 	else if (Cnt.SPN == 11)
-		tbins = Cnt.NSN11*d_scrsdef.nscrs*d_scrsdef.nscrs / 2;
+		tbins = Cnt.NSN11*d_scrsdef.nscrs*d_scrsdef.nscrs;
+
 	HANDLE_ERROR(cudaMalloc(&d_sct3di, Cnt.TOFBINN*tbins * sizeof(float)));
 	HANDLE_ERROR(cudaMemset(d_sct3di, 0, Cnt.TOFBINN*tbins * sizeof(float)));
 
 	//number of all scatter estimated values (sevn) for one TOF 3D sino
-	int sevn = d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs / 2;
+	int sevn = d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs;
 
 	//---- constants  
 	int4 *d_sctaxR;
@@ -467,8 +170,9 @@ float * srslt2sino(float *d_srslt,
 	HANDLE_ERROR(cudaMalloc(&d_offseg, (Cnt.NSEG0 + 1) * sizeof(short)));
 	HANDLE_ERROR(cudaMemcpy(d_offseg, offseg, (Cnt.NSEG0 + 1) * sizeof(short), cudaMemcpyHostToDevice));
 
-	if (N_SRNG != Cnt.NSRNG) printf("e> Number of scatter rings is different in definistions from Python! <<<<<<<<<<<<<<<<<<< error \n");
-	//---scatter ring indecies to constant memory (GPU)
+	if (N_SRNG != Cnt.NSRNG) printf("e> Number of scatter rings is different in definitions from Python! <<<<<<<<<<<<<<<<<<< error \n");
+	
+	//---scatter ring indices to constant memory (GPU)
 	HANDLE_ERROR(cudaMemcpyToSymbol(c_isrng, isrng, Cnt.NSRNG * sizeof(short)));
 	//---
 
@@ -487,7 +191,7 @@ float * srslt2sino(float *d_srslt,
 		size_t offtof = i*sevn;
 
 		//init to zeros
-		HANDLE_ERROR(cudaMemset(d_scts1, 0, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs / 2 * sizeof(float)));
+		HANDLE_ERROR(cudaMemset(d_scts1, 0, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(float)));
 
 
 		if (Cnt.LOG <= LOGINFO) printf("i> 3D scatter results into span-1 pre-sino for TOF bin %d...", i);
@@ -497,14 +201,13 @@ float * srslt2sino(float *d_srslt,
 		cudaEventRecord(start, 0);
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		dim3 grid(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);
-		dim3 block(d_scrsdef.nscrs / 2, d_scrsdef.nsrng, 1);
-		d_sct2sn1 << < grid, block >> >(d_scts1,
+		dim3 block(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);
+		d_sct2sn1 <<< grid, block >>>(d_scts1,
 			d_srslt,
 			offtof,
-			d_sct2D_AW,
+			d_xsxu,
 			d_offseg,
-			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs / 2),
-			Cnt.MRD);
+			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs));
 		cudaError_t err = cudaGetLastError();
 		if (err != cudaSuccess) printf("Error in d_sct2sn1: %s\n", cudaGetErrorString(err));
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -523,18 +226,18 @@ float * srslt2sino(float *d_srslt,
 		cudaEventCreate(&stop);
 		cudaEventRecord(start, 0);
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-		block.x = d_scrsdef.nscrs / 2;
-		block.y = d_scrsdef.nscrs / 2;
+		block.x = d_scrsdef.nscrs;
+		block.y = 1;
 		block.z = 1;
-		grid.x = Cnt.NSN64;
-		grid.y = 1;
+		grid.x = d_scrsdef.nscrs;
+		grid.y = Cnt.NSN1;
 		grid.z = 1;
-		d_sct_axinterp << < grid, block >> >(d_sct3di,
+		d_sct_axinterp <<< grid, block >>>(d_sct3di,
 			d_scts1,
 			d_sctaxR,
 			d_sctaxW,
 			d_sn1_sn11,
-			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs / 2),
+			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs),
 			Cnt.NSN1,
 			Cnt.SPN,
 			i*tbins);
@@ -551,8 +254,11 @@ float * srslt2sino(float *d_srslt,
 	}
 
 	cudaFree(d_scts1);
-
 	return d_sct3di;
+
+	// cudaFree(d_sct3di);
+	// return d_scts1;
+
 }
 
 
@@ -585,7 +291,7 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt)
 	HANDLE_ERROR(cudaMallocHost(&h_i2v, nvx * sizeof(int)));
 	HANDLE_ERROR(cudaMallocHost(&h_v2i, SSE_IMX*SSE_IMY*SSE_IMZ * sizeof(int)));
 
-	HANDLE_ERROR(cudaMalloc(&d_i2v, nvx * sizeof(int))); // does d_12v and its kind get freed???????????????????????????????????????????
+	HANDLE_ERROR(cudaMalloc(&d_i2v, nvx * sizeof(int)));
 	HANDLE_ERROR(cudaMalloc(&d_v2i, SSE_IMX*SSE_IMY*SSE_IMZ * sizeof(int)));
 
 	nvx = 0;

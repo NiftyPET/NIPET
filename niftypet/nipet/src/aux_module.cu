@@ -23,7 +23,6 @@ Copyrights: 2018
 
 //--- Available functions
 static PyObject *mmr_norm(PyObject *self, PyObject *args);
-static PyObject *mmr_txlut(PyObject *self, PyObject *args);
 static PyObject *mmr_span11LUT(PyObject *self, PyObject *args);
 static PyObject *mmr_pgaps(PyObject *self, PyObject *args);
 static PyObject *mmr_rgaps(PyObject *self, PyObject *args);
@@ -35,8 +34,6 @@ static PyObject *aux_varon(PyObject *self, PyObject *args);
 static PyMethodDef mmr_auxe_methods[] = {
 	{"norm",   mmr_norm, 		METH_VARARGS,
 	 "Create 3D normalisation sinograms from provided normalisation components."},
-	{"txlut",  mmr_txlut,   	METH_VARARGS,
-	 "Create transaxial look up tables."},
 	{"s1s11",  mmr_span11LUT,	METH_VARARGS,
 	 "Create span-1 to span-11 look up table."},
 	{"pgaps",  mmr_pgaps,		METH_VARARGS,
@@ -309,124 +306,6 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	return Py_None;
 
 }
-
-
-
-
-
-//======================================================================================
-// E X T R A S
-//--------------------------------------------------------------------------------------
-
-//GET TRANSAXIAL LUTs
-static PyObject *mmr_txlut(PyObject *self, PyObject *args) {
-	//Dictionary of scanner constants
-	PyObject * o_mmrcnst;
-
-	//Structure of constants
-	Cnst Cnt;
-
-	//structure of transaxial LUTs
-	txLUTs txluts;
-
-	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(args, "O", &o_mmrcnst))
-		return NULL;
-	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-	/* Interpret the input objects as... */
-	PyObject* pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
-	Cnt.A = (int)PyLong_AsLong(pd_A);
-	PyObject* pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");
-	Cnt.W = (int)PyLong_AsLong(pd_W);
-	PyObject* pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
-	Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
-	PyObject* pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
-	Cnt.NSN11 = (int)PyLong_AsLong(pd_NSN11);
-	PyObject* pd_NRNG = PyDict_GetItemString(o_mmrcnst, "NRNG");
-	Cnt.NRNG = (int)PyLong_AsLong(pd_NRNG);
-	PyObject* pd_NCRS = PyDict_GetItemString(o_mmrcnst, "NCRS");
-	Cnt.NCRS = (int)PyLong_AsLong(pd_NCRS);
-	PyObject* pd_NCRSR = PyDict_GetItemString(o_mmrcnst, "NCRSR");
-	Cnt.NCRSR = (int)PyLong_AsLong(pd_NCRSR);
-	PyObject* pd_span = PyDict_GetItemString(o_mmrcnst, "SPN");
-	Cnt.SPN = (int)PyLong_AsLong(pd_span);
-	PyObject* pd_tgap = PyDict_GetItemString(o_mmrcnst, "TGAP");
-	Cnt.TGAP = (int)PyLong_AsLong(pd_tgap);
-	PyObject* pd_offgap = PyDict_GetItemString(o_mmrcnst, "OFFGAP");
-	Cnt.OFFGAP = (int)PyLong_AsLong(pd_offgap);
-	PyObject* pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
-	Cnt.LOG = (char)PyLong_AsLong(pd_log);
-
-	txluts = get_txlut(Cnt);
-
-	//---GET results out into Python tuples
-	//sino to crystals (3 LUTs)
-	npy_intp dims[2];
-	dims[0] = Cnt.A*Cnt.W;
-	dims[1] = 2;
-	PyArrayObject *o_s2cF = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT16, txluts.s2cF);
-
-	dims[0] = Cnt.NCRS;
-	dims[1] = Cnt.NCRS;
-	PyArrayObject *o_c2sF = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT32, txluts.c2sF);
-
-	dims[0] = Cnt.NCRSR;
-	dims[1] = Cnt.NCRSR;
-	PyArrayObject *o_cr2s = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT32, txluts.cr2s);
-
-	dims[0] = txluts.naw;
-	dims[1] = 2;
-	PyArrayObject *o_s2c = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT16, txluts.s2c);
-
-	dims[0] = txluts.naw;
-	dims[1] = 2;
-	PyArrayObject *o_s2cr = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT16, txluts.s2cr);
-
-	PyObject *tuple_s2c = PyTuple_New(5);
-	PyTuple_SetItem(tuple_s2c, 0, PyArray_Return(o_s2cF));
-	PyTuple_SetItem(tuple_s2c, 1, PyArray_Return(o_s2c));
-	PyTuple_SetItem(tuple_s2c, 2, PyArray_Return(o_s2cr));
-	PyTuple_SetItem(tuple_s2c, 3, PyArray_Return(o_c2sF));
-	PyTuple_SetItem(tuple_s2c, 4, PyArray_Return(o_cr2s));
-
-	//crystal index to active crystal index (avoiding dead crystal gaps)
-	dims[0] = Cnt.NCRS;
-	PyArrayObject *o_crsr = (PyArrayObject *)PyArray_SimpleNewFromData(1, dims, NPY_INT16, txluts.crsr);
-
-	//linear 2D sino index to angle and bin sino idecies
-	dims[0] = txluts.naw;
-	dims[1] = 2;
-	PyArrayObject *o_aw2sn = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT16, txluts.aw2sn);
-	PyArrayObject *o_aw2ali = (PyArrayObject *)PyArray_SimpleNewFromData(1, dims, NPY_INT32, txluts.aw2ali);
-
-	//crystal in coincidence (used for randoms estimation)
-	dims[0] = Cnt.NCRSR;
-	dims[1] = Cnt.NCRSR;
-	PyArrayObject *o_cij = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT8, txluts.cij);
-
-	//2D sino mask with 1's used to denote active bins. 
-	dims[0] = Cnt.W;
-	dims[1] = Cnt.A;
-	PyArrayObject *o_msino = (PyArrayObject *)PyArray_SimpleNewFromData(2, dims, NPY_INT8, txluts.msino);
-
-
-	//gather all together
-	PyObject *tuple_out = PyTuple_New(7);
-	PyTuple_SetItem(tuple_out, 0, Py_BuildValue("i", txluts.naw));
-	PyTuple_SetItem(tuple_out, 1, tuple_s2c);
-	PyTuple_SetItem(tuple_out, 2, PyArray_Return(o_crsr));
-	PyTuple_SetItem(tuple_out, 3, PyArray_Return(o_cij));
-	PyTuple_SetItem(tuple_out, 4, PyArray_Return(o_aw2sn));
-	PyTuple_SetItem(tuple_out, 5, PyArray_Return(o_aw2ali));
-	PyTuple_SetItem(tuple_out, 6, PyArray_Return(o_msino));
-
-	return tuple_out;
-
-}
-
-
 
 
 //====================================================================================================

@@ -141,11 +141,6 @@ struct txLUTs {
 	int naw;
 };
 
-//structure for 2D sino lookup tables (GE Signa)
-struct txLUT_S {
-	int *c2s;
-};
-
 //structure for axial look up tables (Siemens mMR)
 struct axialLUT {
 	int * li2rno;   // linear indx to ring indx
@@ -160,6 +155,12 @@ struct axialLUT {
 	int Nli2nos;
 };
 
+//structure for 2D sino lookup tables (GE Signa)
+struct txLUT_S {
+	int *c2s;
+};
+
+
 //structure for axial look up tables (GE Signa)
 struct axialLUT_S {
 	short *r2s;
@@ -167,12 +168,6 @@ struct axialLUT_S {
 
 
 void getMemUse(void);
-
-LORcc *get_sn2crs(void);
-
-txLUTs get_txlut(Cnst Cnt);
-
-//LORcc *get_sn2rng(void);
 
 //LUT for converstion from span-1 to span-11
 span11LUT span1_span11(const Cnst Cnt);

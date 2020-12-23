@@ -140,10 +140,10 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 	//<<<<<<<<<<<<<<<<<<<<<<<<<<<< KERNEL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	//dimenstion of the grid.  depending on how many scatter crystals there are.
-	dim3 grid(d_mu_msk.nvx, d_scrsdef.nscrs, 1);//d_mu_msk.nvx
+	//dimension of the grid.  depending on how many scatter crystals there are.
+	dim3 grid(d_mu_msk.nvx, d_scrsdef.nscrs, 1);
 	dim3 block(SS_WRP, d_scrsdef.nsrng, 1);
-	satt << <grid, block >> >(d_LUTout,
+	satt <<<grid, block >>>(d_LUTout,
 		texo_mu3d,
 		d_mu_msk.i2v,
 		d_scrsdef);

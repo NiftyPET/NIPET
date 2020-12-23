@@ -28,7 +28,7 @@ void osem(float *imgout,
 	float *crs,
 
 	int Nsub, int Nprj,
-	int N0crs, int N1crs,
+	int N0crs,
 	Cnst Cnt);
 
 void getMemUse(Cnst Cnt);

@@ -205,8 +205,8 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args)
 	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- TRANSAXIAL COMPONENTS
-	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs*N1crs * sizeof(float), cudaMemcpyHostToDevice));
+	float4 *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
 
 	short2 *d_s2c;  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
 	HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
@@ -428,7 +428,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args)
 	gpu_fprj(prjout, im,
 		li2rng, li2sn, li2nos,
 		s2c, aw2ali, crs, subs,
-		Nprj, Naw, N0crs, N1crs, Cnt, att);
+		Nprj, Naw, N0crs, Cnt, att);
 	//<><><><><><><><<><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
 
 
@@ -620,7 +620,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args)
 	cudaSetDevice(Cnt.DEVID);
 
 	//<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
-	gpu_bprj(bimg, sino, li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs, Nprj, Naw, N0crs, N1crs, Cnt);
+	gpu_bprj(bimg, sino, li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs, Nprj, Naw, N0crs, Cnt);
 	//<><><><><><><><><><><>><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 
 	//Clean up
@@ -827,7 +827,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 
 	//<><><<><><><><<><><><><><><><><><><>
 	osem(imgout, rcnmsk, psng, rsng, ssng, nsng, asng, subs, imgsens,
-		li2rng, li2sn, li2nos, s2c, crs, Nsub, Nprj, N0crs, N1crs, Cnt);
+		li2rng, li2sn, li2nos, s2c, crs, Nsub, Nprj, N0crs, Cnt);
 	//<><><><><><><><<><><><>><><><><><><>
 
 	//Clean up
