@@ -781,7 +781,7 @@ def align_mumap(
         #> Numpy
         if store_to_npy:
             fnp = os.path.join(opth, fname + ".npz")
-            np.save(fnp, mu=mu, A=A)
+            np.savez(fnp, mu=mu, A=A)
     if store:
         #> NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
@@ -992,7 +992,7 @@ def pct_mumap(
         #> Numpy
         if store_npy:
             fnp = os.path.join(pctumapdir, "mumap-pCT.npz")
-            np.save(fnp, mu=mu, A=A)
+            np.savez(fnp, mu=mu, A=A)
 
         #> NIfTI
         fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
