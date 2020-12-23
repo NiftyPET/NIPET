@@ -6,12 +6,6 @@
 #ifndef SAUX_H
 #define SAUX_H
 
-
-#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
-void HandleError(cudaError_t err, const char *file, int line);
-
-void getMemUse(Cnst Cnt);
-
 //----- S C A T T E R
 //images are stored in structures with some basic stats
 struct IMflt
@@ -54,7 +48,5 @@ float * srslt2sino(
 	short *sn1_rno,
 	short *sn1_sn11,
 	Cnst Cnt);
-
-
 
 #endif //SAUX_H

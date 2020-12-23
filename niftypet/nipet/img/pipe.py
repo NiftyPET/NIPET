@@ -35,6 +35,7 @@ def mmrchain(
 
     itr=4,          # number of OSEM iterations
     fwhm=0.,        # Gaussian Smoothing FWHM
+    fwhm_rm=0.,     # Resolution Modelling
     recmod = -1,    # reconstruction mode: -1: undefined, chosen
                     # automatically. 3: attenuation and scatter
                     # correction, 1: attenuation correction
@@ -352,7 +353,7 @@ def mmrchain(
         recimg = mmrrec.osemone(datain, [muhd['im'], muo],
                                 hst, scanner_params,
                                 decay_ref_time=decay_ref_time,
-                                recmod=recmod, itr=itr, fwhm=fwhm,
+                                recmod=recmod, itr=itr, fwhm=fwhm, fwhm_rm=fwhm_rm,
                                 outpath=petimg,
                                 frmno=frmno,
                                 fcomment=fcomment+'_i',
@@ -380,14 +381,14 @@ def mmrchain(
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
-    
+
     if ret_sinos and itr>1 and recmod>2:
         output['sinos'] = {
             'psino':dynpsn,
             'ssino':dynssn,
             'rsino':dynrsn,
             'amask':dynmsk}
-    
+
     if ret_histo:
         output['hst'] = hsts
 
@@ -500,6 +501,7 @@ def mmrchain(
                     +';sub=14'                      \
                     +';itr='+str(itr)               \
                     +';fwhm='+str(fwhm)             \
+                    +';fwhm_rm='+str(fwhm_rm)       \
                     +';nfrm='+str(nfrm)
 
         # squeeze the not needed dimensions

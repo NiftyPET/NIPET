@@ -1,22 +1,13 @@
 /*------------------------------------------------------------------------
 CUDA C extention for Python
-Provides functionality for forward and back projection in 
+Provides functionality for forward and back projection in
 transaxial dimension.
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2020
 ------------------------------------------------------------------------*/
 #include "tprj.h"
 #include "scanner_0.h"
-
-//Error handling for CUDA routines
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
 
 /*************** TRANSAXIAL FWD/BCK *****************/
 __global__ void sddn_tx(
@@ -26,7 +17,7 @@ __global__ void sddn_tx(
 	unsigned char * tv)
 {
 	// indexing along the transaxial part of projection space
-	// (angle fast changing) 
+	// (angle fast changing)
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (idx<AW) {
@@ -82,7 +73,7 @@ __global__ void sddn_tx(
 
 		float tr1 = (lr1 - py) / at[1];				 // first ray interaction with a row
 		float tr2 = (lr2 - py) / at[1];				 // last ray interaction with a row
-													 //boolean 
+													 //boolean
 		bool y21 = (fabsf(y2 - y1) >= SZ_VOXY);
 		bool lr21 = (fabsf(lr1 - lr2) < L21);
 		int nr = y21 * roundf(abs(lr2 - lr1) / SZ_VOXY) + lr21; // number of rows on the way *_SZVXY
@@ -92,7 +83,7 @@ __global__ void sddn_tx(
 		else
 			dtr = t2;
 
-		//-columns 
+		//-columns
 		double x1 = px + at[0] * t1;
 		float lc1 = SZ_VOXY*(ceil(x1 / SZ_VOXY) - signbit(at[0]));
 		int u = 0.5*SZ_IMX + floor(x1 / SZ_VOXY); //starting voxel column
@@ -116,7 +107,7 @@ __global__ void sddn_tx(
 		//   printf("\n$$$> e[0] = %f, e[1] = %f | px[0] = %f, py[1] = %f\n", e[0], e[1], px, py );
 		//   for(int i=0; i<9; i++) printf("tt[%d] = %f\n",i, tt[N_TT*idx+i]);
 		// }
-		
+
 
 		/***************************************************************/
 		float ang = atanf(at[1] / at[0]); // angle of the ray
@@ -207,9 +198,8 @@ void gpu_siddon_tx(
 	dim3 BpG(ceil(AW / (float)NTHREADS), 1, 1);
 	dim3 TpB(NTHREADS, 1, 1);
 	sddn_tx<<<BpG, TpB>>>(d_crs, d_s2c, d_tt, d_tv);
+	HANDLE_ERROR(cudaGetLastError());
 	//-----
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel tx SIDDON error: %s\n", cudaGetErrorString(error)); exit(-1); }
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);

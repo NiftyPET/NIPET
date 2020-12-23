@@ -77,7 +77,7 @@ void norm_from_components(float *sino,    //output norm sino
 
 	//=========== CUDA =====================
 	// create cuda norm sino for true and scatter data
-	
+
 	int dev_id;
 	cudaGetDevice(&dev_id);
 	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
@@ -214,11 +214,8 @@ void norm_from_components(float *sino,    //output norm sino
 		d_sn1sn11, d_sn1rno, d_sn1sn11no,
 		d_aw2ali,
 		Cnt);
+	HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
-
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess)
-		printf("e> kernel ERROR >> normalisation for the true component: %s\n", cudaGetErrorString(err));
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);

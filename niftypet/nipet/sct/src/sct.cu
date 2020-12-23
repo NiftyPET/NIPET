@@ -113,7 +113,7 @@ void Psct(float *rslt,
 	a.x = uc.x - x;
 	a.y = uc.y - y;
 	a.z = scrsdef.rng[2 * iur + 1] - z;
-	//path length for an unscattered photon 
+	//path length for an unscattered photon
 	float an = powf(a.x*a.x + a.y*a.y + a.z*a.z, 0.5);
 
 	//2D version
@@ -485,7 +485,7 @@ scatOUT prob_scatt(
 	cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc(32, 0, 0, 0, cudaChannelFormatKindFloat);
 	HANDLE_ERROR(cudaMalloc3DArray(&d_muVolume, &channelDesc, volumeSize));
 
-	// Parameters for copying data to 3D array in device memory 
+	// Parameters for copying data to 3D array in device memory
 	// ref: http://developer.download.nvidia.com/compute/cuda/4_1/rel/toolkit/docs/online/group__CUDART__MEMORY_gc1372614eb614f4689fbb82b4692d30a.html#gc1372614eb614f4689fbb82b4692d30a
 	cudaMemcpy3DParms copyParams = { 0 };
 	copyParams.srcPtr = make_cudaPitchedPtr((void *)mu.im, volumeSize.width * sizeof(float), volumeSize.width, volumeSize.height);
@@ -553,8 +553,7 @@ scatOUT prob_scatt(
 			d_mu_msk,
 			d_em_msk,
 			d_em);
-		cudaError_t error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel Psct error: %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 		//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 		cudaEventRecord(stop, 0);
 		cudaEventSynchronize(stop);
@@ -565,8 +564,7 @@ scatOUT prob_scatt(
 		if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n\n", 0.001*elapsedTime);
 		cudaFree(d_rays);
 		cudaDeviceSynchronize();
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel Psct error: %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 	}
 
 

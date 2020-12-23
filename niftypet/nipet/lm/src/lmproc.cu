@@ -17,7 +17,7 @@ void lmproc(
 	axialLUT axLUT,
 	Cnst Cnt)
 
-	/* 
+	/*
 	Prepare for processing the list mode data and send it for GPU
 	execution.
 	*/
@@ -39,16 +39,8 @@ void lmproc(
 
 	//****** get LM info ******
 	//uses global variable lmprop (see lmaux.cu)
-	getLMinfo(flm, Cnt); 
+	getLMinfo(flm, Cnt);
 	//******
-
-	//--- store the original info first
-	size_t *o_atag = lmprop.atag;
-	size_t *o_btag = lmprop.btag;
-	int *o_ele4chnk = lmprop.ele4chnk;
-	int *o_ele4thrd = lmprop.ele4thrd;
-	int o_nchnk = lmprop.nchnk;
-	//---
 
 	//--- prompt & delayed reports
 	unsigned int *d_rdlyd;
@@ -126,7 +118,7 @@ void lmproc(
 
 	// prompt and delayed sinograms
 	unsigned int *d_psino;//, *d_dsino;
-	
+
 
 	// prompt and compressed delayeds in one sinogram (two unsigned shorts)
 	HANDLE_ERROR(cudaMalloc(&d_psino, 	 tot_bins * sizeof(unsigned int)));
@@ -192,7 +184,7 @@ void lmproc(
 	//> copy to host the compressed prompt and delayed sinograms
 	unsigned int * sino = (unsigned int *)malloc(tot_bins * sizeof(unsigned int));
 	HANDLE_ERROR(cudaMemcpy(sino, d_psino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
-	
+
 	unsigned int mxbin = 0;
 	dicout.psm = 0;
 	dicout.dsm = 0;
@@ -217,7 +209,7 @@ void lmproc(
 	int *zM = (int *)malloc(lmprop.nitag * sizeof(int));
 	cudaMemcpy(zR, d_mass.zR, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
 	cudaMemcpy(zM, d_mass.zM, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
-	
+
 	//> calculate the centre of mass while also the sum of head-curve prompts and delayeds
 	unsigned long long sphc = 0, sdhc = 0;
 	for (int i = 0; i<lmprop.nitag; i++) {
@@ -257,4 +249,3 @@ void lmproc(
 
 	return;
 }
-

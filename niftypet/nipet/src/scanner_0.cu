@@ -6,8 +6,6 @@ reconstruction.
 author: Pawel Markiewicz
 Copyrights: 2018
 ------------------------------------------------------------------------*/
-
-
 #include <stdlib.h>
 #include "scanner_0.h"
 
@@ -27,7 +25,8 @@ int* lm;
 
 
 //************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(void) {
+void getMemUse(const Cnst Cnt) {
+	if (Cnt.LOG > LOGDEBUG) return;
 	size_t free_mem;
 	size_t total_mem;
 	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
@@ -147,10 +146,8 @@ void remove_gaps(float *sng,
 	cudaEventRecord(start, 0);
 	//==================================================================
 	d_remgaps << <blcks, nthreads >> >(d_sng, d_sino, d_aw2ali, snno);
+	HANDLE_ERROR(cudaGetLastError());
 	//==================================================================
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess)
-		printf("Error: %s\n", cudaGetErrorString(err));
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
@@ -220,7 +217,7 @@ void put_gaps(float *sino,
 		// number of direct rings considered
 		int nrng_c = Cnt.RNG_END - Cnt.RNG_STRT;
 		snno = nrng_c*nrng_c;
-		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
 		if (nrng_c == 64)  snno -= 12;
 	}
 	else {
@@ -255,8 +252,7 @@ void put_gaps(float *sino,
 		d_sng,
 		d_aw2ali,
 		snno);
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess) printf("Error in d_sn11_sne7: %s\n", cudaGetErrorString(err));
+	HANDLE_ERROR(cudaGetLastError());
 	//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);

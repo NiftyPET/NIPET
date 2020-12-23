@@ -1,0 +1,22 @@
+name: Test
+on:
+- push
+jobs:
+  test:
+    runs-on: [self-hosted, cuda]
+    name: Test
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+        repository: NiftyPET/NIMPA
+        ref: dev2
+        path: NIMPA
+    - run: pip install -U ./NIMPA -e .[dev]
+    - run: python -m pytest --cov-report=term-missing --cov-report=xml --ignore=./NIMPA
+    - run: codecov
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

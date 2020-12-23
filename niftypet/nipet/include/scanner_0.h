@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include "def.h"
 
-#ifndef AUX_H
-#define AUX_H
+#ifndef SCANNER_0_H
+#define SCANNER_0_H
 
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -11,7 +11,7 @@
 struct Cnst {
 	int BPE; 	// bytes per single event
 	int LMOFF;	// offset for the LM file (e.g., offsetting for header)
-	
+
 	int A;  	//sino angles
 	int W;  	//sino bins for any angular index
 	int aw; 	//sino bins (active only)
@@ -57,13 +57,14 @@ struct Cnst {
 	char BTP; 	//0: no bootstrapping, 1: no-parametric, 2: parametric (recommended)
 	float BTPRT; // ratio of bootstrapped/original events in the target sinogram (1.0 default)
 
-	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations 
+	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations
 	char LOG; //different levels of verbose/logging like in Python's logging package
 
 
+	float SIGMA_RM; // resolution modelling sigma
 	// float RE;    //effective ring diameter
 	// float ICOSSTP;
-	
+
 	float ETHRLD;
 };
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -96,7 +97,7 @@ typedef struct{
   int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
 
   int log; //for logging in list mode processing
-  
+
 } LMprop; //properties of LM data file and its breaking up into chunks of data.
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
@@ -167,7 +168,7 @@ struct axialLUT_S {
 };
 
 
-void getMemUse(void);
+void getMemUse(const Cnst cnt);
 
 //LUT for converstion from span-1 to span-11
 span11LUT span1_span11(const Cnst Cnt);
@@ -181,7 +182,7 @@ void put_gaps(
 	float *sng,
 	int *aw2ali,
 	int sino_no,
-	Cnst Cnt	
+	Cnst Cnt
 	);
 
 void remove_gaps(
@@ -192,4 +193,4 @@ void remove_gaps(
 	Cnst Cnt);
 //------------------------
 
-#endif //AUX_H
+#endif //SCANNER_0_H

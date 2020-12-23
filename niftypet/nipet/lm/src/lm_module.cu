@@ -200,7 +200,7 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	axialLUT axLUT;
 
 	/* Parse the input tuple */
-	if (!PyArg_ParseTuple(	
+	if (!PyArg_ParseTuple(
 			args, "OsiiOOO",
 			&o_dicout,
 			&flm,
@@ -246,7 +246,7 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	Cnt.TGAP = (int)PyLong_AsLong(pd_tgap);
 	PyObject* pd_offgap = PyDict_GetItemString(o_mmrcnst, "OFFGAP");
 	Cnt.OFFGAP = (int)PyLong_AsLong(pd_offgap);
-	
+
 	PyObject* pd_btp = PyDict_GetItemString(o_mmrcnst, "BTP");
 	Cnt.BTP = (char)PyLong_AsLong(pd_btp);
 	PyObject* pd_btprt = PyDict_GetItemString(o_mmrcnst, "BTPRT");
@@ -310,23 +310,23 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	// prompt head curve
 	PyObject *pd_phc = PyDict_GetItemString(o_dicout, "phc");
 	p_phc = (PyArrayObject *)PyArray_FROM_OTF(pd_phc, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	// delayed head curve
 	PyObject *pd_dhc = PyDict_GetItemString(o_dicout, "dhc");
 	p_dhc = (PyArrayObject *)PyArray_FROM_OTF(pd_dhc, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	// centre of mass of axial radiodistribution
 	PyObject *pd_mss = PyDict_GetItemString(o_dicout, "mss");
 	p_mss = (PyArrayObject *)PyArray_FROM_OTF(pd_mss, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	// projection views (sagittal and coronal) for video
 	PyObject *pd_pvs = PyDict_GetItemString(o_dicout, "pvs");
 	p_pvs = (PyArrayObject *)PyArray_FROM_OTF(pd_pvs, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	// single bucket rates over time
 	PyObject *pd_bck = PyDict_GetItemString(o_dicout, "bck");
 	p_bck = (PyArrayObject *)PyArray_FROM_OTF(pd_bck, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
-	
+
 	// fan-sums of delayed events
 	PyObject *pd_fan = PyDict_GetItemString(o_dicout, "fan");
 	p_fan = (PyArrayObject *)PyArray_FROM_OTF(pd_fan, NPY_UINT32, NPY_ARRAY_INOUT_ARRAY2);
@@ -357,16 +357,16 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 
 	hstout dicout;
 	// head curves (prompts and delayed), centre of mass of
-	// axial radiodistribution and projection views (for video) 
+	// axial radiodistribution and projection views (for video)
 	dicout.hcp = (unsigned int*)PyArray_DATA(p_phc);
 	dicout.hcd = (unsigned int*)PyArray_DATA(p_dhc);
 	dicout.mss = (float*)PyArray_DATA(p_mss);
 	dicout.snv = (unsigned int*)PyArray_DATA(p_pvs);
-	
+
 	//single buckets and delayed fan-sums
 	dicout.bck = (unsigned int*)PyArray_DATA(p_bck);
 	dicout.fan = (unsigned int*)PyArray_DATA(p_fan);
-	
+
 	//sinograms: prompt, delayed and SSRB
 	dicout.psn = (unsigned short*)PyArray_DATA(p_psn);
 	dicout.dsn = (unsigned short*)PyArray_DATA(p_dsn);
@@ -374,7 +374,7 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args)
 	//==================================================================
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//==================================================================
 	lmproc(dicout, flm, tstart, tstop, s2cF, axLUT, Cnt);
@@ -549,7 +549,7 @@ static PyObject *mmr_rand(PyObject *self, PyObject *args) {
 
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><> E s t i m a t e   r a n d o m s  GPU <><><><><><><><><><><><><><>
 	gpu_randoms(rsn, cmap, fansums, txlut, sn1_rno, sn1_sn11, Cnt);
@@ -731,7 +731,7 @@ static PyObject *mmr_prand(PyObject *self, PyObject *args) {
 	txlut.cr2s = (int*)PyArray_DATA(p_cr2s);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><> E s t i m a t e   r a n d o m s  GPU <><><><><><><><><><><><><><>
 	p_randoms(rsn, cmap, pmsksn, fansums, txlut, sn1_rno, sn1_sn11, Msn1, Cnt);

@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-Python extension for CUDA auxiliary routines used in 
+Python extension for CUDA auxiliary routines used in
 voxel-driven scatter modelling (VSM)
 
 author: Pawel Markiewicz
@@ -7,31 +7,6 @@ Copyrights: 2020
 ------------------------------------------------------------------------*/
 #include <stdlib.h>
 #include "sctaux.h"
-
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
-//************ CHECK DEVICE MEMORY USAGE *********************
-void getMemUse(Cnst Cnt) {
-	size_t free_mem;
-	size_t total_mem;
-	HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
-	double free_db = (double)free_mem;
-	double total_db = (double)total_mem;
-	double used_db = total_db - free_db;
-	if (Cnt.LOG <= LOGDEBUG) printf("\ni> current GPU memory usage: %7.2f/%7.2f [MB]\n", used_db / 1024.0 / 1024.0, total_db / 1024.0 / 1024.0);
-}
-//************************************************************
-
-
-//======================================================================
-//  S C A T T E R
-//======================================================================
-
 
 //======================================================================
 //SCATTER RESULTS PROCESSING
@@ -134,10 +109,7 @@ float * srslt2sino(
 	Cnst Cnt)
 {
 
-
-	getMemUse(Cnt);
-
-	//scatter pre-sino in span-1 (temporary) 
+	//scatter pre-sino in span-1 (tmporary)
 	float *d_scts1;
 	HANDLE_ERROR(cudaMalloc(&d_scts1, Cnt.NSN64*d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(float)));
 
@@ -157,7 +129,7 @@ float * srslt2sino(
 	//number of all scatter estimated values (sevn) for one TOF 3D sino
 	int sevn = d_scrsdef.nsrng*d_scrsdef.nscrs*d_scrsdef.nsrng*d_scrsdef.nscrs;
 
-	//---- constants  
+	//---- constants
 	int4 *d_sctaxR;
 	HANDLE_ERROR(cudaMalloc(&d_sctaxR, Cnt.NSN64 * sizeof(int4)));
 	HANDLE_ERROR(cudaMemcpy(d_sctaxR, sctaxR, Cnt.NSN64 * sizeof(int4), cudaMemcpyHostToDevice));
@@ -199,6 +171,7 @@ float * srslt2sino(
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
 		cudaEventRecord(start, 0);
+		
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		dim3 grid(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);
 		dim3 block(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);
@@ -208,9 +181,9 @@ float * srslt2sino(
 			d_xsxu,
 			d_offseg,
 			(int)(d_scrsdef.nscrs*d_scrsdef.nscrs));
-		cudaError_t err = cudaGetLastError();
-		if (err != cudaSuccess) printf("Error in d_sct2sn1: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
 		cudaEventRecord(stop, 0);
 		cudaEventSynchronize(stop);
 		float elapsedTime;
@@ -241,8 +214,7 @@ float * srslt2sino(
 			Cnt.NSN1,
 			Cnt.SPN,
 			i*tbins);
-		err = cudaGetLastError();
-		if (err != cudaSuccess) printf("Error in d_sct_axinterp: %s\n", cudaGetErrorString(err));
+		HANDLE_ERROR(cudaGetLastError());
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		cudaEventRecord(stop, 0);
 		cudaEventSynchronize(stop);
@@ -409,8 +381,3 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt)
 	mlut.v2i = d_v2i;
 	return mlut;
 }
-
-
-
-
-

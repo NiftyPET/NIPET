@@ -19,8 +19,8 @@ import pydicom as dcm
 import scipy.ndimage as ndi
 
 from .. import mmraux
+from .. import resources as rs
 from niftypet import nimpa
-import resources as rs
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
@@ -344,13 +344,13 @@ def obj_mumap(
 
     #> ref file name
     fmuref = os.path.join(fmudir, 'muref.nii.gz')
-    
+
     #> ref affine
     B = image_affine(datain, Cnt, gantry_offset=gantry_offset)
-    
+
     #> ref image (blank)
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-    
+
     #> store ref image
     nimpa.array2nii(im, B, fmuref)
 
@@ -472,6 +472,7 @@ def align_mumap(
 
     #> tmp folder for not aligned mu-maps
     tmpdir = os.path.join(opth, 'tmp')
+    nimpa.create_dir(tmpdir)
 
     #> get the timing of PET if affine not given
     if faff=='' and not hst is None and isinstance(hst, dict) and 't0' in hst:
@@ -677,7 +678,7 @@ def align_mumap(
                 )
             else:
                 raise ValueError('unknown registration tool requested')
-            
+
             faff_mrpet = regdct['faff']
 
         else:
@@ -691,7 +692,7 @@ def align_mumap(
 
     #> output file name for the aligned mu-maps
     if musrc=='pct':
-        
+
 
         #> convert to mu-values before resampling to avoid artefacts with negative values
         nii = nib.load(datain['pCT'])

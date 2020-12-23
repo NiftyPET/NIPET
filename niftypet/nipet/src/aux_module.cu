@@ -273,7 +273,7 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	axLUT.Nli2nos = (int)PyArray_DIM(p_li2nos, 0);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><><><> Call the CUDA stuff now
 	norm_from_components(sino, normc, axLUT, aw2ali, bckts, Cnt);
@@ -381,7 +381,7 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 	float *sino = (float*)PyArray_DATA(p_sino);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><><><><><><><><><><><><><><><>
 	//Run the conversion to sinos with gaps
@@ -469,7 +469,7 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
 	float *sng = (float*)PyArray_DATA(p_sng);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><><><><><><><><><><><><><><><>
 	//Run the conversion to GPU sinos
@@ -589,7 +589,7 @@ static PyObject *aux_varon(PyObject *self, PyObject *args) {
 	printf("i> number of elements in data array: %lu\n", nele);
 
 	// sets the device on which to calculate
-	cudaSetDevice(Cnt.DEVID);
+	HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
 	//<><><><><><><><><><><><><><><><><><><><><><>
 	//Update variance online (M1, M2) using data instance X

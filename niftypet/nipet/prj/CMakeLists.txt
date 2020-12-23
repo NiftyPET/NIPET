@@ -1,35 +1,18 @@
 cmake_minimum_required(VERSION 3.2)
-
-# set project name as the module name of the .dll/.pyd 
-project(petprj) 
+# set project name as the module name of the .dll/.pyd
+project(petprj)
+# set name of folder, because it isnt set to the project name :(
 set(CURR_FOLDER_NAME "prj")
 
-# get the site packages location, then strip the trailing whitespace
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())"
-  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
+file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
 
-#get source files
-file(GLOB_RECURSE SRC "src/*.cu")
-file(GLOB_RECURSE HDR "src/*.h")
+include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/include)
+include_directories(src)
+include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
-list(APPEND SRC ${HDR})
-
-include_directories(include ${CMAKE_BINARY_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)
-include_directories(${PYTHON_INCLUDE_DIRS})
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
-  OUTPUT_VARIABLE PYTHON_NUMPY_INCLUDE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-include_directories(${PYTHON_NUMPY_INCLUDE})
-
-cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
-
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES})
+cuda_add_library(${PROJECT_NAME} SHARED ${SRC})
+target_link_libraries(${PROJECT_NAME} mmr_auxe ${Python3_LIBRARIES} ${CUDA_LIBRARIES})
 
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".pyd")
@@ -52,7 +35,3 @@ if(UNIX)
         ${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.so
     )
 endif()
-
-
-
-

@@ -4,32 +4,38 @@ project(nipet)
 
 set(PREINSTALL_NAME "_preinstall")
 
-# find cuda, maybe set a minimum version
+cmake_policy(PUSH)
 find_package(CUDA REQUIRED)
+if(CMAKE_VERSION VERSION_EQUAL 3.12 OR CMAKE_VERSION VERSION_GREATER 3.12)
+  cmake_policy(SET CMP0074 NEW)
+  find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+else()
+  find_package(PythonInterp 3 REQUIRED)
+  set(Python3_EXECUTABLE "${PYTHON_EXECUTABLE}")
+  find_package(PythonLibs 3 REQUIRED)
+  set(Python3_INCLUDE_DIRS "${PYTHON_INCLUDE_DIRS}")
+  set(Python3_LIBRARIES "${PYTHON_LIBRARIES}")
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
+    OUTPUT_VARIABLE Python3_NumPy_INCLUDE_DIRS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+cmake_policy(POP)
 
-find_package(PythonInterp)
-find_package(PythonLibs)
-
-set(PYTHON_PREFIX_PATH)
+if(CMAKE_VERSION VERSION_EQUAL 3.7 OR CMAKE_VERSION VERSION_GREATER 3.7)
+  cuda_select_nvcc_arch_flags(NVCC_ARCH_FLAGS)
+else()
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" -m miutil.cuinfo -f
+    OUTPUT_VARIABLE NVCC_ARCH_FLAGS
+    OUTPUT_STRIP_TRAILING_WHITESPACE)
+endif()
+list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
+message(STATUS "CUDA nvcc flags: ${CUDA_NVCC_FLAGS}")
 
 add_subdirectory(${CMAKE_PROJECT_NAME})
-add_subdirectory(${CMAKE_PROJECT_NAME}/dinf)
 add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
 add_subdirectory(${CMAKE_PROJECT_NAME}/prj)
 add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
 
-
-
-
 set(CMAKE_BUILD_TYPE Release)
-
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "import sys; print(sys.prefix)"
-  OUTPUT_VARIABLE PYTHON_ENV_ROOT
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  SET(CMAKE_INSTALL_PREFIX
-    ${PYTHON_ENV_ROOT} CACHE PATH "Set the path of the anaconda environment to which you wish to install this package to" FORCE
-    )
-ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)

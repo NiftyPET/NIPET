@@ -16,9 +16,9 @@ from .. import mmrnorm
 from . import petprj
 #from ..lm import mmrhist
 from ..lm.mmrhist import randoms
-from niftypet import nimpa
-import resources  # for isotope info
+from .. import resources  # for isotope info
 from ..sct import vsm
+from niftypet import nimpa
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
@@ -95,21 +95,24 @@ def get_subsets14(n, params):
 
 
 def osemone(datain, mumaps, hst, scanner_params,
-            recmod=3, itr=4, fwhm=0., mask_radius=29.,
+            recmod=3, itr=4, fwhm=0., fwhm_rm=0., mask_radius=29.,
             decay_ref_time=None,
+            attnsino=None,
+            sctsino=None,
+            randsino=None,
+            normcomp=None,
+            
+            emmskS=False,
+            frmno='', fcomment='',
             outpath=None,
             store_img=False,
             store_itr=None,
-            frmno='', fcomment='',
-            emmskS=False,
-            ret_sinos=False,
-            attnsino = None,
-            randsino = None,
-            normcomp = None):
-    """
+            ret_sinos=False):
+    '''
     OSEM image reconstruction with several modes
     (with/without scatter and/or attenuation correction)
-    """
+    '''
+    
     #> Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
@@ -283,8 +286,10 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-------------------------------------------------------------------------
     with trange(itr, desc="OSEM",
         disable=log.getEffectiveLevel() > logging.INFO,
-        leave=log.getEffectiveLevel() <= logging.INFO) as pbar:
-
+        leave=log.getEffectiveLevel() <= logging.INFO
+    ) as pbar:
+        # resolution modelling
+        Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
         for k in pbar:
             petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
             if np.nansum(img) < 0.1:

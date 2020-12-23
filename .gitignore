@@ -1,15 +1,9 @@
 *.py[co]
 *.so
-*.png
-*.pdf
-*.eps
 *.log
+__pycache__/
 /docs/
 /build/
 /dist/
 /nipet.egg*/
-/output/
-/niftyout/
-.ipynb_checkpoints/
-Makefile
 .DS_Store
