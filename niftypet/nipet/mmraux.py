@@ -822,16 +822,16 @@ def get_npfiles(dfile, datain, v=False):
         ''').format(dfile))
 
     # pCT mu-map
-    if os.path.basename(dfile)=='mumap_pCT.npy':
+    if os.path.basename(dfile) == 'mumap_pCT.npz':
         datain['mumapCT'] = dfile
         logger('mu-map for the object.')
 
     # DICOM UTE/Dixon mu-map
-    if os.path.basename(dfile)=='mumap-from-DICOM.npy':
+    if os.path.basename(dfile) == 'mumap-from-DICOM.npz':
         datain['mumapNPY'] = dfile
         logger('mu-map for the object.')
 
-    if os.path.basename(dfile)=='hmumap.npy':
+    if os.path.basename(dfile) == 'hmumap.npz':
         datain['hmumap'] = dfile
         logger('mu-map for hardware.')
 
@@ -1092,14 +1092,14 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
     for f in os.listdir(fldr):
         f = pjoin(fldr, f)
         if os.path.isfile(f):
-            if f.lower().endswith(".dcm") or f.lower().endswith(".ima"):
+            if f.lower().endswith((".dcm", ".ima")):
                 get_dicoms(f, datain, Cnt)
             # elif f.lower().endswith(".bf"):
             #     get_bf( pjoin(fldr,f), datain, Cnt)
-            elif f.endswith(".npy") or f.endswith(".dic"):
-                get_npfiles(f, datain, Cnt['VERBOSE'])
-            elif f.endswith(".nii.gz") or f.endswith(".nii"):
-                get_niifiles(f, datain, Cnt['VERBOSE'])
+        elif f.lower().endswith((".npy", ".npz", ".dic")):
+            get_npfiles(f, datain, Cnt['VERBOSE'])
+        elif f.lower().endswith((".nii", ".nii.gz")):
+            get_niifiles(f, datain, Cnt['VERBOSE'])
         elif os.path.isdir(f) and recurse:
             # go one level into subfolder
             extra = explore_input(f, params, recurse=recurse - 1)

@@ -525,14 +525,14 @@ def align_mumap(
     #=========================================================
     #-get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
+        muh = np.load(datain['hmumap'], allow_pickle=True)["hmu"]
         (log.info if verbose else log.debug)(
             'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
-        if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
-            datain['hmumap'] = hmupath
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
+        if os.path.isfile(hmupath):
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
+            datain["hmumap"] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
@@ -840,14 +840,14 @@ def pct_mumap(
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
 
     # get hardware mu-map
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
+    if datain.get("hmumap", "").endswith(".npz") and os.path.isfile(datain["hmumap"]):
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
         (log.info if verbose else log.debug)(
             'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
-    elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
+    elif outpath:
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
         if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
             datain['hmumap'] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
@@ -1274,17 +1274,18 @@ def hdw_mumap(
     nimpa.create_dir(fmudir)
 
     # if requested to use the stored hardware mu_map get it from the path in datain
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
+    if use_stored and "hmumap" in datain and os.path.isfile(datain["hmumap"]):
         if datain['hmumap'].endswith(('.nii', '.nii.gz')):
             dct = nimpa.getnii(datain['hmumap'], output='all')
             hmu = dct['im']
             A = dct['affine']
             fmu = datain['hmumap']
-        elif datain['hmumap'].endswith(('.npy')):
-            hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
+        elif datain["hmumap"].endswith(".npz"):
+            arr = np.load(datain["hmumap"], allow_pickle=True)
+            hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
             log.info('loaded hardware mu-map from file: {}'.format(datain['hmumap']))
             fnp = datain['hmumap']
-    elif outpath!='' and os.path.isfile(os.path.join(fmudir, "hmumap.npz")):
+    elif outpath and os.path.isfile(os.path.join(fmudir, "hmumap.npz")):
         fnp = os.path.join(fmudir, "hmumap.npz")
         arr = np.load(fnp, allow_pickle=True)
         hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
@@ -1348,7 +1349,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get hardware mu-map
     if os.path.isfile(datain['hmumap']) and use_stored:
-        muh, _ = np.load(datain['hmumap'], allow_pickle=True)
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
         log.info('loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     else:
         hmudic = hdw_mumap(datain, [1,2,4], Cnt)
@@ -1356,7 +1357,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get pCT mu-map if stored in numpy file and then exit, otherwise do all the processing
     if os.path.isfile(datain['mumapCT']) and use_stored:
-        mup, _ = np.load(datain['mumapCT'], allow_pickle=True)
+        mup = np.load(datain["mumapCT"], allow_pickle=True)["mu"]
         muh = muh[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         mup = mup[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         return [muh, mup]
