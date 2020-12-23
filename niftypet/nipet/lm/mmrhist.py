@@ -76,15 +76,9 @@ def hist(
     log.debug('histogramming with span {}.'.format(Cnt['SPN']))
 
     if (use_stored is True and 'sinos' in datain and
-        os.path.basename(datain['sinos']) == (
-            'sinos_s'+str(Cnt['SPN'])+'_frm-'+str(t0)+'-'+str(t1)+'.npy'
-    )):
-
-        hstout = {}
-        (hstout['phc'], hstout['dhc'], hstout['mss'], hstout['pvs'],
-         hstout['bck'], hstout['fan'], hstout['psn'], hstout['dsn'],
-         hstout['ssr']) = np.load(datain['sinos'], allow_pickle=True)
-
+        os.path.basename(datain['sinos']) == f"sinos_s{Cnt['SPN']}_frm-{t0}-{t1}.npz"
+    ):
+        hstout = dict(np.load(datain['sinos'], allow_pickle=True))
         nitag = len(hstout['phc'])
         log.debug('acquisition duration by integrating time tags is {} sec.'.format(nitag))
 
@@ -135,8 +129,7 @@ def hist(
 
             'psn':psino,
             'dsn':dsino,
-            'ssr':ssr
-
+            'ssr':ssr,
         }
         # ---------------------------------------
 
@@ -154,10 +147,9 @@ def hist(
                 fsino = os.path.join(outpath, 'sino')
                 nimpa.create_dir(fsino)
             # complete the path with the file name
-            fsino = os.path.join(fsino, 'sinos_s'+str(Cnt['SPN'])+'_frm-'+str(t0)+'-'+str(t1)+'.npy')
+            fsino = os.path.join(fsino, f"sinos_s{Cnt['SPN']}_frm-{t0}-{t1}.npz")
             # store to the above path
-            np.save(fsino,  (hstout['phc'], hstout['dhc'], hstout['mss'], hstout['pvs'],
-                    hstout['bck'], hstout['fan'], hstout['psn'], hstout['dsn'], hstout['ssr']))
+            np.savez(fsino,  **hstout)
 
     else:
         log.error('input list-mode data is not defined.')
@@ -174,18 +166,18 @@ def hist(
     #> number of single rates reported for the given second
     #> the last two bits are used for the number of reports
     nsr = (hstout['bck'][1,:,:]>>30)
-    
+
     #> average in a second period
     hstout['bck'][0,nsr>0] = hstout['bck'][0,nsr>0] / nsr[nsr>0]
-    
+
     #> time indeces when single rates given
     tmsk = np.sum(nsr,axis=1)>0
     single_rate = np.copy(hstout['bck'][0,tmsk,:])
-    
+
     #> time
     t = np.arange(nitag)
     t = t[tmsk]
-    
+
     #> get the average bucket singles:
     buckets = np.int32( np.sum(single_rate,axis=0)/single_rate.shape[0] )
     log.debug('dynamic and static buckets single rates:  COMPLETED.')
