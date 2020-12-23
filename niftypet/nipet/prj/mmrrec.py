@@ -96,10 +96,11 @@ def get_subsets14(n, params):
 
 def osemone(datain, mumaps, hst, scanner_params,
             recmod=3, itr=4, fwhm=0., mask_radius=29.,
-            sctsino=np.array([]),
-            outpath='',
-            store_img=False, frmno='', fcomment='',
-            store_itr=[],
+            decay_ref_time=None,
+            outpath=None,
+            store_img=False,
+            store_itr=None,
+            frmno='', fcomment='',
             emmskS=False,
             ret_sinos=False,
             attnsino = None,
@@ -115,13 +116,13 @@ def osemone(datain, mumaps, hst, scanner_params,
     axLUT = scanner_params['axLUT']
 
     #---------- sort out OUTPUT ------------
-    #-output file name for the reconstructed image, initially assume n/a
-    fout = 'n/a'
-    if store_img or store_itr:
-        if outpath=='':
-            opth = os.path.join( datain['corepath'], 'reconstructed' )
-        else:
-            opth = outpath
+    #-output file name for the reconstructed image
+    if outpath is None:
+        opth = os.path.join( datain['corepath'], 'reconstructed' )
+    else:
+        opth = outpath
+
+    if not ((store_img is None) or (store_itr is None)):
         mmraux.create_dir(opth)
 
     if ret_sinos:
@@ -198,19 +199,19 @@ def osemone(datain, mumaps, hst, scanner_params,
     # SCAT
     #-------------------------------------------------------------------------
     if recmod==2:
-        if sctsino.size>0:
+        if not sctsino is None:
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
-        elif sctsino.size==0 and os.path.isfile(datain['em_crr']):
+        elif sctsino is None and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
             ssn = vsm(
                 datain,
                 mumaps,
                 emd['im'],
-                hst,
-                rsino,
                 scanner_params,
-                prcnt_scl=0.1,
-                emmsk=False)
+                histo = hst,
+                rsino = rsino,
+                prcnt_scl = 0.1,
+                emmsk=False,)
             ssng = mmraux.remgaps(ssn, txLUT, Cnt)
         else:
             raise ValueError(
@@ -246,15 +247,24 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-decay correction
     lmbd = np.log(2)/resources.riLUT[Cnt['ISOTOPE']]['thalf']
     if Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
-        dcycrr = np.exp(lmbd*hst['t0'])*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
+        #> decay correct to the reference time (e.g., injection time) if provided
+        #> otherwise correct in reference to the scan start time
+        if not decay_ref_time is None:
+            tref = decay_ref_time
+        else:
+            tref = hst['t0']
+
+        dcycrr = np.exp(lmbd*tref)*lmbd*hst['dur'] / (1-np.exp(-lmbd*hst['dur']))
         # apply quantitative correction to the image
         qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
         qf_loc = ncmp['qf_loc']
+
     elif not Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
         dcycrr = 1.
         # apply quantitative correction to the image
         qf = ncmp['qf'] / resources.riLUT[Cnt['ISOTOPE']]['BF'] / float(hst['dur'])
         qf_loc = ncmp['qf_loc']
+
     else:
         dcycrr = 1.
         qf = 1.
@@ -288,9 +298,9 @@ def osemone(datain, mumaps, hst, scanner_params,
                     datain,
                     mumaps,
                     mmrimg.convert2e7(img, Cnt),
-                    hst,
-                    rsino,
                     scanner_params,
+                    histo=hst,
+                    rsino=rsino,
                     emmsk=emmskS,
                     return_ssrb=return_ssrb,
                     return_mask=return_mask)
@@ -333,20 +343,34 @@ def osemone(datain, mumaps, hst, scanner_params,
                 ';sct='+str(1*(recmod>1))+ \
                 ';spn='+str(Cnt['SPN'])+ \
                 ';itr='+str(itr) +\
-                ';fwhm='+str(fwhm) +\
+                ';fwhm=0' +\
                 ';t0='+str(hst['t0']) +\
                 ';t1='+str(hst['t1']) +\
                 ';dur='+str(hst['dur']) +\
                 ';qf='+str(qf)
 
-    if fwhm>0:
-        im = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, Cnt), mode='mirror')
-    if store_img:
-        fout =  os.path.join(opth, os.path.basename(datain['lm_bf'])[:8] \
+
+    #> file name of the output reconstructed image
+    #> (maybe used later even if not stored now)
+    fpet =  os.path.join(opth, os.path.basename(datain['lm_bf']).split('.')[0] \
                 + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
                 +'_itr'+str(itr)+fcomment+'.nii.gz')
-        log.info('saving image to: ' + fout)
-        nimpa.array2nii( im[::-1,::-1,:], B, fout, descrip=descrip)
+    
+    if store_img:
+        log.info('saving image to: ' + fpet)
+        nimpa.array2nii( im[::-1,::-1,:], B, fpet, descrip=descrip)
+
+    im_smo = None
+    fsmo = None
+    if fwhm>0:
+        im_smo = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, Cnt), mode='mirror')
+
+        if store_img:
+            fsmo = fpet.split('.nii.gz')[0] + '_smo-'+str(fwhm).replace('.','-')+'mm.nii.gz'
+            log.info('saving smoothed image to: ' + fsmo)
+            descrip.replace(';fwhm=0', ';fwhm=str(fwhm)')
+            nimpa.array2nii( im_smo[::-1,::-1,:], B, fsmo, descrip=descrip)
+
 
 
     # returning:
@@ -368,12 +392,13 @@ def osemone(datain, mumaps, hst, scanner_params,
     #     recout = namedtuple('recout', 'im, fpet')
     #     recout.im   = im
     #     recout.fpet = fout
+
     if ret_sinos and recmod>=3 and itr>1:
-        RecOut = namedtuple('RecOut', 'im, fpet, affine, ssn, sssr, amsk, rsn')
-        recout = RecOut(im, fout, B, ssn, sct['ssrb'], sct['mask'], rsino)
+        RecOut = namedtuple('RecOut', 'im, fpet, imsmo, fsmo, affine, ssn, sssr, amsk, rsn')
+        recout = RecOut(im, fpet, im_smo, fsmo, B, ssn, sct['ssrb'], sct['mask'], rsino)
     else:
-        RecOut = namedtuple('RecOut', 'im, fpet, affine')
-        recout = RecOut(im, fout, B)
+        RecOut = namedtuple('RecOut', 'im, fpet, imsmo, fsmo, affine')
+        recout = RecOut(im, fpet, im_smo, fsmo, B)
 
     return recout
 

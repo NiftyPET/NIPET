@@ -42,6 +42,10 @@ def mmrchain(
     histo=None,     # input histogram (from list-mode data);
                     # if not given, it will be performed.
 
+    decay_ref_time=None, # decay corrects relative to the reference
+                    # time provided; otherwise corrects to the scan
+                    # start time.
+
     trim=False,
     trim_scale=2,
     trim_interp=0,  # interpolation for upsampling used in PVC
@@ -253,13 +257,17 @@ def mmrchain(
 
     # output list of intermidiate file names for mu-maps and PET images (useful for dynamic imaging)
     if tAffine: output['fmureg'] = []
-    if store_img_intrmd: output['fpeti'] = []
+    
+    if store_img_intrmd: 
+        output['fpeti'] = []
+        if fwhm>0:
+            output['fsmoi'] = []
 
     # dynamic images in one numpy array
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
     #if asked, output only scatter+randoms sinogram for each frame
     if ret_sinos and itr>1 and recmod>2:
-        dynmsk = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        dynmsk = np.zeros((nfrm, Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
@@ -343,6 +351,7 @@ def mmrchain(
         # run OSEM reconstruction of a single time frame
         recimg = mmrrec.osemone(datain, [muhd['im'], muo],
                                 hst, scanner_params,
+                                decay_ref_time=decay_ref_time,
                                 recmod=recmod, itr=itr, fwhm=fwhm,
                                 outpath=petimg,
                                 frmno=frmno,
@@ -350,15 +359,24 @@ def mmrchain(
                                 store_img=store_img_intrmd,
                                 store_itr=store_itr,
                                 ret_sinos=ret_sinos)
-        # form dynamic numpy array
-        dynim[ifrm,:,:,:] = recimg.im
+        
+        # form dynamic Numpy array
+        if fwhm>0:
+            dynim[ifrm,:,:,:] = recimg.imsmo
+        else:
+            dynim[ifrm,:,:,:] = recimg.im
+        
         if ret_sinos and itr>1 and recmod>2:
-            dynpsn[ifrm,:,:,:] = hst['psino']
-            dynssn[ifrm,:,:,:] = recimg.ssn
-            dynrsn[ifrm,:,:,:] = recimg.rsn
-            dynmsk[ifrm,:,:,:] = recimg.amsk
+            dynpsn[ifrm,:,:,:] = np.squeeze(hst['psino'])
+            dynssn[ifrm,:,:,:] = np.squeeze(recimg.ssn)
+            dynrsn[ifrm,:,:,:] = np.squeeze(recimg.rsn)
+            dynmsk[ifrm,:,:,:] = np.squeeze(recimg.amsk)
 
-        if store_img_intrmd: output['fpeti'].append(recimg.fpet)
+        if store_img_intrmd: 
+            output['fpeti'].append(recimg.fpet)
+            if fwhm>0:
+                output['fsmoi'].append(recimg.fsmo)
+
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
@@ -385,7 +403,7 @@ def mmrchain(
         elif 'lm_ima' in datain:
             fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
-        petu = nimpa.trimim(
+        petu = nimpa.imtrimup(
             dynim,
             affine=image_affine(datain, Cnt),
             scale=trim_scale,
