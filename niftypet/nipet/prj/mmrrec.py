@@ -125,7 +125,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     else:
         opth = outpath
 
-    if not ((store_img is None) or (store_itr is None)):
+    if ((store_img is True) or (not store_itr is None)):
         mmraux.create_dir(opth)
 
     if ret_sinos:
