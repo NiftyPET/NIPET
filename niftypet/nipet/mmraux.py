@@ -629,13 +629,13 @@ def transaxial_lut(Cnt, visualisation=False):
     #--- crystal coordinates transaxially
     #> block width
     bw = 3.209
-    
+
     #> block gap [cm]
     dg = 0.474
     NTBLK = 56
     alpha = 0.1122  #2*pi/NTBLK
     crs = np.zeros((Cnt['NCRS'],4), dtype=np.float32)
-    
+
     #> phi angle points in the middle and is used for obtaining the normal of detector block
     phi = 0.5*pi - alpha/2 -0.001
     for bi in range(NTBLK):
@@ -644,14 +644,14 @@ def transaxial_lut(Cnt, visualisation=False):
         # xe = RE*np.cos(phi)
         y  =  Cnt['R_RING']*np.sin(phi)
         x  =  Cnt['R_RING']*np.cos(phi)
-        
+
         #> vector for the face of crystals
         pv  = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
-        
+
         #> update phi for next block
         phi -= alpha
-        
+
         #> end block points
         xcp = x + (bw/2)*pv[0]
         ycp = y + (bw/2)*pv[1]
@@ -660,7 +660,7 @@ def transaxial_lut(Cnt, visualisation=False):
             u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
             v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
             T[v,u] = 5
-        
+
         for n in range(1,9):
             c = bi*9 +n-1
             crs[c,0] = xcp
@@ -704,7 +704,7 @@ def transaxial_lut(Cnt, visualisation=False):
     # LUT: sino -> crystal and crystal -> sino
     s2cF = np.zeros((Cnt['NSBINS']*Cnt['NSANGLES'], 2), dtype=np.int16)
     c2sF = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
-    
+
     #> with projection bin <w> fast changing (c2s has angle changing fast).
     #> this is used in scatter estimation
     c2sFw = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
@@ -803,7 +803,7 @@ def transaxial_lut(Cnt, visualisation=False):
     # txLUT = {'cij':cij, 'crs':crs, 'crsri':crsri, 'msino':msino, 'aw2sn':aw2sn,
     #          'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
     #          'c2sF':c2sF, 'cr2s':cr2s}
-    
+
 
     return out
 
@@ -1096,10 +1096,10 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
                 get_dicoms(f, datain, Cnt)
             # elif f.lower().endswith(".bf"):
             #     get_bf( pjoin(fldr,f), datain, Cnt)
-        elif f.lower().endswith((".npy", ".npz", ".dic")):
-            get_npfiles(f, datain, Cnt['VERBOSE'])
-        elif f.lower().endswith((".nii", ".nii.gz")):
-            get_niifiles(f, datain, Cnt['VERBOSE'])
+            elif f.lower().endswith((".npy", ".npz", ".dic")):
+                get_npfiles(f, datain, Cnt['VERBOSE'])
+            elif f.lower().endswith((".nii", ".nii.gz")):
+                get_niifiles(f, datain, Cnt['VERBOSE'])
         elif os.path.isdir(f) and recurse:
             # go one level into subfolder
             extra = explore_input(f, params, recurse=recurse - 1)
