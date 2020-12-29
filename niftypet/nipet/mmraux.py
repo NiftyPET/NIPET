@@ -1,12 +1,13 @@
 """auxilary functions for raw PET data processing."""
 import glob
 import logging
-from math import pi
 import os
-from os.path import join as pjoin
-from pkg_resources import resource_filename
 import re
 import sys
+from math import pi
+from os.path import join as pjoin
+from pkg_resources import resource_filename
+from textwrap import dedent
 
 import nibabel as nib
 import numpy as np
@@ -128,9 +129,9 @@ def hdr_lm(datain, Cnt):
             if loc in dhdr:
                 lmhdr = dhdr[loc].value
                 if '!INTERFILE' in lmhdr and 'start horizontal bed position' in lmhdr:
-                    log.info('''\
-                        \robtained list-mode interfile header from:
-                        \r[{}, {}]'''.format(hex(loc[0]), hex(loc[1])))
+                    log.info(dedent('''\
+                        obtained list-mode interfile header from:
+                        [{}, {}]''').format(hex(loc[0]), hex(loc[1])))
                     found_lmhdr = True
                     break
         if not found_lmhdr:
@@ -269,10 +270,10 @@ def time_diff_norm_acq(datain):
         log.warning('time difference between calibration and acquisition is: {} hrs and {} mins'.format(dhrs, dmns))
 
     if np.sum([cy-y, cm-m, cd-d])!=0:
-        log.warning('''\
-            \rdaily QC/calibration was performed on different day(!):
-            \r{}-{}-{} vs. {}-{}-{}
-            '''.format(cy, cm, cd, y,m,d))
+        log.warning(dedent('''\
+            daily QC/calibration was performed on different day(!):
+            {}-{}-{} vs. {}-{}-{}
+            ''').format(cy, cm, cd, y,m,d))
 
 
 def timings_from_list(flist, offset=0):
@@ -628,13 +629,13 @@ def transaxial_lut(Cnt, visualisation=False):
     #--- crystal coordinates transaxially
     #> block width
     bw = 3.209
-    
+
     #> block gap [cm]
     dg = 0.474
     NTBLK = 56
     alpha = 0.1122  #2*pi/NTBLK
     crs = np.zeros((Cnt['NCRS'],4), dtype=np.float32)
-    
+
     #> phi angle points in the middle and is used for obtaining the normal of detector block
     phi = 0.5*pi - alpha/2 -0.001
     for bi in range(NTBLK):
@@ -643,14 +644,14 @@ def transaxial_lut(Cnt, visualisation=False):
         # xe = RE*np.cos(phi)
         y  =  Cnt['R_RING']*np.sin(phi)
         x  =  Cnt['R_RING']*np.cos(phi)
-        
+
         #> vector for the face of crystals
         pv  = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
-        
+
         #> update phi for next block
         phi -= alpha
-        
+
         #> end block points
         xcp = x + (bw/2)*pv[0]
         ycp = y + (bw/2)*pv[1]
@@ -659,7 +660,7 @@ def transaxial_lut(Cnt, visualisation=False):
             u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
             v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
             T[v,u] = 5
-        
+
         for n in range(1,9):
             c = bi*9 +n-1
             crs[c,0] = xcp
@@ -703,7 +704,7 @@ def transaxial_lut(Cnt, visualisation=False):
     # LUT: sino -> crystal and crystal -> sino
     s2cF = np.zeros((Cnt['NSBINS']*Cnt['NSANGLES'], 2), dtype=np.int16)
     c2sF = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
-    
+
     #> with projection bin <w> fast changing (c2s has angle changing fast).
     #> this is used in scatter estimation
     c2sFw = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
@@ -802,7 +803,7 @@ def transaxial_lut(Cnt, visualisation=False):
     # txLUT = {'cij':cij, 'crs':crs, 'crsri':crsri, 'msino':msino, 'aw2sn':aw2sn,
     #          'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
     #          'c2sF':c2sF, 'cr2s':cr2s}
-    
+
 
     return out
 
@@ -814,23 +815,23 @@ def transaxial_lut(Cnt, visualisation=False):
 
 def get_npfiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger('''\
-        \r------------------------------------------------------------------
+    logger(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     # pCT mu-map
-    if os.path.basename(dfile)=='mumap_pCT.npy':
+    if os.path.basename(dfile) == 'mumap_pCT.npz':
         datain['mumapCT'] = dfile
         logger('mu-map for the object.')
 
     # DICOM UTE/Dixon mu-map
-    if os.path.basename(dfile)=='mumap-from-DICOM.npy':
+    if os.path.basename(dfile) == 'mumap-from-DICOM.npz':
         datain['mumapNPY'] = dfile
         logger('mu-map for the object.')
 
-    if os.path.basename(dfile)=='hmumap.npy':
+    if os.path.basename(dfile) == 'hmumap.npz':
         datain['hmumap'] = dfile
         logger('mu-map for hardware.')
 
@@ -845,11 +846,11 @@ def get_npfiles(dfile, datain, v=False):
 
 def get_niifiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger('''\
-        \r------------------------------------------------------------------
+    logger(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     #> NIfTI file of converted MR-based mu-map from DICOMs
     if os.path.basename(dfile).split('.nii')[0]=='mumap-from-DICOM':
@@ -935,11 +936,11 @@ def get_niifiles(dfile, datain, v=False):
 
 def get_dicoms(dfile, datain, Cnt):
     # v = Cnt['VERBOSE']
-    log.debug('''\
-        \r------------------------------------------------------------------
+    log.debug(dedent('''\
+        ------------------------------------------------------------------
         file: {}
-        \r------------------------------------------------------------------
-        '''.format(dfile))
+        ------------------------------------------------------------------
+        ''').format(dfile))
 
     d = dcm.dcmread(dfile)
     dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])
@@ -1091,13 +1092,13 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
     for f in os.listdir(fldr):
         f = pjoin(fldr, f)
         if os.path.isfile(f):
-            if f.lower().endswith(".dcm") or f.lower().endswith(".ima"):
+            if f.lower().endswith((".dcm", ".ima")):
                 get_dicoms(f, datain, Cnt)
             # elif f.lower().endswith(".bf"):
             #     get_bf( pjoin(fldr,f), datain, Cnt)
-            elif f.endswith(".npy") or f.endswith(".dic"):
+            elif f.lower().endswith((".npy", ".npz", ".dic")):
                 get_npfiles(f, datain, Cnt['VERBOSE'])
-            elif f.endswith(".nii.gz") or f.endswith(".nii"):
+            elif f.lower().endswith((".nii", ".nii.gz")):
                 get_niifiles(f, datain, Cnt['VERBOSE'])
         elif os.path.isdir(f) and recurse:
             # go one level into subfolder

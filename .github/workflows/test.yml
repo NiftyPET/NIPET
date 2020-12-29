@@ -16,7 +16,7 @@ jobs:
         ref: dev2
         path: NIMPA
     - run: pip install -U ./NIMPA -e .[dev]
-    - run: python -m pytest --cov-report=term-missing --cov-report=xml --ignore=./NIMPA
+    - run: pytest --ignore=./NIMPA
     - run: codecov
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

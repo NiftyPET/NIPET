@@ -2,10 +2,11 @@
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 
-from numbers import Integral
 import os
-from subprocess import call
 import sys
+from numbers import Integral
+from subprocess import call
+from textwrap import dedent
 
 import numpy as np
 import scipy.ndimage as ndi
@@ -296,21 +297,19 @@ def mmrchain(
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
-            log.info('''\
-                \r------------------------------------------------------
-                \rusing provided histogram
-                \r------------------------------------------------------
-                ''')
+            log.info(dedent('''\
+                ------------------------------------------------------
+                using provided histogram
+                ------------------------------------------------------'''))
 
         if ret_histo:
             hsts[str(t0)+'-'+str(t1)] = hst
 
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
-            log.warning('''
-                \r===========================================================================
-                \ramount of randoms is the greater part of prompts => omitting reconstruction
-                \r===========================================================================
-                ''')
+            log.warning(dedent('''\
+                ===========================================================================
+                amount of randoms is the greater part of prompts => omitting reconstruction
+                ==========================================================================='''))
             ifrmP = ifrm+1
             continue
         # --------------------

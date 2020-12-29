@@ -392,7 +392,7 @@ def obj_mumap(
     nim = nib.load(fmu)
     # get the affine transform
     A = nim.get_sform()
-    mu = nim.get_data()
+    mu = nim.get_fdata(dtype=np.float32)
     mu = np.transpose(mu[:,::-1,::-1], (2, 1, 0))
     # convert to mu-values
     mu = np.float32(mu)/1e4
@@ -406,8 +406,8 @@ def obj_mumap(
     #> store the mu-map if requested
     if store_npy:
         # to numpy array
-        fnp = os.path.join(fmudir, 'mumap-from-DICOM.npy' )
-        np.save(fnp, (mu, A))
+        fnp = os.path.join(fmudir, "mumap-from-DICOM.npz")
+        np.savez(fnp, mu=mu, A=A)
 
     if store:
         # with this file name
@@ -525,14 +525,14 @@ def align_mumap(
     #=========================================================
     #-get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
+        muh = np.load(datain['hmumap'], allow_pickle=True)["hmu"]
         (log.info if verbose else log.debug)(
             'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
-        if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
-            datain['hmumap'] = hmupath
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
+        if os.path.isfile(hmupath):
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
+            datain["hmumap"] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
@@ -696,7 +696,7 @@ def align_mumap(
 
         #> convert to mu-values before resampling to avoid artefacts with negative values
         nii = nib.load(datain['pCT'])
-        img = np.float32(nii.get_data())
+        img = nii.get_fdata(dtype=np.float32)
         img_mu = hu2mu(img)
         nii_mu = nib.Nifti1Image(img_mu, nii.affine)
         fflo = os.path.join(tmpdir, 'pct2mu-not-aligned.nii.gz')
@@ -723,12 +723,11 @@ def align_mumap(
                 raise IOError('The provided NIfTI UTE path is not valid.')
 
     #> call the resampling routine to get the pCT/UTE in place
-    if 'matlab_eng' in regdct:
+    if reg_tool == "spm":
         nimpa.resample_spm(
             fpet,
             fflo,
             faff_mrpet,
-            matlab_eng=regdct['matlab_eng'],
             fimout=freg,
             del_ref_uncmpr=True,
             del_flo_uncmpr=True,
@@ -747,7 +746,7 @@ def align_mumap(
     #-get the NIfTI of registered image
     nim = nib.load(freg)
     A   = nim.affine
-    imreg = np.float32( nim.get_data() )
+    imreg = nii.get_fdata(dtype=np.float32)
     imreg = imreg[:,::-1,::-1]
     imreg = np.transpose(imreg, (2, 1, 0))
 
@@ -781,8 +780,8 @@ def align_mumap(
     if store_npy:
         #> Numpy
         if store_to_npy:
-            fnp = os.path.join(opth, fname + '.npy')
-            np.save(fnp, (mu, A, fnp))
+            fnp = os.path.join(opth, fname + ".npz")
+            np.savez(fnp, mu=mu, A=A)
     if store:
         #> NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
@@ -841,14 +840,14 @@ def pct_mumap(
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
 
     # get hardware mu-map
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
+    if datain.get("hmumap", "").endswith(".npz") and os.path.isfile(datain["hmumap"]):
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
         (log.info if verbose else log.debug)(
             'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
-    elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
+    elif outpath:
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
         if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
             datain['hmumap'] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
@@ -970,7 +969,7 @@ def pct_mumap(
     # get the NIfTI of the pCT
     nim = nib.load(fpct)
     A   = nim.get_sform()
-    pct = np.float32( nim.get_data() )
+    pct = nii.get_fdata(dtype=np.float32)
     pct = pct[:,::-1,::-1]
     pct = np.transpose(pct, (2, 1, 0))
     # convert the HU units to mu-values
@@ -992,8 +991,8 @@ def pct_mumap(
         mmraux.create_dir(pctumapdir)
         #> Numpy
         if store_npy:
-            fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
-            np.save(fnp, (mu, A, fnp))
+            fnp = os.path.join(pctumapdir, "mumap-pCT.npz")
+            np.savez(fnp, mu=mu, A=A)
 
         #> NIfTI
         fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
@@ -1275,19 +1274,21 @@ def hdw_mumap(
     nimpa.create_dir(fmudir)
 
     # if requested to use the stored hardware mu_map get it from the path in datain
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
+    if use_stored and "hmumap" in datain and os.path.isfile(datain["hmumap"]):
         if datain['hmumap'].endswith(('.nii', '.nii.gz')):
             dct = nimpa.getnii(datain['hmumap'], output='all')
             hmu = dct['im']
             A = dct['affine']
             fmu = datain['hmumap']
-        elif datain['hmumap'].endswith(('.npy')):
-            hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
+        elif datain["hmumap"].endswith(".npz"):
+            arr = np.load(datain["hmumap"], allow_pickle=True)
+            hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
             log.info('loaded hardware mu-map from file: {}'.format(datain['hmumap']))
             fnp = datain['hmumap']
-    elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        hmu, A, fmu = np.load(fnp, allow_pickle=True)
+    elif outpath and os.path.isfile(os.path.join(fmudir, "hmumap.npz")):
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        arr = np.load(fnp, allow_pickle=True)
+        hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
         datain['hmumap'] = fnp
     # otherwise generate it from the parts through resampling the high resolution CT images
     else:
@@ -1295,14 +1296,14 @@ def hdw_mumap(
         # just to get the dims, get the ref image
         nimo = nib.load(hmupos[0]['niipath'])
         A = nimo.affine
-        imo = np.float32( nimo.get_data() )
+        imo = nimo.get_fdata(dtype=np.float32)
         imo[:] = 0
 
         for i in hparts:
             fin  = os.path.join(os.path.dirname (hmupos[0]['niipath']),
                                 'r'+os.path.basename(hmupos[i]['niipath']).split('.')[0]+'.nii.gz' )
             nim = nib.load(fin)
-            mu = nim.get_data()
+            mu = nim.get_fdata(dtype=np.float32)
             mu[mu<0] = 0
 
             imo += mu
@@ -1317,8 +1318,8 @@ def hdw_mumap(
         hmu = np.transpose(imo[:,::-1,::-1], (2, 1, 0))
 
         # save the objects to numpy arrays
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        np.save(fnp, (hmu, A, fmu))
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        np.savez(fnp, hmu=hmu, A=A, fmu=fmu)
         #update the datain dictionary (assuming it is mutable)
         datain['hmumap'] = fnp
 
@@ -1348,7 +1349,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get hardware mu-map
     if os.path.isfile(datain['hmumap']) and use_stored:
-        muh, _ = np.load(datain['hmumap'], allow_pickle=True)
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
         log.info('loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     else:
         hmudic = hdw_mumap(datain, [1,2,4], Cnt)
@@ -1356,7 +1357,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     # get pCT mu-map if stored in numpy file and then exit, otherwise do all the processing
     if os.path.isfile(datain['mumapCT']) and use_stored:
-        mup, _ = np.load(datain['mumapCT'], allow_pickle=True)
+        mup = np.load(datain["mumapCT"], allow_pickle=True)["mu"]
         muh = muh[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         mup = mup[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         return [muh, mup]

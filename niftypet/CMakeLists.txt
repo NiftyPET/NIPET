@@ -5,7 +5,6 @@ project(nipet)
 set(PREINSTALL_NAME "_preinstall")
 
 cmake_policy(PUSH)
-find_package(CUDA REQUIRED)
 if(CMAKE_VERSION VERSION_EQUAL 3.12 OR CMAKE_VERSION VERSION_GREATER 3.12)
   cmake_policy(SET CMP0074 NEW)
   find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
@@ -20,6 +19,7 @@ else()
     OUTPUT_VARIABLE Python3_NumPy_INCLUDE_DIRS
     OUTPUT_STRIP_TRAILING_WHITESPACE)
 endif()
+find_package(CUDA REQUIRED)
 cmake_policy(POP)
 
 if(CMAKE_VERSION VERSION_EQUAL 3.7 OR CMAKE_VERSION VERSION_GREATER 3.7)

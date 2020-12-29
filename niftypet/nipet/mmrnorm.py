@@ -1,8 +1,8 @@
 """mmraux.py: auxilary functions for PET list-mode data processing."""
 import os
-from pkg_resources import resource_filename
 import re
 import sys
+from pkg_resources import resource_filename
 
 import numpy as np
 import pydicom as dcm
@@ -55,22 +55,17 @@ def get_components(datain, Cnt):
 
     #-------------------------------------------------
     #the files below are found based on a 24hr scan of germanium-68 phantom
+    auxdata = resource_filename(__name__, "auxdata")
     # axial effects for span-1
-    fnm = 'AxialFactorForSpan1.npy'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
-    ax_f1 = np.load(fpth)
+    ax_f1 = np.load(os.path.join(auxdata, 'AxialFactorForSpan1.npy'))
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
-    fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
-    f = open(fpth, 'rb')
-    sax_f11 = np.fromfile(f, np.float32, Cnt['NSN11'])
-    f.close()
+    sax_f11 = np.fromfile(
+        os.path.join(auxdata, 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'),
+        np.float32, Cnt['NSN11'])
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
-    fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan1.f32'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
-    f = open(fpth, 'rb')
-    sax_f1 = np.fromfile(f, np.float32, Cnt['NSN1'])
-    f.close()
+    sax_f1 = np.fromfile(
+        os.path.join(auxdata, 'RelativeScaleFactors_scatter_axial_ssrTOspan1.f32'),
+        np.float32, Cnt['NSN1'])
     #-------------------------------------------------
 
     #-------------------------------------------------

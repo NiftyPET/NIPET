@@ -6,4 +6,6 @@ __pycache__/
 /build/
 /dist/
 /nipet.egg*/
+/.coverage
+/coverage.xml
 .DS_Store
