@@ -19,4 +19,4 @@ cuda_select_nvcc_arch_flags(NVCC_ARCH_FLAGS)
 list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
 message(STATUS "CUDA nvcc flags: ${CUDA_NVCC_FLAGS}")
 
-add_subdirectory(niftypet/nipet)
+add_subdirectory(nipet)

@@ -230,6 +230,7 @@ setup(
     version="2.0.0",
     packages=find_packages(exclude=["examples", "tests"]),
     package_data={"niftypet": ["nipet/auxdata/*"]},
+    cmake_source_dir="niftypet",
     cmake_languages=("CXX", "CUDA"),
     cmake_args=[f"-DPython3_ROOT_DIR={sys.prefix}"],
 )
