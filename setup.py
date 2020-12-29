@@ -14,6 +14,7 @@ from setuptools import find_packages
 from skbuild import setup
 
 from niftypet.ninst import cudasetup as cs
+from niftypet.ninst import dinf
 from niftypet.ninst import install_tools as tls
 
 __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
@@ -227,11 +228,15 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
+cmake_args = [f"-DPython3_ROOT_DIR={sys.prefix}"]
+nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
+cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
 setup(
     version="2.0.0",
     packages=find_packages(exclude=["examples", "tests"]),
     package_data={"niftypet": ["nipet/auxdata/*"]},
     cmake_source_dir="niftypet",
     cmake_languages=("CXX", "CUDA"),
-    cmake_args=[f"-DPython3_ROOT_DIR={sys.prefix}"],
+    cmake_minimum_required_version="3.18",
+    cmake_args=cmake_args,
 )
