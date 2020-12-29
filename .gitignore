@@ -1,13 +1,14 @@
 *.py[co]
-*.so
-*.log
 __pycache__/
-/docs/
+
+# build
+*.so
 /build/
 /dist/
-/_skbuild
+/_skbuild/
+/_cmake_test_compile/
 /*.egg*/
 /.eggs/
+
 /.coverage
 /coverage.xml
-.DS_Store
