@@ -514,7 +514,7 @@ void p_randoms(float *rsn,
 	int dev_id;
 	cudaGetDevice(&dev_id);
 	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
-	
+
 	//--- the sino for estimated random events
 	float * d_rsino;
 	unsigned long long tot_bins = 0;

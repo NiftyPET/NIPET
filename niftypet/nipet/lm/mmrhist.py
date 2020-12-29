@@ -1,17 +1,19 @@
 """hist.py: processing of PET list-mode data: histogramming and randoms estimation."""
 import logging
-from math import pi
 import os
 import pickle
 import sys
+from math import pi
 
 import nibabel as nib
 import numpy as np
 import scipy.ndimage as ndi
 
-from . import mmr_lmproc  # CUDA extension module
-from .. import mmraux
 from niftypet import nimpa
+
+from .. import mmraux
+from . import mmr_lmproc  # CUDA extension module
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)

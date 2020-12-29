@@ -85,7 +85,7 @@ __global__ void d_sct_axinterp(
 				sctaxW[sni].w * scts1[NBIN*sctaxR[sni].w + icu*blockDim.x + ics];
 
 	//span-1 or span-11 scatter pre-sinogram interpolation
-	if (SPN == 1) 
+	if (SPN == 1)
 		sct3d[tof_off + sni*NBIN + icu*blockDim.x + ics] = tmp;
 	else if (SPN == 11)
 		if (sni<NSN1) atomicAdd(sct3d + tof_off + sn1_sn11[sni]*NBIN + icu*blockDim.x + ics, tmp);
@@ -143,7 +143,7 @@ float * srslt2sino(
 	HANDLE_ERROR(cudaMemcpy(d_offseg, offseg, (Cnt.NSEG0 + 1) * sizeof(short), cudaMemcpyHostToDevice));
 
 	if (N_SRNG != Cnt.NSRNG) printf("e> Number of scatter rings is different in definitions from Python! <<<<<<<<<<<<<<<<<<< error \n");
-	
+
 	//---scatter ring indices to constant memory (GPU)
 	HANDLE_ERROR(cudaMemcpyToSymbol(c_isrng, isrng, Cnt.NSRNG * sizeof(short)));
 	//---
@@ -171,7 +171,7 @@ float * srslt2sino(
 		cudaEventCreate(&start);
 		cudaEventCreate(&stop);
 		cudaEventRecord(start, 0);
-		
+
 		//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 		dim3 grid(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);
 		dim3 block(d_scrsdef.nscrs, d_scrsdef.nsrng, 1);

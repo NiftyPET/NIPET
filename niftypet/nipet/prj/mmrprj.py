@@ -5,9 +5,10 @@ import sys
 
 import numpy as np
 
-from ..img import mmrimg
 from .. import mmraux
+from ..img import mmrimg
 from . import petprj
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)

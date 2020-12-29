@@ -1,14 +1,13 @@
 import errno
 import logging
-from filelock import FileLock
 from os import path
 from textwrap import dedent
 
 import numpy as np
 import pytest
+from filelock import FileLock
 
-from niftypet import nimpa
-from niftypet import nipet
+from niftypet import nimpa, nipet
 
 # segmentation/parcellation for PVC, with unique regions numbered from 0 onwards
 pvcroi = []

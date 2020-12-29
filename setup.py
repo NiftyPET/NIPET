@@ -7,10 +7,11 @@ import logging
 import os
 import platform
 import re
-from skbuild import setup
-from setuptools import find_packages
 import sys
 from textwrap import dedent
+
+from setuptools import find_packages
+from skbuild import setup
 
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import install_tools as tls

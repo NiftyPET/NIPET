@@ -167,7 +167,7 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	p_axe2 = (PyArrayObject *)PyArray_FROM_OTF(pd_axe2, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 	PyArrayObject *p_axf1 = NULL;
 	p_axf1 = (PyArrayObject *)PyArray_FROM_OTF(pd_axf1, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
-	
+
 	//then axLUTs
 	PyArrayObject *p_li2rno = NULL;
 	p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT32, NPY_ARRAY_IN_ARRAY);
@@ -289,7 +289,7 @@ static PyObject *mmr_norm(PyObject *self, PyObject *args)
 	Py_DECREF(p_dtnp);
 	Py_DECREF(p_dtc);
 	Py_DECREF(p_axe2);
-	//axLUT 
+	//axLUT
 	Py_DECREF(p_li2rno);
 	Py_DECREF(p_li2sn);
 	Py_DECREF(p_li2nos);
@@ -536,9 +536,9 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
 //====================================================================================================
 static PyObject *aux_varon(PyObject *self, PyObject *args) {
 
-	// M1 (mean) vector 
+	// M1 (mean) vector
 	PyObject * o_m1;
-	// M2 (variance) vector 
+	// M2 (variance) vector
 	PyObject * o_m2;
 	//input of instance data X
 	PyObject * o_x;

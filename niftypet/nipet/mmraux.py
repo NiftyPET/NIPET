@@ -6,17 +6,18 @@ import re
 import sys
 from math import pi
 from os.path import join as pjoin
-from pkg_resources import resource_filename
 from textwrap import dedent
 
 import nibabel as nib
 import numpy as np
 import pydicom as dcm
 import scipy.ndimage as ndi
+from pkg_resources import resource_filename
 
-from . import mmr_auxe
 from niftypet import nimpa
-from . import resources
+
+from . import mmr_auxe, resources
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)

@@ -63,7 +63,7 @@
 #define NLI2R 2074
 
 //coincidence time window in pico-seconds
-#define CWND = 5859.38 
+#define CWND = 5859.38
 
 //====== SIGNA =======
 #define NCRS_S 448
