@@ -236,7 +236,7 @@ setup(
     packages=find_packages(exclude=["examples", "tests"]),
     package_data={"niftypet": ["nipet/auxdata/*"]},
     cmake_source_dir="niftypet",
-    cmake_languages=("CXX", "CUDA"),
+    cmake_languages=("C", "CXX", "CUDA"),
     cmake_minimum_required_version="3.18",
     cmake_args=cmake_args,
 )
