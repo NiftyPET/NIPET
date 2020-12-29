@@ -7,7 +7,8 @@ import logging
 import os
 import platform
 import re
-from setuptools import setup, find_packages
+from skbuild import setup
+from setuptools import find_packages
 import sys
 from textwrap import dedent
 
@@ -22,8 +23,6 @@ logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
 
 tls.check_platform()
-ext = tls.check_depends()  # external dependencies
-
 
 # =================================================================================================
 # automatically detects if the CUDA header files are in agreement with Python constants.
@@ -181,13 +180,10 @@ def check_constants():
     )
 
 
-if ext["cmake"]:
-    cs.resources_setup(gpu=False)  # install resources.py
-    # check and update the constants in C headers according to resources.py
-    check_constants()
-    gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
-else:
-    raise SystemError("Need cmake")
+cs.resources_setup(gpu=False)  # install resources.py
+# check and update the constants in C headers according to resources.py
+check_constants()
+gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
 
 
 log.info(
@@ -230,46 +226,10 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-# ===============================================================
-# CUDA BUILD
-# ===============================================================
-path_current = os.path.dirname(os.path.realpath(__file__))
-path_build = os.path.join(path_current, "build")
-path_source = os.path.join(path_current, "niftypet")
-cs.cmake_cuda(
-    path_source,
-    path_build,
-    gpuarch,
-    logfile_prefix="nipet_",
-    msvc_version=Cnt["MSVC_VRSN"],
-)
-
-# ===============================================================
-# PYTHON SETUP
-# ===============================================================
-log.info("""found those packages:\n{}""".format(find_packages(exclude=["docs"])))
-
-
-# ---- for setup logging -----
-stdout = sys.stdout
-stderr = sys.stderr
-log_file = open("setup_nipet.log", "w")
-sys.stdout = log_file
-sys.stderr = log_file
-# ----------------------------
-
-if platform.system() in ["Linux", "Darwin"]:
-    fex = "*.so"
-elif platform.system() == "Windows":
-    fex = "*.pyd"
-# ----------------------------
 setup(
     version="2.0.0",
-    package_data={
-        "niftypet": ["nipet/auxdata/*"],
-        "niftypet.nipet.lm": [fex],
-        "niftypet.nipet.prj": [fex],
-        "niftypet.nipet.sct": [fex],
-        "niftypet.nipet": [fex],
-    },
+    packages=find_packages(exclude=["examples", "tests"]),
+    package_data={"niftypet": ["nipet/auxdata/*"]},
+    cmake_languages=("CXX", "CUDA"),
+    cmake_args=[f"-DPython3_ROOT_DIR={sys.prefix}"],
 )
