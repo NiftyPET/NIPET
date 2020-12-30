@@ -452,7 +452,7 @@ def mmrchain(
                 #raise StandardError('No affine transformation')
             else:
                 faffpvc = faff_frms[i]
-                
+
             # chose file name of individual PVC images
             if nfrm>1:
                 fcomment_pvc = '_frm'+str(i)+fcomment

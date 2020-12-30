@@ -8,6 +8,8 @@ import os
 import platform
 import re
 import sys
+from os import path
+from pathlib import Path
 from textwrap import dedent
 
 from setuptools import find_packages
@@ -34,8 +36,8 @@ tls.check_platform()
 def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
-    path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "include", "def.h")
+    path_current = path.dirname(path.realpath(__file__))
+    fpth = path.join(path_current, "niftypet", "nipet", "include", "def.h")
     with open(fpth, "r") as fd:
         def_h = fd.read()
     # get the region of keeping in synch with Python
@@ -84,9 +86,9 @@ def chck_sct_h(Cnt):
     the CUDA header files accordingly.
     """
     rflg = False
-    path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "sct", "src", "sct.h")
-    # pthcmpl = os.path.dirname(resource_filename(__name__, ''))
+    path_current = path.dirname(path.realpath(__file__))
+    fpth = path.join(path_current, "niftypet", "nipet", "sct", "src", "sct.h")
+    # pthcmpl = path.dirname(resource_filename(__name__, ''))
     with open(fpth, "r") as fd:
         sct_h = fd.read()
     # get the region of keeping in synch with Python
@@ -203,25 +205,20 @@ resources = cs.get_resources()
 # get the current setup, if any
 Cnt = resources.get_setup()
 
-# assume the hardware mu-maps are not installed
-hmu_flg = False
-# go through each piece of the hardware components
-if "HMUDIR" in Cnt and Cnt["HMUDIR"] != "":
-    for hi in Cnt["HMULIST"]:
-        if os.path.isfile(os.path.join(Cnt["HMUDIR"], hi)):
-            hmu_flg = True
-        else:
-            hmu_flg = False
+# hardware mu-maps
+hmu_dir = None
+if Cnt.get("HMUDIR", None):
+    hmu_dir = Path(Cnt["HMUDIR"])
+    # check each piece of the hardware components
+    for i in Cnt["HMULIST"]:
+        if not (hmu_dir / i).is_file():
+            hmu_dir = None
             break
-# if not installed ask for the folder through GUI
-# otherwise the path will have to be filled manually
-if not hmu_flg:
-    prompt = dict(
-        title="Folder for hardware mu-maps: ", initialdir=os.path.expanduser("~")
+# prompt for installation path
+if hmu_dir is None:
+    Cnt["HMUDIR"] = tls.askdirectory(
+        title="Folder for hardware mu-maps: ", name="HMUDIR"
     )
-    if not os.getenv("DISPLAY", False):
-        prompt["name"] = "HMUDIR"
-    Cnt["HMUDIR"] = tls.askdirectory(**prompt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # update the path in resources.py
 tls.update_resources(Cnt)
