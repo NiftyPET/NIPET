@@ -31,7 +31,7 @@ def mmrchain(
     frames=['fluid', [0,0]], # definition of time frames.
     mu_h = [],      # hardware mu-map.
     mu_o = [],      # object mu-map.
-    tAffine = [],   # affine transformations for the mu-map for
+    tAffine = None, # affine transformations for the mu-map for
                     # each time frame separately.
 
     itr=4,          # number of OSEM iterations
@@ -167,7 +167,7 @@ def mmrchain(
     # -------------------------------------------------------------------------
     # MU-MAPS
     # get the mu-maps, if given;  otherwise will use blank mu-maps.
-    if tAffine:
+    if not tAffine is None:
         muod = obtain_image(mu_o, imtype='object mu-map')
     else:
         muod = obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
@@ -196,7 +196,7 @@ def mmrchain(
     output['#frames'] = nfrm
 
     # if affine transformation is given the baseline mu-map in NIfTI file or dictionary has to be given
-    if not tAffine:
+    if tAffine is None:
         log.info('using the provided mu-map the same way for all frames.')
     else:
         if len(tAffine)!=nfrm:
@@ -257,8 +257,8 @@ def mmrchain(
         output['fmuref'] = fmuref
         output['faffine'] = faff_frms
 
-    # output list of intermidiate file names for mu-maps and PET images (useful for dynamic imaging)
-    if tAffine: output['fmureg'] = []
+    # output list of intermediate file names for mu-maps and PET images (useful for dynamic imaging)
+    if not tAffine is None: output['fmureg'] = []
     
     if store_img_intrmd: 
         output['fpeti'] = []
@@ -314,7 +314,7 @@ def mmrchain(
             continue
         # --------------------
         # transform the mu-map if given the affine transformation for each frame
-        if tAffine:
+        if not tAffine is None:
             # create the folder for aligned (registered for motion compensation) mu-maps
             nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size
@@ -445,12 +445,13 @@ def mmrchain(
         dynpvc = np.zeros(petu['im'].shape, dtype=np.float32)
         for i in range(ifrmP,nfrm):
             # transform the parcellations (ROIs) if given the affine transformation for each frame
-            if not tAffine:
+            if tAffine is None:
                 log.warning('affine transformation are not provided: will generate for the time frame.')
-                faffpvc = ''
+                faffpvc = None
                 #raise StandardError('No affine transformation')
             else:
                 faffpvc = faff_frms[i]
+                
             # chose file name of individual PVC images
             if nfrm>1:
                 fcomment_pvc = '_frm'+str(i)+fcomment
