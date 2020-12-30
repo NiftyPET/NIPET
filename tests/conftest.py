@@ -11,7 +11,7 @@ def folder_in():
     if not Ab_PET_mMR_test.is_dir():
         pytest.skip(
             f"""Cannot find Ab_PET_mMR_test in ${{DATA_ROOT:-~}} ({HOME}).
-Get it from https://zenodo.org/record/3877529
+Try running `python -m tests` to download it.
 """
         )
     return Ab_PET_mMR_test
@@ -24,7 +24,7 @@ def folder_ref(folder_in):
         pytest.skip(
             f"""Cannot find Ab_PET_mMR_ref in
 ${{DATA_ROOT:-~}}/testing_reference ({HOME}/testing_reference).
-Get it from https://zenodo.org/record/3877529
+Try running `python -m tests` to download it.
 """
         )
     return Ab_PET_mMR_ref
