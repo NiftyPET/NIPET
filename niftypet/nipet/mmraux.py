@@ -5,13 +5,16 @@ import os
 import re
 import sys
 from math import pi
+from os import fspath
 from os.path import join as pjoin
+from pathlib import Path
 from textwrap import dedent
 
 import nibabel as nib
 import numpy as np
 import pydicom as dcm
 import scipy.ndimage as ndi
+from miutil.fdio import hasext
 from pkg_resources import resource_filename
 
 from niftypet import nimpa
@@ -1079,6 +1082,7 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
     Args:
         recurse: int, [default: 1] subfolder deep. Use -1 for infinite recursion.
     """
+    fldr, fpth = fspath(fldr), Path(fldr)
     Cnt = params.get('Cnt', params)  # two ways of passing Cnt are here decoded
 
     if not os.path.isdir(fldr):
@@ -1090,18 +1094,17 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
     # mu-map can be given from the scanner as an e.g., UTE-based, or pseudoCT through synthesis.
     datain = {'corepath': fldr}
 
-    for f in os.listdir(fldr):
-        f = pjoin(fldr, f)
-        if os.path.isfile(f):
-            if f.lower().endswith((".dcm", ".ima")):
-                get_dicoms(f, datain, Cnt)
-            # elif f.lower().endswith(".bf"):
-            #     get_bf( pjoin(fldr,f), datain, Cnt)
-            elif f.lower().endswith((".npy", ".npz", ".dic")):
-                get_npfiles(f, datain, Cnt['VERBOSE'])
-            elif f.lower().endswith((".nii", ".nii.gz")):
-                get_niifiles(f, datain, Cnt['VERBOSE'])
-        elif os.path.isdir(f) and recurse:
+    for f in fpth.iterdir():
+        if f.is_file():
+            if hasext(f, ("dcm", "ima")):
+                get_dicoms(fspath(f), datain, Cnt)
+            # elif hasext(f, "bf"):
+            #     get_bf(f, datain, Cnt)
+            elif hasext(f, ("npy", "npz", "dic")):
+                get_npfiles(fspath(f), datain, Cnt['VERBOSE'])
+            elif hasext(f, ("nii", "nii.gz")):
+                get_niifiles(fspath(f), datain, Cnt['VERBOSE'])
+        elif f.is_dir() and recurse:
             # go one level into subfolder
             extra = explore_input(f, params, recurse=recurse - 1)
             extra.pop('corepath')
