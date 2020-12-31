@@ -744,9 +744,9 @@ def align_mumap(
 
 
     #-get the NIfTI of registered image
-    nii = nib.load(freg)
-    A   = nii.affine
-    imreg = nii.get_fdata(dtype=np.float32)
+    nim = nib.load(freg)
+    A   = nim.affine
+    imreg = nim.get_fdata(dtype=np.float32)
     imreg = imreg[:,::-1,::-1]
     imreg = np.transpose(imreg, (2, 1, 0))
 
@@ -967,9 +967,9 @@ def pct_mumap(
 
 
     # get the NIfTI of the pCT
-    nii = nib.load(fpct)
-    A   = nii.get_sform()
-    pct = nii.get_fdata(dtype=np.float32)
+    nim = nib.load(fpct)
+    A   = nim.get_sform()
+    pct = nim.get_fdata(dtype=np.float32)
     pct = pct[:,::-1,::-1]
     pct = np.transpose(pct, (2, 1, 0))
     # convert the HU units to mu-values
