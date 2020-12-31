@@ -59,7 +59,7 @@ emape_algnd = {
 @pytest.fixture(scope="session")
 def mMRpars():
     params = nipet.get_mmrparams()
-    params["Cnt"]["VERBOSE"] = True
+    # params["Cnt"]["VERBOSE"] = True
     params["Cnt"]["LOG"] = logging.INFO
     return params
 
