@@ -1,41 +1,21 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-project(nipet)
-
-set(PREINSTALL_NAME "_preinstall")
+project(nipet LANGUAGES C CXX CUDA VERSION 2.0)
 
 cmake_policy(PUSH)
-if(CMAKE_VERSION VERSION_EQUAL 3.12 OR CMAKE_VERSION VERSION_GREATER 3.12)
-  cmake_policy(SET CMP0074 NEW)
-  find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
-else()
-  find_package(PythonInterp 3 REQUIRED)
-  set(Python3_EXECUTABLE "${PYTHON_EXECUTABLE}")
-  find_package(PythonLibs 3 REQUIRED)
-  set(Python3_INCLUDE_DIRS "${PYTHON_INCLUDE_DIRS}")
-  set(Python3_LIBRARIES "${PYTHON_LIBRARIES}")
-  execute_process(
-    COMMAND "${Python3_EXECUTABLE}" -c "import numpy; print(numpy.get_include())"
-    OUTPUT_VARIABLE Python3_NumPy_INCLUDE_DIRS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+cmake_policy(SET CMP0074 NEW)  # <PackageName>_ROOT hints for find_package
+cmake_policy(SET CMP0104 NEW)  # CMAKE_CUDA_ARCHITECTURES
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+if(SKBUILD)
+find_package(PythonExtensions REQUIRED)
 endif()
-find_package(CUDA REQUIRED)
 cmake_policy(POP)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.7 OR CMAKE_VERSION VERSION_GREATER 3.7)
-  cuda_select_nvcc_arch_flags(NVCC_ARCH_FLAGS)
-else()
-  execute_process(
-    COMMAND "${Python3_EXECUTABLE}" -m miutil.cuinfo -f
-    OUTPUT_VARIABLE NVCC_ARCH_FLAGS
-    OUTPUT_STRIP_TRAILING_WHITESPACE)
+message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
-list(APPEND CUDA_NVCC_FLAGS ${NVCC_ARCH_FLAGS})
-message(STATUS "CUDA nvcc flags: ${CUDA_NVCC_FLAGS}")
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-add_subdirectory(${CMAKE_PROJECT_NAME})
-add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
-add_subdirectory(${CMAKE_PROJECT_NAME}/prj)
-add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
-
-set(CMAKE_BUILD_TYPE Release)
+add_subdirectory(nipet)

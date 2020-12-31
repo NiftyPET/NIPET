@@ -29,7 +29,7 @@ __global__ void var(float * M1,
 //=============================================================================
 void var_online(float *M1, float *M2, float *X, int b, size_t nele)
 {
-	
+
 	//do calculation of variance online using CUDA kernel <var>.
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);

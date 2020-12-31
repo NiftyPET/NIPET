@@ -1,28 +1,25 @@
 '''
 Voxel-driven scatter modelling for PET data
 '''
+import logging
 import os
 import sys
-import logging
 import time
+from concurrent.futures import ThreadPoolExecutor
 from math import pi
 
 import nibabel as nib
 import numpy as np
 import scipy.ndimage as ndi
-from concurrent.futures import ThreadPoolExecutor
-from scipy.interpolate import CloughTocher2DInterpolator
+from scipy.interpolate import CloughTocher2DInterpolator, interp2d
 from scipy.spatial import qhull
-from scipy.interpolate import interp2d
 from scipy.special import erfc
 from tqdm.auto import trange
 
+from .. import mmr_auxe, mmraux, mmrnorm
 from ..img import mmrimg
-from .. import mmraux
-from .. import mmr_auxe
-from .. import mmrnorm
+from ..prj import mmrprj, mmrrec, petprj
 from . import nifty_scatter
-from ..prj import mmrprj, petprj, mmrrec
 
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
@@ -339,7 +336,7 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
 
     #> advanced indexing matrix for rolling the non-interpolated results
     jj, ii = np.mgrid[0:sctLUT['NSCRS'], 0:sctLUT['NSCRS']]
-    
+
     #> roll each row according to the position
     for i in range(sctLUT['NSCRS']):
         ii[i,:] = np.roll(ii[i,:], -1*i)
@@ -356,7 +353,7 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
         sn2d = np.zeros(Cnt['NSANGLES']*Cnt['NSBINS'], dtype=dtype)
 
         for si in range(snno):
-            
+
             sn2d[:] = 0
 
             sct2d = sct3d[0, si, jj, ii]
@@ -380,7 +377,7 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
             sidx = sctLUT['c2sFw'][qi]
             s = znew[qi]
             sn2d[sidx] += s
-        
+
             ssn [ti, si, ...] = np.reshape(sn2d, (Cnt['NSANGLES'],Cnt['NSBINS']))
             sssr[ti, ssrlut[si], ...] += ssn[ti, si,:,:]
 
@@ -460,7 +457,7 @@ def vsm(
 
     # if rsino is None and not histo is None and 'rsino' in histo:
     #     rsino = histo['rsino']
-            
+
     #> if histogram data or randoms sinogram not given, then no scaling or normalisation
     if (histo is None) or (rsino is None):
         scaling = False
@@ -491,8 +488,8 @@ def vsm(
 
     #LUTs for scatter
     sctLUT = get_sctLUT(scanner_params)
-    
-    
+
+
     #> smooth before scaling/down-sampling the mu-map and emission images
     if fwhm_input>0.:
         muim = ndi.filters.gaussian_filter(muo+muh, fwhm2sig(fwhm_input, Cnt), mode='mirror')
@@ -521,7 +518,7 @@ def vsm(
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
     nifty_scatter.vsm(sctout, muim, mumsk, emim, sctLUT, axLUT, Cnt)
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
-    
+
     sct3d  = sctout['sct_3d']
     sctind = sctLUT['sct2aw']
 
@@ -535,7 +532,7 @@ def vsm(
         out['uninterp'] = sct3d
         out['indexes'] = sctind
     #-------------------------------------------------------------------
-    
+
 
     if np.sum(sct3d)<1e-04:
         log.warning('total scatter below threshold: {}'.format(np.sum(sct3d)))
@@ -544,12 +541,12 @@ def vsm(
         sssr   = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         return sss, sssr, asnmsk
 
-   
+
     # import pdb; pdb.set_trace()
 
     #-------------------------------------------------------------------
     if interpolate:
-        #> interpolate basic scatter distributions into full size and 
+        #> interpolate basic scatter distributions into full size and
         #> transfer them to sinograms
 
         log.debug('transaxial scatter interpolation...')
@@ -569,7 +566,7 @@ def vsm(
 
     #-------------------------------------------------------------------
     # import pdb; pdb.set_trace()
-    
+
     '''
     debugging scatter:
     import matplotlib.pyplot as plt
@@ -621,7 +618,7 @@ def vsm(
     #> get attenuation + norm in (span-11) and SSR
     attossr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     nrmsssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-    
+
     for i in range(Cnt['NSN1']):
         si = axLUT['sn1_ssrb'][i]
         attossr[si,:,:] += atto[i,:,:] / float(axLUT['sn1_ssrno'][si])
@@ -632,7 +629,7 @@ def vsm(
         mmr_auxe.norm(nrmg, nrmcmp, histo['buckets'], axLUT, txLUT['aw2ali'], Cnt)
         nrm = mmraux.putgaps(nrmg, txLUT, Cnt)
     #--------------------------------------------------------------
-    
+
     #<<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
 
     #get the mask for the object from uncorrected emission image
@@ -664,13 +661,13 @@ def vsm(
     rmsk = (txLUT['msino']>0).T
     rmsk.shape = (1,Cnt['NSANGLES'],Cnt['NSBINS'])
     rmsk = np.repeat(rmsk, Cnt['NSEG0'], axis=0)
-    
+
     #> include attenuating object into the mask (and the emission if selected)
     amsksn = np.logical_and( attossr>=mask_threshlod, rmsk) * ~mssr
-    
+
     #> scaling factors for SSRB scatter
     scl_ssr = np.zeros( (Cnt['NSEG0']), dtype=np.float32)
-    
+
     for sni in range(Cnt['NSEG0']):
         #> region for scaling defined by the percentage of lowest
         #> but usable/significant scatter
@@ -698,7 +695,7 @@ def vsm(
     si = 60
     ai = 60
     matshow(sssr[si,...])
-    
+
     figure()
     plot(histo['pssr'][si,ai,:])
     plot(rssr[si,ai,:]+sssr[si,ai,:])

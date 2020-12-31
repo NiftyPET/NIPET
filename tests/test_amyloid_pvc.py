@@ -1,14 +1,14 @@
 import errno
 import logging
-from filelock import FileLock
-from os import path
+from collections.abc import Iterable
+from os import fspath, path
 from textwrap import dedent
 
 import numpy as np
 import pytest
+from filelock import FileLock
 
-from niftypet import nimpa
-from niftypet import nipet
+from niftypet import nimpa, nipet
 
 # segmentation/parcellation for PVC, with unique regions numbered from 0 onwards
 pvcroi = []
@@ -59,7 +59,7 @@ emape_algnd = {
 @pytest.fixture(scope="session")
 def mMRpars():
     params = nipet.get_mmrparams()
-    params["Cnt"]["VERBOSE"] = True
+    # params["Cnt"]["VERBOSE"] = True
     params["Cnt"]["LOG"] = logging.INFO
     return params
 
@@ -90,41 +90,32 @@ def muhdct(mMRpars, datain, tmp_path_factory, worker_id):
 @pytest.fixture(scope="session")
 def refimg(folder_ref):
     # predetermined structure of the reference folder
-    basic = path.join(folder_ref, "basic")
-    spm = path.join(folder_ref, "dyn_aligned", "spm")
-    niftyreg = path.join(folder_ref, "dyn_aligned", "niftyreg")
+    basic = folder_ref / "basic"
+    spm = folder_ref / "dyn_aligned" / "spm"
+    niftyreg = folder_ref / "dyn_aligned" / "niftyreg"
     refpaths = {
         "histo": {"p": 1570707830, "d": 817785422},
         "basic": {
-            "pet": path.join(basic, "17598013_t-3000-3600sec_itr-4_suvr.nii.gz"),
-            "omu": path.join(basic, "mumap-from-DICOM_no-alignment.nii.gz"),
-            "hmu": path.join(basic, "hardware_umap.nii.gz"),
+            "pet": basic / "17598013_t-3000-3600sec_itr-4_suvr.nii.gz",
+            "omu": basic / "mumap-from-DICOM_no-alignment.nii.gz",
+            "hmu": basic / "hardware_umap.nii.gz",
         },
         "aligned": {
             "spm": {
-                "hmu": path.join(spm, "hardware_umap.nii.gz"),
-                "omu": path.join(spm, "mumap-PCT-aligned-to_t0-3600_AC.nii.gz"),
-                "pos": path.join(spm, "17598013_t0-3600sec_itr2_AC-UTE.nii.gz"),
-                "pet": path.join(spm, "17598013_nfrm-2_itr-4.nii.gz"),
-                "trm": path.join(
-                    spm, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz"
-                ),
-                "pvc": path.join(
-                    spm, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz"
-                ),
+                "hmu": spm / "hardware_umap.nii.gz",
+                "omu": spm / "mumap-PCT-aligned-to_t0-3600_AC.nii.gz",
+                "pos": spm / "17598013_t0-3600sec_itr2_AC-UTE.nii.gz",
+                "pet": spm / "17598013_nfrm-2_itr-4.nii.gz",
+                "trm": spm / "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz",
+                "pvc": spm / "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz",
             },
             "niftyreg": {
-                "hmu": path.join(niftyreg, "hardware_umap.nii.gz"),
-                "omu": path.join(niftyreg, "mumap-PCT-aligned-to_t0-3600_AC.nii.gz"),
-                "pos": path.join(niftyreg, "17598013_t0-3600sec_itr2_AC-UTE.nii.gz"),
-                "pet": path.join(niftyreg, "17598013_nfrm-2_itr-4.nii.gz"),
-                "trm": path.join(
-                    niftyreg, "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz"
-                ),
-                "pvc": path.join(
-                    niftyreg,
-                    "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz",
-                ),
+                "hmu": niftyreg / "hardware_umap.nii.gz",
+                "omu": niftyreg / "mumap-PCT-aligned-to_t0-3600_AC.nii.gz",
+                "pos": niftyreg / "17598013_t0-3600sec_itr2_AC-UTE.nii.gz",
+                "pet": niftyreg / "17598013_nfrm-2_itr-4.nii.gz",
+                "trm": niftyreg / "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2.nii.gz",
+                "pvc": niftyreg / "17598013_nfrm-2_itr-4_trimmed-upsampled-scale-2_PVC.nii.gz",
             },
         },
     }
@@ -147,16 +138,16 @@ def refimg(folder_ref):
 
     # check basic files
     frefs = refpaths["basic"]
-    for k in frefs:
-        if not path.isfile(frefs[k]):
-            raise FileNotFoundError(errno.ENOENT, frefs[k])
+    for k, v in frefs.items():
+        if not v.is_file():
+            raise FileNotFoundError(errno.ENOENT, v)
 
     # check reg tools: niftyreg and spm
     frefs = refpaths["aligned"]
     for r in frefs:
-        for k in frefs[r]:
-            if not path.isfile(frefs[r][k]):
-                raise FileNotFoundError(errno.ENOENT, frefs[r][k])
+        for k, v in frefs[r].items():
+            if not v.is_file():
+                raise FileNotFoundError(errno.ENOENT, v)
 
     return refpaths, testext
 
@@ -197,7 +188,7 @@ def test_basic_reconstruction(mMRpars, datain, muhdct, refimg, tmp_path):
 
     testout = {"pet": recon["fpet"], "hmu": muhdct["im"], "omu": muodct["im"]}
     for k in testext["basic"]:
-        diff = nimpa.imdiff(refpaths["basic"][k], testout[k], verbose=True, plot=False)
+        diff = nimpa.imdiff(fspath(refpaths["basic"][k]), testout[k], verbose=True, plot=False)
         assert diff["mape"] <= emape_basic, testext["basic"][k]
 
 
@@ -246,6 +237,7 @@ def test_aligned_reconstruction(reg_tool, mMRpars, datain, muhdct, refimg, tmp_p
     }
     for k in testext["aligned"]:
         diff = nimpa.imdiff(
-            refpaths["aligned"][reg_tool][k], testout[k], verbose=True, plot=False
+            fspath(refpaths["aligned"][reg_tool][k]), testout[k], verbose=True, plot=False
         )
-        assert diff["mape"] <= emape_algnd[k], testext["aligned"][k]
+        err = diff["mape"] <= emape_algnd[k]
+        assert (all(err) if isinstance(err, Iterable) else err), testext["aligned"][k]

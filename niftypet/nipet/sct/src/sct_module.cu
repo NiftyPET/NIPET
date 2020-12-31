@@ -195,8 +195,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	PyObject* pd_offseg = PyDict_GetItemString(o_sctLUT, "offseg");
 	PyObject* pd_sctaxR = PyDict_GetItemString(o_sctLUT, "sctaxR");
 	PyObject* pd_sctaxW = PyDict_GetItemString(o_sctLUT, "sctaxW");
-	
-	PyArrayObject 	*p_scrs=NULL, *p_KN=NULL, 
+
+	PyArrayObject 	*p_scrs=NULL, *p_KN=NULL,
 					*p_isrng=NULL, *p_srng=NULL, *p_xsxu=NULL,
 					*p_offseg=NULL, *p_sctaxR=NULL, *p_sctaxW=NULL;
 
@@ -350,7 +350,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 	Py_DECREF(p_sct3);
 	PyArray_ResolveWritebackIfCopy(p_sval);
 	Py_DECREF(p_sval);
-	
+
 	Py_INCREF(Py_None);
 	if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
 	return Py_None;

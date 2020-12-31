@@ -1,26 +1,28 @@
 """Image functions for PET data reconstruction and processing."""
 
 import glob
-import shutil
 import logging
 import math
-from math import pi
 import multiprocessing
 import os
 import random
 import re
-from subprocess import run
+import shutil
 import sys
 import time
+from math import pi
+from subprocess import run
 
 import nibabel as nib
 import numpy as np
 import pydicom as dcm
 import scipy.ndimage as ndi
 
+from niftypet import nimpa
+
 from .. import mmraux
 from .. import resources as rs
-from niftypet import nimpa
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
@@ -512,6 +514,7 @@ def align_mumap(
     #> if affine not provided histogram the LM data for recon and registration
     if not os.path.isfile(faff):
         from niftypet.nipet.prj import mmrrec
+
         #-histogram the list data if needed
         if hst is None:
             from niftypet.nipet import mmrhist
@@ -834,6 +837,7 @@ def pct_mumap(
 
     if not os.path.isfile(faff):
         from niftypet.nipet.prj import mmrrec
+
         # histogram the list data if needed
         if not hst:
             from niftypet.nipet.lm import mmrhist
@@ -1343,7 +1347,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
     '''
     get the mu-maps for hardware and object and trim it axially for reduced rings case
     '''
-    from niftypet.nipet.lm  import mmrhist
+    from niftypet.nipet.lm import mmrhist
     from niftypet.nipet.prj import mmrrec
     fcomment = '(R)'
 

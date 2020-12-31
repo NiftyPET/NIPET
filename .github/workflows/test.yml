@@ -2,6 +2,29 @@ name: Test
 on:
 - push
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: [3.6, 3.9]
+    name: Check py${{ matrix.python }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python }}
+    - name: set PYSHA
+      run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
+    - uses: actions/cache@v1
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
+    - run: pip install -U pre-commit twine setuptools wheel ninst scikit-build
+    - run: HMUDIR=$HOME python setup.py sdist
+    - run: twine check dist/*
+    - run: pre-commit run -a --show-diff-on-failure
   test:
     runs-on: [self-hosted, cuda]
     name: Test

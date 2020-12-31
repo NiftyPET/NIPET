@@ -7,11 +7,15 @@ import logging
 import os
 import platform
 import re
-from setuptools import setup, find_packages
 import sys
+from pathlib import Path
 from textwrap import dedent
 
+from setuptools import find_packages
+from skbuild import setup
+
 from niftypet.ninst import cudasetup as cs
+from niftypet.ninst import dinf
 from niftypet.ninst import install_tools as tls
 
 __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
@@ -20,10 +24,9 @@ __licence__ = __license__ = "Apache 2.0"
 
 logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
+path_current = Path(__file__).resolve().parent
 
 tls.check_platform()
-ext = tls.check_depends()  # external dependencies
-
 
 # =================================================================================================
 # automatically detects if the CUDA header files are in agreement with Python constants.
@@ -33,10 +36,8 @@ ext = tls.check_depends()  # external dependencies
 def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
-    path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "include", "def.h")
-    with open(fpth, "r") as fd:
-        def_h = fd.read()
+    fpth = path_current / "niftypet" / "nipet" / "include" / "def.h"
+    def_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = def_h.find("//## start ##//")
     i1 = def_h.find("//## end ##//")
@@ -69,9 +70,7 @@ def chck_vox_h(Cnt):
         for s in cnt_list:
             strNew += strDef + s + " " + str(Cnt[s]) + (s[3] == "V") * "f" + "\n"
 
-        scthNew = def_h[:i0] + strNew + def_h[i1:]
-        with open(fpth, "w") as fd:
-            fd.write(scthNew)
+        fpth.write_text(def_h[:i0] + strNew + def_h[i1:])
         rflg = True
 
     return rflg
@@ -83,11 +82,9 @@ def chck_sct_h(Cnt):
     the CUDA header files accordingly.
     """
     rflg = False
-    path_current = os.path.dirname(os.path.realpath(__file__))
-    fpth = os.path.join(path_current, "niftypet", "nipet", "sct", "src", "sct.h")
-    # pthcmpl = os.path.dirname(resource_filename(__name__, ''))
-    with open(fpth, "r") as fd:
-        sct_h = fd.read()
+    fpth = path_current / "niftypet" / "nipet" / "sct" / "src" / "sct.h"
+    # pthcmpl = path.dirname(resource_filename(__name__, ''))
+    sct_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = sct_h.find("//## start ##//")
     i1 = sct_h.find("//## end ##//")
@@ -143,9 +140,7 @@ def chck_sct_h(Cnt):
         for i, s in enumerate(cnt_list):
             strNew += strDef + s + " " + str(Cnt[s]) + (i > 6) * "f" + "\n"
 
-        scthNew = sct_h[:i0] + strNew + sct_h[i1:]
-        with open(fpth, "w") as fd:
-            fd.write(scthNew)
+        fpth.write_text(sct_h[:i0] + strNew + sct_h[i1:])
         # sys.path.append(pthcmpl)
         rflg = True
 
@@ -181,13 +176,13 @@ def check_constants():
     )
 
 
-if ext["cmake"]:
-    cs.resources_setup(gpu=False)  # install resources.py
-    # check and update the constants in C headers according to resources.py
-    check_constants()
+cs.resources_setup(gpu=False)  # install resources.py
+# check and update the constants in C headers according to resources.py
+check_constants()
+try:
     gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
-else:
-    raise SystemError("Need cmake")
+except Exception as exc:
+    log.error("could not set up CUDA:\n%s", exc)
 
 
 log.info(
@@ -205,71 +200,40 @@ resources = cs.get_resources()
 # get the current setup, if any
 Cnt = resources.get_setup()
 
-# assume the hardware mu-maps are not installed
-hmu_flg = False
-# go through each piece of the hardware components
-if "HMUDIR" in Cnt and Cnt["HMUDIR"] != "":
-    for hi in Cnt["HMULIST"]:
-        if os.path.isfile(os.path.join(Cnt["HMUDIR"], hi)):
-            hmu_flg = True
-        else:
-            hmu_flg = False
+# hardware mu-maps
+hmu_dir = None
+if Cnt.get("HMUDIR", None):
+    hmu_dir = Path(Cnt["HMUDIR"])
+    # check each piece of the hardware components
+    for i in Cnt["HMULIST"]:
+        if not (hmu_dir / i).is_file():
+            hmu_dir = None
             break
-# if not installed ask for the folder through GUI
-# otherwise the path will have to be filled manually
-if not hmu_flg:
-    prompt = dict(
-        title="Folder for hardware mu-maps: ", initialdir=os.path.expanduser("~")
+# prompt for installation path
+if hmu_dir is None:
+    Cnt["HMUDIR"] = tls.askdirectory(
+        title="Folder for hardware mu-maps: ", name="HMUDIR"
     )
-    if not os.getenv("DISPLAY", False):
-        prompt["name"] = "HMUDIR"
-    Cnt["HMUDIR"] = tls.askdirectory(**prompt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # update the path in resources.py
 tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-# ===============================================================
-# CUDA BUILD
-# ===============================================================
-path_current = os.path.dirname(os.path.realpath(__file__))
-path_build = os.path.join(path_current, "build")
-path_source = os.path.join(path_current, "niftypet")
-cs.cmake_cuda(
-    path_source,
-    path_build,
-    gpuarch,
-    logfile_prefix="nipet_",
-    msvc_version=Cnt["MSVC_VRSN"],
-)
-
-# ===============================================================
-# PYTHON SETUP
-# ===============================================================
-log.info("""found those packages:\n{}""".format(find_packages(exclude=["docs"])))
-
-
-# ---- for setup logging -----
-stdout = sys.stdout
-stderr = sys.stderr
-log_file = open("setup_nipet.log", "w")
-sys.stdout = log_file
-sys.stderr = log_file
-# ----------------------------
-
-if platform.system() in ["Linux", "Darwin"]:
-    fex = "*.so"
-elif platform.system() == "Windows":
-    fex = "*.pyd"
-# ----------------------------
+cmake_args = [f"-DPython3_ROOT_DIR={sys.prefix}"]
+try:
+    nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
+except Exception as exc:
+    log.warning("could not detect CUDA architectures:\n%s", exc)
+else:
+    cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
+log.info("cmake_args:%s", cmake_args)
 setup(
     version="2.0.0",
-    package_data={
-        "niftypet": ["nipet/auxdata/*"],
-        "niftypet.nipet.lm": [fex],
-        "niftypet.nipet.prj": [fex],
-        "niftypet.nipet.sct": [fex],
-        "niftypet.nipet": [fex],
-    },
+    packages=find_packages(exclude=["examples", "tests"]),
+    package_data={"niftypet": ["nipet/auxdata/*"]},
+    cmake_source_dir="niftypet",
+    cmake_languages=("C", "CXX", "CUDA"),
+    cmake_minimum_required_version="3.18",
+    cmake_args=cmake_args,
 )

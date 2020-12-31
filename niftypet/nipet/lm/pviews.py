@@ -1,14 +1,15 @@
 #!/usr/bin/python
 __author__ = 'pawel'
 
-import numpy as np
 import os
 import sys
 
 import matplotlib
+import matplotlib.animation as manimation
+
 # matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.animation as manimation
+import numpy as np
 
 
 def mvavg(interval, window_size):

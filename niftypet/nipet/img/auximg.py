@@ -2,11 +2,13 @@
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 
+import logging
 import os
+
 import numpy as np
+
 from niftypet import nimpa
 
-import logging
 log = logging.getLogger(__name__)
 
 

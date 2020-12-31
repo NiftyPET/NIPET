@@ -2,6 +2,7 @@
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 
+import logging
 import os
 import sys
 from numbers import Integral
@@ -11,14 +12,14 @@ from textwrap import dedent
 import numpy as np
 import scipy.ndimage as ndi
 
-from . import obtain_image
+from niftypet import nimpa
+
 from ..lm import dynamic_timings
 from ..lm.mmrhist import mmrhist
-from .mmrimg import image_affine
-from niftypet import nimpa
 from ..prj import mmrrec
+from . import obtain_image
+from .mmrimg import image_affine
 
-import logging
 log = logging.getLogger(__name__)
 
 
@@ -259,8 +260,8 @@ def mmrchain(
 
     # output list of intermediate file names for mu-maps and PET images (useful for dynamic imaging)
     if not tAffine is None: output['fmureg'] = []
-    
-    if store_img_intrmd: 
+
+    if store_img_intrmd:
         output['fpeti'] = []
         if fwhm>0:
             output['fsmoi'] = []
@@ -359,20 +360,20 @@ def mmrchain(
                                 store_img=store_img_intrmd,
                                 store_itr=store_itr,
                                 ret_sinos=ret_sinos)
-        
+
         # form dynamic Numpy array
         if fwhm>0:
             dynim[ifrm,:,:,:] = recimg.imsmo
         else:
             dynim[ifrm,:,:,:] = recimg.im
-        
+
         if ret_sinos and itr>1 and recmod>2:
             dynpsn[ifrm,:,:,:] = np.squeeze(hst['psino'])
             dynssn[ifrm,:,:,:] = np.squeeze(recimg.ssn)
             dynrsn[ifrm,:,:,:] = np.squeeze(recimg.rsn)
             dynmsk[ifrm,:,:,:] = np.squeeze(recimg.amsk)
 
-        if store_img_intrmd: 
+        if store_img_intrmd:
             output['fpeti'].append(recimg.fpet)
             if fwhm>0:
                 output['fsmoi'].append(recimg.fsmo)
@@ -451,7 +452,7 @@ def mmrchain(
                 #raise StandardError('No affine transformation')
             else:
                 faffpvc = faff_frms[i]
-                
+
             # chose file name of individual PVC images
             if nfrm>1:
                 fcomment_pvc = '_frm'+str(i)+fcomment

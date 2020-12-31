@@ -1,12 +1,13 @@
 # init the package folder
-from .mmrhist import mmrhist
-from .mmrhist import frame_position
-from .mmrhist import auxilary_frames
-from .mmrhist import dynamic_timings
-from .mmrhist import split_frames
-from .mmrhist import draw_frames
-from .mmrhist import get_time_offset
-
-from .mmrhist import randoms
+from .mmrhist import (
+    auxilary_frames,
+    draw_frames,
+    dynamic_timings,
+    frame_position,
+    get_time_offset,
+    mmrhist,
+    randoms,
+    split_frames,
+)
 
 #from .pviews import video_frm, video_dyn

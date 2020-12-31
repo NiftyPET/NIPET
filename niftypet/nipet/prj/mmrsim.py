@@ -1,16 +1,16 @@
 """Simulations for image reconstruction with recommended reduced axial field of view"""
 import logging
 
+import numpy as np
 from scipy import ndimage as ndi
 from tqdm.auto import trange
-import numpy as np
 
-from ..img import mmrimg
-from .. import mmraux
-from . import mmrprj
-from . import mmrrec
-from . import petprj
 from niftypet import nimpa
+
+from .. import mmraux
+from ..img import mmrimg
+from . import mmrprj, mmrrec, petprj
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)

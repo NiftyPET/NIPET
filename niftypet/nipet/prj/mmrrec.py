@@ -1,24 +1,26 @@
 """Image reconstruction from raw PET data"""
-from collections import namedtuple
 import logging
 import os
 import random
 import sys
 import time
+from collections import namedtuple
 
 import numpy as np
 import scipy.ndimage as ndi
 from tqdm.auto import trange
 
+from niftypet import nimpa
+
+from .. import resources  # for isotope info
+from .. import mmraux, mmrnorm
 from ..img import mmrimg
-from .. import mmraux
-from .. import mmrnorm
-from . import petprj
+
 #from ..lm import mmrhist
 from ..lm.mmrhist import randoms
-from .. import resources  # for isotope info
 from ..sct import vsm
-from niftypet import nimpa
+from . import petprj
+
 __author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__   = "Copyright 2020"
 log = logging.getLogger(__name__)
@@ -101,7 +103,7 @@ def osemone(datain, mumaps, hst, scanner_params,
             sctsino=None,
             randsino=None,
             normcomp=None,
-            
+
             emmskS=False,
             frmno='', fcomment='',
             outpath=None,
@@ -112,7 +114,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     OSEM image reconstruction with several modes
     (with/without scatter and/or attenuation correction)
     '''
-    
+
     #> Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
@@ -360,7 +362,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     fpet =  os.path.join(opth, os.path.basename(datain['lm_bf']).split('.')[0] \
                 + frmno +'_t'+str(hst['t0'])+'-'+str(hst['t1'])+'sec' \
                 +'_itr'+str(itr)+fcomment+'.nii.gz')
-    
+
     if store_img:
         log.info('saving image to: ' + fpet)
         nimpa.array2nii( im[::-1,::-1,:], B, fpet, descrip=descrip)

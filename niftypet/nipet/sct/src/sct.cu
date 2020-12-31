@@ -172,7 +172,7 @@ void Psct(float *rslt,
 		// offset direction sign:
 		// (1) subtract mc vector from sc vector for the determination of offset direction
 		// (2) get the direction of crystal numbering by increasing the index of the opposing crystal
-		// (3) get the sign of the dot product of (1) and (2) 
+		// (3) get the sign of the dot product of (1) and (2)
 		sgn((ms.x-aux.x)*(scrsdef.crs[3*((isuc+1)&(scrsdef.nscrs-1))+1]-aux.x) + (ms.y-aux.y)*(scrsdef.crs[3*((isuc+1)&(scrsdef.nscrs-1))+2]-aux.y))  *
 		// crystal offset as an angle fraction based on the scatter opposing and main scatter vectors
 		scrsdef.nscrs * acosf((ms.x*aux.x + ms.y*aux.y) / (sqrtf(aux.x*aux.x+aux.y*aux.y) * sqrtf(ms.x*ms.x+ms.y*ms.y))) / (2*PI)
@@ -198,7 +198,7 @@ void Psct(float *rslt,
 	// //> scattering crystals (half considered, 32 out of 64, found using the index of unscattered photon crystal
 	// char isc = (iuc + (scrsdef.nscrs / 4) + idx) & (scrsdef.nscrs - 1);
 	// // OLD<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	
+
 	//---find out how far to go with scatter points (number of warps, Nw)
 	int Nw = 0;
 	for (int k = 0; k <= (int)(a_lgth / (SS_WRP*SSTP)); k++) {
@@ -277,7 +277,7 @@ void Psct(float *rslt,
 		This also helps to divide the loop over scatter crystal (32)
 		done partly by threads (which are used for scattering points)
 		and partly by the following for-loop of size (SS_WRP>>LSCT2).
-		Therefore, the crs_shft accounts for both as seen below.		
+		Therefore, the crs_shft accounts for both as seen below.
 		*/
 
 
@@ -303,11 +303,11 @@ void Psct(float *rslt,
 			int i_smsk;
 			char infov = 1;
 			if ((fabsf(s.z)<(SS_VXZ*SS_IMZ/2-0.01*SS_VXZ)) &&
-				(fabsf(s.x)<(SS_VXY*SS_IMX/2-0.01*SS_VXY)) && 
+				(fabsf(s.x)<(SS_VXY*SS_IMX/2-0.01*SS_VXY)) &&
 				(fabsf(s.y)<(SS_VXY*SS_IMY/2-0.01*SS_VXY))){
-				// subtract one hundredth of a voxel to be on the conservative side 
+				// subtract one hundredth of a voxel to be on the conservative side
 				// and not let indices go out
-				
+
 				i_smsk = mu_msk.v2i[(int)(.5*SS_IMX + floorf(s.x / SS_VXY)                       //u
 					+ SS_IMX*(.5*SS_IMY - ceilf(s.y / SS_VXY))             //v
 					+ SS_IMX*SS_IMY*floorf(.5*SS_IMZ + s.z*IS_VXZ))];  //w
@@ -476,7 +476,7 @@ scatOUT prob_scatt(
 	HANDLE_ERROR(cudaMemcpy(d_xsxu, xsxu, d_scrsdef.nscrs*d_scrsdef.nscrs * sizeof(char), cudaMemcpyHostToDevice));
 	//==================================================================
 
-	
+
 
 	//======================== TEXTURE for the mu-map ============
 	// create 3D array of the mu-map
@@ -542,7 +542,7 @@ scatOUT prob_scatt(
 		//dimension of the grid.  depending on how many crystals (receiving an unscattered photon) there are.
 		//MAKE SURE <nsrng> and <nscrs> are less than 255 due to data type limits (uchar)
 		if (Cnt.LOG <= LOGDEBUG) printf("\n   i>> kernel setup: nvx: %d, nsrng: %d, nscrs: %d, SS_WRP: %d\n", d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs, SS_WRP);
-		
+
 		dim3 grid(d_em_msk.nvx, d_scrsdef.nsrng, d_scrsdef.nscrs);
 		dim3 block(SS_WRP, d_scrsdef.nsrng, 1);
 		Psct <<<grid, block >>>(
