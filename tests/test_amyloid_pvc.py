@@ -1,5 +1,6 @@
 import errno
 import logging
+from collections.abc import Iterable
 from os import fspath, path
 from textwrap import dedent
 
@@ -238,4 +239,5 @@ def test_aligned_reconstruction(reg_tool, mMRpars, datain, muhdct, refimg, tmp_p
         diff = nimpa.imdiff(
             fspath(refpaths["aligned"][reg_tool][k]), testout[k], verbose=True, plot=False
         )
-        assert diff["mape"] <= emape_algnd[k], testext["aligned"][k]
+        err = diff["mape"] <= emape_algnd[k]
+        assert (all(err) if isinstance(err, Iterable) else err), testext["aligned"][k]
