@@ -15,7 +15,6 @@ import numpy as np
 import pydicom as dcm
 import scipy.ndimage as ndi
 from miutil.fdio import hasext
-from pkg_resources import resource_filename
 
 from niftypet import nimpa
 
