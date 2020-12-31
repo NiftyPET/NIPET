@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-project(nipet LANGUAGES C CXX CUDA VERSION 1.0)
+project(nipet LANGUAGES C CXX CUDA VERSION 2.0)
 
 cmake_policy(PUSH)
 cmake_policy(SET CMP0074 NEW)  # <PackageName>_ROOT hints for find_package

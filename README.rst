@@ -25,9 +25,9 @@ In order to facilitate all the functionality, *NiftyPET* relies on third-party s
 Quick Install
 ~~~~~~~~~~~~~
 
-Note that installation prompts for setting the path to `NiftyPET_tools` and
+Note that installation prompts for setting the path to ``NiftyPET_tools`` and
 hardware attenuation maps. This can be avoided by setting the environment
-variables `PATHTOOLS` and `HMUDIR`, respectively.
+variables ``PATHTOOLS`` and ``HMUDIR``, respectively.
 
 .. code:: sh
 
