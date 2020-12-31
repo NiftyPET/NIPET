@@ -8,7 +8,6 @@ import os
 import platform
 import re
 import sys
-from os import path
 from pathlib import Path
 from textwrap import dedent
 
@@ -25,6 +24,7 @@ __licence__ = __license__ = "Apache 2.0"
 
 logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
+path_current = Path(__file__).resolve().parent
 
 tls.check_platform()
 
@@ -36,10 +36,8 @@ tls.check_platform()
 def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
-    path_current = path.dirname(path.realpath(__file__))
-    fpth = path.join(path_current, "niftypet", "nipet", "include", "def.h")
-    with open(fpth, "r") as fd:
-        def_h = fd.read()
+    fpth = path_current / "niftypet" / "nipet" / "include" / "def.h"
+    def_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = def_h.find("//## start ##//")
     i1 = def_h.find("//## end ##//")
@@ -72,9 +70,7 @@ def chck_vox_h(Cnt):
         for s in cnt_list:
             strNew += strDef + s + " " + str(Cnt[s]) + (s[3] == "V") * "f" + "\n"
 
-        scthNew = def_h[:i0] + strNew + def_h[i1:]
-        with open(fpth, "w") as fd:
-            fd.write(scthNew)
+        fpth.write_text(def_h[:i0] + strNew + def_h[i1:])
         rflg = True
 
     return rflg
@@ -86,11 +82,9 @@ def chck_sct_h(Cnt):
     the CUDA header files accordingly.
     """
     rflg = False
-    path_current = path.dirname(path.realpath(__file__))
-    fpth = path.join(path_current, "niftypet", "nipet", "sct", "src", "sct.h")
+    fpth = path_current / "niftypet" / "nipet" / "sct" / "src" / "sct.h"
     # pthcmpl = path.dirname(resource_filename(__name__, ''))
-    with open(fpth, "r") as fd:
-        sct_h = fd.read()
+    sct_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = sct_h.find("//## start ##//")
     i1 = sct_h.find("//## end ##//")
@@ -146,9 +140,7 @@ def chck_sct_h(Cnt):
         for i, s in enumerate(cnt_list):
             strNew += strDef + s + " " + str(Cnt[s]) + (i > 6) * "f" + "\n"
 
-        scthNew = sct_h[:i0] + strNew + sct_h[i1:]
-        with open(fpth, "w") as fd:
-            fd.write(scthNew)
+        fpth.write_text(sct_h[:i0] + strNew + sct_h[i1:])
         # sys.path.append(pthcmpl)
         rflg = True
 
@@ -187,7 +179,10 @@ def check_constants():
 cs.resources_setup(gpu=False)  # install resources.py
 # check and update the constants in C headers according to resources.py
 check_constants()
-gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
+try:
+    gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
+except Exception as exc:
+    log.error("could not set up CUDA:\n%s", exc)
 
 
 log.info(
@@ -226,8 +221,13 @@ tls.update_resources(Cnt)
 log.info("hardware mu-maps have been located")
 
 cmake_args = [f"-DPython3_ROOT_DIR={sys.prefix}"]
-nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
-cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
+try:
+    nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
+except Exception as exc:
+    log.warning("could not detect CUDA architectures:\n%s", exc)
+else:
+    cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
+log.info("cmake_args:%s", cmake_args)
 setup(
     version="2.0.0",
     packages=find_packages(exclude=["examples", "tests"]),
