@@ -187,7 +187,7 @@ def test_basic_reconstruction(mMRpars, datain, muhdct, refimg, tmp_path):
 
     testout = {"pet": recon["fpet"], "hmu": muhdct["im"], "omu": muodct["im"]}
     for k in testext["basic"]:
-        diff = nimpa.imdiff(refpaths["basic"][k], testout[k], verbose=True, plot=False)
+        diff = nimpa.imdiff(fspath(refpaths["basic"][k]), testout[k], verbose=True, plot=False)
         assert diff["mape"] <= emape_basic, testext["basic"][k]
 
 
@@ -236,6 +236,6 @@ def test_aligned_reconstruction(reg_tool, mMRpars, datain, muhdct, refimg, tmp_p
     }
     for k in testext["aligned"]:
         diff = nimpa.imdiff(
-            refpaths["aligned"][reg_tool][k], testout[k], verbose=True, plot=False
+            fspath(refpaths["aligned"][reg_tool][k]), testout[k], verbose=True, plot=False
         )
         assert diff["mape"] <= emape_algnd[k], testext["aligned"][k]
