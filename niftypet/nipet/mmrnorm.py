@@ -1,7 +1,8 @@
 """mmraux.py: auxilary functions for PET list-mode data processing."""
-import os
 import re
 import sys
+from os import fspath, path
+from pathlib import Path
 
 import numpy as np
 import pydicom as dcm
@@ -21,51 +22,48 @@ __copyright__   = "Copyright 2020"
 def get_components(datain, Cnt):
     "Return the normalisation components from provided file."
 
-    if 'nrm_ima' in datain and os.path.isfile(datain['nrm_ima']):
+    if path.isfile(datain.get("nrm_ima", "")) and path.isfile(datain['nrm_bf']):
         fnrm_dat = datain['nrm_bf']
         fnrm_hdr = datain['nrm_ima']
-
-    elif 'nrm_dcm' in datain and os.path.isfile(datain['nrm_dcm']) and os.path.isfile(datain['nrm_bf']):
+    elif path.isfile(datain.get("nrm_dcm", "")) and path.isfile(datain['nrm_bf']):
         fnrm_dat = datain['nrm_bf']
         fnrm_hdr = datain['nrm_dcm']
     else:
-        print('e> norm file does not exist or it is incomplete.')
-        raise NameError('NoNorm')
+        raise NameError('norm file does not exist or it is incomplete')
 
-    f = open(fnrm_dat, 'rb')
-    #geometric effects
-    geo       = np.fromfile(f, np.float32, Cnt['NSBINS']*Cnt['NSEG0'])
-    geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
-    #crystal interference
-    crs_intf  = np.fromfile(f, np.float32, 9*Cnt['NSBINS'])
-    crs_intf.shape = (Cnt['NSBINS'],9)
-    #crystal efficiencies
-    crs_eff   = np.fromfile(f, np.float32, Cnt['NCRS']*Cnt['NRNG'])
-    crs_eff.shape  = (Cnt['NRNG'], Cnt['NCRS'])
-    #axial effects
-    ax_eff1   = np.fromfile(f, np.float32, Cnt['NSN11'])
-    #paralyzing ring DT parameters
-    rng_dtp   = np.fromfile(f, np.float32, Cnt['NRNG'])
-    #non-paralyzing ring DT parameters
-    rng_dtnp  = np.fromfile(f, np.float32, Cnt['NRNG'])
-    #TX crystal DT parameter
-    crs_dt    = np.fromfile(f, np.float32, 9)
-    #additional axial effects
-    ax_eff2   = np.fromfile(f, np.float32, Cnt['NSN11'])
-    f.close()
+    with open(fnrm_dat, 'rb') as f:
+        #geometric effects
+        geo       = np.fromfile(f, np.float32, Cnt['NSBINS']*Cnt['NSEG0'])
+        geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
+        #crystal interference
+        crs_intf  = np.fromfile(f, np.float32, 9*Cnt['NSBINS'])
+        crs_intf.shape = (Cnt['NSBINS'],9)
+        #crystal efficiencies
+        crs_eff   = np.fromfile(f, np.float32, Cnt['NCRS']*Cnt['NRNG'])
+        crs_eff.shape  = (Cnt['NRNG'], Cnt['NCRS'])
+        #axial effects
+        ax_eff1   = np.fromfile(f, np.float32, Cnt['NSN11'])
+        #paralyzing ring DT parameters
+        rng_dtp   = np.fromfile(f, np.float32, Cnt['NRNG'])
+        #non-paralyzing ring DT parameters
+        rng_dtnp  = np.fromfile(f, np.float32, Cnt['NRNG'])
+        #TX crystal DT parameter
+        crs_dt    = np.fromfile(f, np.float32, 9)
+        #additional axial effects
+        ax_eff2   = np.fromfile(f, np.float32, Cnt['NSN11'])
 
     #-------------------------------------------------
     #the files below are found based on a 24hr scan of germanium-68 phantom
-    auxdata = resource_filename(__name__, "auxdata")
+    auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
     # axial effects for span-1
-    ax_f1 = np.load(os.path.join(auxdata, 'AxialFactorForSpan1.npy'))
+    ax_f1 = np.load(fspath(auxdata / "AxialFactorForSpan1.npy"))
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
     sax_f11 = np.fromfile(
-        os.path.join(auxdata, 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'),
+        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan11.f32"),
         np.float32, Cnt['NSN11'])
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
     sax_f1 = np.fromfile(
-        os.path.join(auxdata, 'RelativeScaleFactors_scatter_axial_ssrTOspan1.f32'),
+        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
         np.float32, Cnt['NSN1'])
     #-------------------------------------------------
 
