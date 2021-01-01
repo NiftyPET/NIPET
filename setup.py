@@ -228,6 +228,8 @@ except Exception as exc:
 else:
     cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
 log.info("cmake_args:%s", cmake_args)
+for i in (Path(__file__).resolve().parent / "_skbuild").rglob("CMakeCache.txt"):
+    i.write_text(re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", i.read_text(), flags=re.M))
 setup(
     version="2.0.0",
     packages=find_packages(exclude=["examples", "tests"]),
