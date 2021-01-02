@@ -220,7 +220,7 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-cmake_args = [f"-DPython3_ROOT_DIR={sys.prefix}"]
+cmake_args = ["-DNIPET_BUILD_VERSION=2.0.0", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
     nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
 except Exception as exc:
@@ -233,7 +233,7 @@ for i in (Path(__file__).resolve().parent / "_skbuild").rglob("CMakeCache.txt"):
 setup(
     version="2.0.0",
     packages=find_packages(exclude=["examples", "tests"]),
-    package_data={"niftypet": ["nipet/auxdata/*", "nipet/include/*"]},
+    package_data={"niftypet": ["nipet/auxdata/*"]},
     cmake_source_dir="niftypet",
     cmake_languages=("C", "CXX", "CUDA"),
     cmake_minimum_required_version="3.18",

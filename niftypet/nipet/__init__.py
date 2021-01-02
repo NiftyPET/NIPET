@@ -10,6 +10,7 @@ import re
 import sys
 from textwrap import dedent
 
+from pkg_resources import resource_filename
 from tqdm.auto import tqdm
 
 from niftypet.ninst import cudasetup as cs
@@ -57,3 +58,6 @@ if resources.ENBLXNAT:
 
 #from . import lm_sig
 #from .lm_sig.hst_sig import lminfo_sig
+
+# for use in `cmake -DCMAKE_PREFIX_PATH=...`
+cmake_prefix = resource_filename(__name__, "cmake")

@@ -35,11 +35,37 @@ variables ``PATHTOOLS`` and ``HMUDIR``, respectively.
     export PATHTOOLS=$HOME/NiftyPET_tools
     export HMUDIR=$HOME/mmr_hardwareumaps
     # cross-platform install
-    conda create -n niftypet -c conda-forge python=3 \
+    conda install -c conda-forge python=3 \
       ipykernel numpy scipy scikit-image matplotlib ipywidgets
-    conda activate niftypet
     pip install --verbose "git+https://github.com/NiftyPET/NIMPA@dev2#egg=nimpa"
     pip install --verbose "git+https://github.com/NiftyPET/NIPET@dev2#egg=nipet"
+
+External CMake Projects
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The raw C/CUDA libraries may be included in external projects using ``cmake``.
+Simply build the project and use ``find_package(NiftyPETnipet)``.
+
+.. code:: sh
+
+    # print installation directory (after `pip install nipet`)...
+    python -c "from niftypet.nipet import cmake_prefix; print(cmake_prefix)"
+
+    # ... or build & install directly with cmake
+    mkdir build && cd build
+    cmake ../niftypet && cmake --build . && cmake --install . --prefix /my/install/dir
+
+At this point any external project may include NIPET as follows
+(Once setting ``-DCMAKE_PREFIX_DIR=<installation prefix from above>``):
+
+.. code:: cmake
+
+    cmake_minimum_required(VERSION 3.3 FATAL_ERROR)
+    project(myproj)
+    find_package(NiftyPETnipet COMPONENTS mmr_auxe mmr_lmproc petprj nifty_scatter REQUIRED)
+    add_executable(myexe ...)
+    target_link_libraries(myexe PRIVATE
+      NiftyPET::mmr_auxe NiftyPET::mmr_lmproc NiftyPET::petprj NiftyPET::nifty_scatter)
 
 Licence
 ~~~~~~~
