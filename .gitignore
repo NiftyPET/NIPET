@@ -4,6 +4,7 @@ __pycache__/
 # build
 MANIFEST
 *.so
+/niftypet/nipet/cmake/
 /build/
 /dist/
 /_skbuild/
