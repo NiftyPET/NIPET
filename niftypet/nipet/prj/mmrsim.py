@@ -276,9 +276,9 @@ def simulate_recon(
         eim = mmrimg.convert2e7(eimg, Cnt)
 
     else:
-        def psf(x):
+        def psf(x, output=None):
             if Cnt['SIGMA_RM']:
-                ndi.gaussian_filter(x, sigma=Cnt['SIGMA_RM'], mode='constant', output=x)
+                x = ndi.gaussian_filter(x, sigma=Cnt['SIGMA_RM'], mode='constant', output=None)
             return x
 
         #> estimated image, initialised to ones
@@ -302,7 +302,8 @@ def simulate_recon(
                         (mmrprj.frwd_prj(psf(eim), scanner_params, dev_out=True) + rndsct)
 
             #> back project the correction factors sinogram
-            bim = psf(mmrprj.back_prj(crrsino, scanner_params))
+            bim = mmrprj.back_prj(crrsino, scanner_params)
+            bim = psf(bim, output=bim)
 
             #> divide the back-projected image by the sensitivity image
             #> update the estimated image and remove NaNs
