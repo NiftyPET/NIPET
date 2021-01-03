@@ -292,8 +292,12 @@ def osemone(datain, mumaps, hst, scanner_params,
     ) as pbar:
         # resolution modelling
         Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
+        
+        #> resolution modelling by custom kernel
+        psfkernel = nimpa.psf_measured(scanner='mmr', scale=1)
+
         for k in pbar:
-            petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
+            petprj.osem(img, psng, rsng, ssng, nsng, asng, sinoTIdx, imgsens, msk, psfkernel, txLUT, axLUT, Cnt)
             if np.nansum(img) < 0.1:
                 log.warning('it seems there is not enough true data to render reasonable image')
                 #img[:]=0

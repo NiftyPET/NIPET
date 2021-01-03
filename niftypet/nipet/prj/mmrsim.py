@@ -127,6 +127,7 @@ def simulate_recon(
     scatter=None,
     mu_input = False,
     msk_radius = 29.,
+    psfkernel=None,
 ):
     '''
     Reconstruct PET image from simulated input data
@@ -262,13 +263,14 @@ def simulate_recon(
               leave=log.getEffectiveLevel() < logging.INFO):
             petprj.osem(
                 eimg,
-                msk,
                 psng,
                 rsng,
                 ssng,
                 nrmsino,
                 attsino,
                 sim,
+                msk,
+                psfkernel,
                 txLUT,
                 axLUT,
                 sinoTIdx,

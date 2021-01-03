@@ -13,6 +13,16 @@ Copyrights:
 #define NTHRDS 1024
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
+
+//> set up convolution PSF kernel in CUDA constant memory
+__constant__ float c_Kernel[3 * KERNEL_LENGTH];
+void setConvolutionKernel(float *krnl) {
+	//krnl: separable three kernels for x, y and z
+	cudaMemcpyToSymbol(c_Kernel, krnl, 3 * KERNEL_LENGTH * sizeof(float));
+}
+
+
+
 /// z: how many Z-slices to add
 __global__ void pad(float *dst, float *src, const int z) {
   int i = threadIdx.x + blockDim.x * blockIdx.x;
@@ -367,7 +377,8 @@ void osem(float *imgout,
 
 	int   *subs,
 
-	float * sensimg,
+	float *sensimg,
+	float *krnl,
 
 	float *li2rng,
 	short *li2sn,
@@ -452,13 +463,7 @@ void osem(float *imgout,
 	//--sensitivity image (images for all subsets)
 	float *d_sensim;
 
-
-#ifdef WIN32
 	HANDLE_ERROR(cudaMalloc(&d_sensim, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float)));
-#else
-	HANDLE_ERROR(cudaMallocManaged(&d_sensim, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float)));
-#endif
-
 	HANDLE_ERROR(cudaMemcpy(d_sensim, sensimg, Nsub * SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyHostToDevice));
 
 	// cudaMemset(d_sensim, 0, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY*sizeof(float));
@@ -470,13 +475,14 @@ void osem(float *imgout,
 	// //~~~~
 
 	// resolution modelling kernel
-	setKernelGaussian(Cnt.SIGMA_RM);
+	setConvolutionKernel(krnl);
+	// setKernelGaussian(Cnt.SIGMA_RM);
 	float *d_convTmp; HANDLE_ERROR(cudaMalloc(&d_convTmp, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convSrc; HANDLE_ERROR(cudaMalloc(&d_convSrc, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convDst; HANDLE_ERROR(cudaMalloc(&d_convDst, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 
 	// resolution modelling sensitivity image
-	for (int i=0; i<Nsub && Cnt.SIGMA_RM>0; i++) {
+	for (int i=0; i<Nsub && krnl[0]>=0; i++) {
 		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
 		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
@@ -487,11 +493,7 @@ void osem(float *imgout,
 
 	//--back-propagated image
 
-#ifdef WIN32
 	float *d_bimg;  HANDLE_ERROR(cudaMalloc(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
-#else
-	float *d_bimg;  HANDLE_ERROR(cudaMallocManaged(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
-#endif
 
 	if (Cnt.LOG <= LOGDEBUG) printf("i> loaded variables in device memory for image reconstruction.\n");
 	getMemUse(Cnt);
@@ -500,7 +502,7 @@ void osem(float *imgout,
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//resolution modelling current image
-		if(Cnt.SIGMA_RM>0) {
+		if(krnl[0]>=0) {
 			d_pad(d_convSrc, d_imgout);
 			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 			d_unpad(d_imgout_rm, d_convDst);
@@ -521,7 +523,7 @@ void osem(float *imgout,
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//resolution modelling backprojection
-		if (Cnt.SIGMA_RM>0) {
+		if (krnl[0]>=0) {
 			d_pad(d_convSrc, d_bimg);
 			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 			d_unpad(d_bimg, d_convDst);

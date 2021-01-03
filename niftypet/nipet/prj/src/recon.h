@@ -9,8 +9,7 @@
 #define RECON_H
 
 /* separable convolution */
-#define KERNEL_RADIUS 5
-#define KERNEL_LENGTH (2*KERNEL_RADIUS + 1)
+#define KERNEL_LENGTH (2*RSZ_PSF_KRNL + 1)
 
 // Column convolution filter
 #define   COLUMNS_BLOCKDIM_X 8
@@ -24,6 +23,9 @@
 #define ROWS_RESULT_STEPS 8
 #define   ROWS_HALO_STEPS 1
 
+// set up kernel for GPU convolution
+void setConvolutionKernel(float *krnl);
+
 void osem(float *imgout,
 	bool  *rcnmsk,
 	unsigned short *psng,
@@ -34,7 +36,8 @@ void osem(float *imgout,
 
 	int   *subs,
 
-	float * sensimg,
+	float *sensimg,
+	float *krnl,
 
 	float *li2rng,
 	short *li2sn,
