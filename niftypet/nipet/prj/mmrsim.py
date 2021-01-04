@@ -127,7 +127,7 @@ def simulate_recon(
     scatter=None,
     mu_input = False,
     msk_radius = 29.,
-    psfkernel=None,
+    psf=None,
 ):
     '''
     Reconstruct PET image from simulated input data
@@ -147,6 +147,13 @@ def simulate_recon(
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+
+    if psf is None:
+        psfkernel = np.zeros((3, 2*Cnt['RSZ_PSF_KRNL']+1), dtype=np.float32)
+        #> switching off PSF reconstruction by setting first element to negative
+        psfkernel[0,0] = -1
+    else:
+        psfkernel = psf
 
     if simulate_3d:
         if ctim.ndim!=3 \

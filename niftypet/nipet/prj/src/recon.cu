@@ -16,6 +16,7 @@ Copyrights:
 
 //> set up convolution PSF kernel in CUDA constant memory
 __constant__ float c_Kernel[3 * KERNEL_LENGTH];
+
 void setConvolutionKernel(float *krnl) {
 	//krnl: separable three kernels for x, y and z
 	cudaMemcpyToSymbol(c_Kernel, krnl, 3 * KERNEL_LENGTH * sizeof(float));
@@ -64,13 +65,12 @@ void d_unpad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ %
 
 /** separable convolution */
 /// Convolution kernel array
-__constant__ float c_Kernel[3 * KERNEL_LENGTH];
 /// sigma: Gaussian sigma
 void setKernelGaussian(float sigma) {
   float knlRM[KERNEL_LENGTH * 3];
   const double tmpE = -1.0 / (2 * sigma * sigma);
   for (int i = 0; i < KERNEL_LENGTH; ++i)
-    knlRM[i] = (float)exp(tmpE * pow(KERNEL_RADIUS - i, 2));
+    knlRM[i] = (float)exp(tmpE * pow(RSZ_PSF_KRNL - i, 2));
   // normalise
   double knlSum = 0;
   for (size_t i = 0; i < KERNEL_LENGTH; ++i)
@@ -122,8 +122,8 @@ __global__ void cnv_rows(float *d_Dst, float *d_Src, int imageW, int imageH, int
   for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
-    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+    for (int j = -RSZ_PSF_KRNL; j <= RSZ_PSF_KRNL; j++) {
+      sum += c_Kernel[RSZ_PSF_KRNL - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
     }
     d_Dst[i * ROWS_BLOCKDIM_X] = sum;
   }
@@ -170,8 +170,8 @@ __global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, 
   for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
-    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[offKrnl + KERNEL_RADIUS - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+    for (int j = -RSZ_PSF_KRNL; j <= RSZ_PSF_KRNL; j++) {
+      sum += c_Kernel[offKrnl + RSZ_PSF_KRNL - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
     }
     d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
   }
@@ -180,11 +180,11 @@ __global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, 
 /// d_buff: temporary image buffer
 void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, int Nvi) {
   assert(d_imgout != d_imgint);
-  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= RSZ_PSF_KRNL);
   assert(Nvk % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
   assert(Nvj % ROWS_BLOCKDIM_Y == 0);
 
-  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= RSZ_PSF_KRNL);
   assert(Nvk % COLUMNS_BLOCKDIM_X == 0);
   assert(Nvj % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
 
@@ -475,8 +475,8 @@ void osem(float *imgout,
 	// //~~~~
 
 	// resolution modelling kernel
+	//setKernelGaussian(Cnt.SIGMA_RM);
 	setConvolutionKernel(krnl);
-	// setKernelGaussian(Cnt.SIGMA_RM);
 	float *d_convTmp; HANDLE_ERROR(cudaMalloc(&d_convTmp, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convSrc; HANDLE_ERROR(cudaMalloc(&d_convSrc, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convDst; HANDLE_ERROR(cudaMalloc(&d_convDst, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
@@ -486,7 +486,12 @@ void osem(float *imgout,
 		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
 		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
+
 	}
+
+	if ((krnl[0]>=0) && (Cnt.LOG <= LOGDEBUG))
+			printf("i> using PSF reconstruction.\n");
+
 
 	// resolution modelling image
 	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
