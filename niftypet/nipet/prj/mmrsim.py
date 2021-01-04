@@ -218,7 +218,7 @@ def simulate_recon(
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
 
     # resolution modelling
-    Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
+    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
 
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
