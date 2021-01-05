@@ -147,13 +147,7 @@ def simulate_recon(
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
-    if psf is None:
-        psfkernel = np.zeros((3, 2*Cnt['RSZ_PSF_KRNL']+1), dtype=np.float32)
-        #> switching off PSF reconstruction by setting first element to negative
-        psfkernel[0,0] = -1
-    else:
-        psfkernel = psf
+    psfkernel = mmrrec.psf_config(psf, Cnt)
 
     if simulate_3d:
         if ctim.ndim!=3 \
@@ -226,7 +220,7 @@ def simulate_recon(
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
 
     # resolution modelling
-    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
+    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, voxsize=Cnt['SZ_VOXZ']*10) if fwhm_rm else 0
 
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
@@ -275,12 +269,12 @@ def simulate_recon(
                 ssng,
                 nrmsino,
                 attsino,
+                sinoTIdx,
                 sim,
                 msk,
                 psfkernel,
                 txLUT,
                 axLUT,
-                sinoTIdx,
                 Cnt)
         eim = mmrimg.convert2e7(eimg, Cnt)
 

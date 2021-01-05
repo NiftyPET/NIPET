@@ -36,7 +36,7 @@ def mmrchain(
                     # each time frame separately.
 
     itr=4,          # number of OSEM iterations
-    fwhm=0.,        # Gaussian Smoothing FWHM
+    fwhm=0.,        # Gaussian Post-Smoothing FWHM
     psf=None,       # Resolution Modelling
     recmod = -1,    # reconstruction mode: -1: undefined, chosen
                     # automatically. 3: attenuation and scatter
@@ -435,8 +435,7 @@ def mmrchain(
                 pvcpsf = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
             else:
                 if isinstance(pvcpsf, (np.ndarray, np.generic)) and pvcpsf.shape!=(3, 2*Cnt['RSZ_PSF_KRNL']+1):
-                    log.error('the PSF kernel has to be an numpy array with the shape of ({},{})'.format(3, 2*Cnt['RSZ_PSF_KRNL']+1))
-                    raise IndexError('PSF: wrong shape or not a matrix')
+                    raise ValueError('the PSF kernel has to be an numpy array with the shape of ({},{})'.format(3, 2*Cnt['RSZ_PSF_KRNL']+1))
 
         #> file names for NIfTI images of PVC ROIs and PVC corrected PET
         froi = []

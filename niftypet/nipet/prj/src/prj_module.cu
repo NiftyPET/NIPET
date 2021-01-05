@@ -662,7 +662,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyObject * o_subs;
 
 	// separable kernel matrix, for x, y, and z dimensions
-	PyObject * o_krnl;
+	PyObject *o_krnl;
 
 	// sinos using in reconstruction (reshaped for GPU execution)
 	PyObject * o_psng; //prompts (measured)
@@ -730,7 +730,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyArrayObject *p_subs = NULL;
 	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
-	
+
 	//axLUTs
 	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
 	PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
@@ -801,14 +801,16 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	float *imgsens = (float*)PyArray_DATA(p_imgsens);
 
 	//>--- PSF KERNEL ---
-	float *krnl = (float*)PyArray_DATA(p_krnl);
-
+	float *krnl;
 	int SZ_KRNL = (int)PyArray_DIM(p_krnl, 1);
 	if (Cnt.LOG <=LOGINFO) printf("i> kernel size [voxels]: %d\n", SZ_KRNL);
 
 	if (SZ_KRNL != KERNEL_LENGTH) {
 		if (Cnt.LOG <=LOGWARNING) printf("w> wrong kernel size.\n");
-		return Py_None;
+		krnl = (float *)malloc(KERNEL_LENGTH * sizeof(float));
+    krnl[0] = -1;
+	} else {
+		krnl = (float*)PyArray_DATA(p_krnl);
 	}
 	//>-------------------
 

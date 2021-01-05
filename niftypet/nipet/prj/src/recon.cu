@@ -13,17 +13,6 @@ Copyrights:
 #define NTHRDS 1024
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
-
-//> set up convolution PSF kernel in CUDA constant memory
-__constant__ float c_Kernel[3 * KERNEL_LENGTH];
-
-void setConvolutionKernel(float *krnl) {
-	//krnl: separable three kernels for x, y and z
-	cudaMemcpyToSymbol(c_Kernel, krnl, 3 * KERNEL_LENGTH * sizeof(float));
-}
-
-
-
 /// z: how many Z-slices to add
 __global__ void pad(float *dst, float *src, const int z) {
   int i = threadIdx.x + blockDim.x * blockIdx.x;
@@ -65,6 +54,11 @@ void d_unpad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ %
 
 /** separable convolution */
 /// Convolution kernel array
+__constant__ float c_Kernel[3 * KERNEL_LENGTH];
+void setConvolutionKernel(float *krnl) {
+  //krnl: separable three kernels for x, y and z
+  cudaMemcpyToSymbol(c_Kernel, krnl, 3 * KERNEL_LENGTH * sizeof(float));
+}
 /// sigma: Gaussian sigma
 void setKernelGaussian(float sigma) {
   float knlRM[KERNEL_LENGTH * 3];
@@ -81,7 +75,7 @@ void setKernelGaussian(float sigma) {
     knlRM[i + KERNEL_LENGTH] = knlRM[i];
     knlRM[i + KERNEL_LENGTH * 2] = knlRM[i];
   }
-  cudaMemcpyToSymbol(c_Kernel, knlRM, 3 * KERNEL_LENGTH * sizeof(float));
+  setConvolutionKernel(knlRM);
 }
 
 /// Row convolution filter
@@ -475,7 +469,6 @@ void osem(float *imgout,
 	// //~~~~
 
 	// resolution modelling kernel
-	//setKernelGaussian(Cnt.SIGMA_RM);
 	setConvolutionKernel(krnl);
 	float *d_convTmp; HANDLE_ERROR(cudaMalloc(&d_convTmp, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convSrc; HANDLE_ERROR(cudaMalloc(&d_convSrc, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
@@ -486,18 +479,12 @@ void osem(float *imgout,
 		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
 		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
-
 	}
-
-	if ((krnl[0]>=0) && (Cnt.LOG <= LOGDEBUG))
-			printf("i> using PSF reconstruction.\n");
-
 
 	// resolution modelling image
 	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	//--back-propagated image
-
 	float *d_bimg;  HANDLE_ERROR(cudaMalloc(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	if (Cnt.LOG <= LOGDEBUG) printf("i> loaded variables in device memory for image reconstruction.\n");

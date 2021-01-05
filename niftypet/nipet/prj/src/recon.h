@@ -23,9 +23,6 @@
 #define ROWS_RESULT_STEPS 8
 #define   ROWS_HALO_STEPS 1
 
-// set up kernel for GPU convolution
-void setConvolutionKernel(float *krnl);
-
 void osem(float *imgout,
 	bool  *rcnmsk,
 	unsigned short *psng,
