@@ -12,6 +12,7 @@ from pathlib import Path
 from textwrap import dedent
 
 from setuptools import find_packages
+from setuptools_scm import get_version
 from skbuild import setup
 
 from niftypet.ninst import cudasetup as cs
@@ -21,6 +22,7 @@ from niftypet.ninst import install_tools as tls
 __author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
 __copyright__ = "Copyright 2020"
 __licence__ = __license__ = "Apache 2.0"
+__version__ = get_version(root=".", relative_to=__file__)
 
 logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)
 log = logging.getLogger("nipet.setup")
@@ -220,7 +222,8 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-cmake_args = ["-DNIPET_BUILD_VERSION=2.0.0", f"-DPython3_ROOT_DIR={sys.prefix}"]
+build_ver = ".".join(__version__.split('.')[:3])
+cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
     nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
 except Exception as exc:
@@ -231,7 +234,7 @@ log.info("cmake_args:%s", cmake_args)
 for i in (Path(__file__).resolve().parent / "_skbuild").rglob("CMakeCache.txt"):
     i.write_text(re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", i.read_text(), flags=re.M))
 setup(
-    version="2.0.0",
+    use_scm_version=True,
     packages=find_packages(exclude=["examples", "tests"]),
     package_data={"niftypet": ["nipet/auxdata/*"]},
     cmake_source_dir="niftypet",
