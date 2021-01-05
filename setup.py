@@ -222,7 +222,7 @@ tls.update_resources(Cnt)
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 log.info("hardware mu-maps have been located")
 
-build_ver = ".".join(__version__.split('.')[:3])
+build_ver = ".".join(__version__.split('.')[:3]).split(".dev")[0]
 cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
     nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
