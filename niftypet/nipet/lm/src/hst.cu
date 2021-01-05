@@ -427,9 +427,10 @@ void gpu_hst(
 	curandState *d_prng_states = setup_curand();
 	// for parametric bootstrap find the histogram
 	curandDiscreteDistribution_t poisson_hst;
-	curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
 	// normally instead of Cnt.BTPRT I would have 1.0 if expecting the same
 	// number of resampled events as in the original file (or close to)
+	if (Cnt.BTP==2)
+		curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
 	//---
 
 	// single slice rebinning LUT to constant memory
@@ -594,7 +595,8 @@ void gpu_hst(
 	cudaFree(d_sn1_rno);
 
 	//destroy the histogram for parametric bootstrap
-	curandDestroyDistribution(poisson_hst);
+	if (Cnt.BTP==2)
+		curandDestroyDistribution(poisson_hst);
 	//*****
 
 
