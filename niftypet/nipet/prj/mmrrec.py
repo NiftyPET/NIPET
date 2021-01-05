@@ -5,6 +5,8 @@ import random
 import sys
 import time
 from collections import namedtuple
+from collections.abc import Iterable
+from numbers import Real
 
 import numpy as np
 import scipy.ndimage as ndi
@@ -35,8 +37,8 @@ recModeStr = ['_noatt_nosct_', '_nosct_', '_noatt_', '_', '_ute_']
 
 
 # fwhm in [mm]
-def fwhm2sig(fwhm, Cnt):
-    return (0.1*fwhm/Cnt['SZ_VOXY']) / (2*(2*np.log(2))**.5)
+def fwhm2sig(fwhm, voxsize=1.):
+    return (fwhm/voxsize) / (2*(2*np.log(2))**.5)
 
 
 #=========================================================================
@@ -96,8 +98,69 @@ def get_subsets14(n, params):
     return iprj, S
 
 
+def psf_config(psf, Cnt):
+    '''
+    Generate separable PSF kernel (x, y, z) based on FWHM for x, y, z
+
+    Args:
+      psf:
+        None: PSF reconstruction is switched off
+        'measured': PSF based on measurement (line source in air)
+        float: an isotropic PSF with the FWHM defined by the float or int scalar
+        [x, y, z]: list or Numpy array of separate FWHM of the PSF for each direction
+        ndarray: 3 x 2*RSZ_PSF_KRNL+1 Numpy array directly defining the kernel in each direction
+    '''
+    def _config(fwhm3, check_len=True):
+        # resolution modelling by custom kernels
+        if check_len:
+            if len(fwhm3)!=3 or any([f<0 for f in fwhm3]):
+                raise ValueError('Incorrect separable kernel FWHM definition')
+
+        kernel = np.empty((3, 2*Cnt['RSZ_PSF_KRNL']+1), dtype=np.float32)
+        for i, psf in enumerate(fwhm3):
+            #> FWHM -> sigma conversion for all dimensions separately
+            if i==2:
+                sig = fwhm2sig(psf, voxsize=Cnt['SZ_VOXZ']*10)
+            else:
+                sig = fwhm2sig(psf, voxsize=Cnt['SZ_VOXY']*10)
+
+            x = np.arange(-Cnt['RSZ_PSF_KRNL'], Cnt['RSZ_PSF_KRNL']+1)
+            kernel[i, :] = np.exp(-0.5 * (x**2/sig**2))
+            kernel[i, :] /= np.sum(kernel[i,:])
+
+        psfkernel = np.empty((3, 2*Cnt['RSZ_PSF_KRNL']+1), dtype=np.float32)
+        psfkernel[0, :] = kernel[2, :]
+        psfkernel[1, :] = kernel[0, :]
+        psfkernel[2, :] = kernel[1, :]
+
+        return psfkernel
+
+    if psf is None:
+        psfkernel = _config([], False)
+        # switch off PSF reconstruction by setting negative first element
+        psfkernel[0, 0] = -1
+    elif psf == 'measured':
+        psfkernel = nimpa.psf_measured(scanner='mmr', scale=1)
+    elif isinstance(psf, Real):
+        psfkernel = _config([psf] * 3)
+    elif isinstance(psf, Iterable):
+        psf = np.asanyarray(psf)
+        if psf.shape == (3, 2 * Cnt['RSZ_PSF_KRNL'] + 1):
+            psfkernel = _config([], False)
+            psfkernel[0, :] = psf[2, :]
+            psfkernel[1, :] = psf[0, :]
+            psfkernel[2, :] = psf[1, :]
+        elif len(psf) == 3:
+            psfkernel = _config(psf)
+        else:
+            raise ValueError(f"invalid PSF dimensions ({psf.shape})")
+    else:
+        raise ValueError(f"unrecognised PSF definition ({psf})")
+    return psfkernel
+
+
 def osemone(datain, mumaps, hst, scanner_params,
-            recmod=3, itr=4, fwhm=0., fwhm_rm=0., mask_radius=29.,
+            recmod=3, itr=4, fwhm=0., psf=None, mask_radius=29.,
             decay_ref_time=None,
             attnsino=None,
             sctsino=None,
@@ -113,6 +176,9 @@ def osemone(datain, mumaps, hst, scanner_params,
     '''
     OSEM image reconstruction with several modes
     (with/without scatter and/or attenuation correction)
+
+    Args:
+      psf: Reconstruction with PSF, passed to `psf_config`
     '''
 
     #> Get particular scanner parameters: Constants, transaxial and axial LUTs
@@ -278,6 +344,9 @@ def osemone(datain, mumaps, hst, scanner_params,
     #-affine matrix for the reconstructed images
     B = mmrimg.image_affine(datain, Cnt)
 
+    # resolution modelling
+    psfkernel = psf_config(psf)
+
     #-time it
     stime = time.time()
 
@@ -290,10 +359,22 @@ def osemone(datain, mumaps, hst, scanner_params,
         disable=log.getEffectiveLevel() > logging.INFO,
         leave=log.getEffectiveLevel() <= logging.INFO
     ) as pbar:
-        # resolution modelling
-        Cnt['SIGMA_RM'] = fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
+
         for k in pbar:
-            petprj.osem(img, msk, psng, rsng, ssng, nsng, asng, imgsens, txLUT, axLUT, sinoTIdx, Cnt)
+
+            petprj.osem(
+                img,
+                psng,
+                rsng,
+                ssng,
+                nsng,
+                asng,
+                sinoTIdx,
+                imgsens,
+                msk,
+                psfkernel,
+                txLUT, axLUT, Cnt)
+
             if np.nansum(img) < 0.1:
                 log.warning('it seems there is not enough true data to render reasonable image')
                 #img[:]=0
@@ -370,7 +451,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     im_smo = None
     fsmo = None
     if fwhm>0:
-        im_smo = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, Cnt), mode='mirror')
+        im_smo = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, voxsize=Cnt['SZ_VOXY']*10), mode='mirror')
 
         if store_img:
             fsmo = fpet.split('.nii.gz')[0] + '_smo-'+str(fwhm).replace('.','-')+'mm.nii.gz'

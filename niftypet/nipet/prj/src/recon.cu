@@ -55,12 +55,16 @@ void d_unpad(float *dst, float *src, const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ %
 /** separable convolution */
 /// Convolution kernel array
 __constant__ float c_Kernel[3 * KERNEL_LENGTH];
+void setConvolutionKernel(float *krnl) {
+  //krnl: separable three kernels for x, y and z
+  cudaMemcpyToSymbol(c_Kernel, krnl, 3 * KERNEL_LENGTH * sizeof(float));
+}
 /// sigma: Gaussian sigma
 void setKernelGaussian(float sigma) {
   float knlRM[KERNEL_LENGTH * 3];
   const double tmpE = -1.0 / (2 * sigma * sigma);
   for (int i = 0; i < KERNEL_LENGTH; ++i)
-    knlRM[i] = (float)exp(tmpE * pow(KERNEL_RADIUS - i, 2));
+    knlRM[i] = (float)exp(tmpE * pow(RSZ_PSF_KRNL - i, 2));
   // normalise
   double knlSum = 0;
   for (size_t i = 0; i < KERNEL_LENGTH; ++i)
@@ -71,7 +75,7 @@ void setKernelGaussian(float sigma) {
     knlRM[i + KERNEL_LENGTH] = knlRM[i];
     knlRM[i + KERNEL_LENGTH * 2] = knlRM[i];
   }
-  cudaMemcpyToSymbol(c_Kernel, knlRM, 3 * KERNEL_LENGTH * sizeof(float));
+  setConvolutionKernel(knlRM);
 }
 
 /// Row convolution filter
@@ -112,8 +116,8 @@ __global__ void cnv_rows(float *d_Dst, float *d_Src, int imageW, int imageH, int
   for (int i = ROWS_HALO_STEPS; i < ROWS_HALO_STEPS + ROWS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
-    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[KERNEL_RADIUS - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
+    for (int j = -RSZ_PSF_KRNL; j <= RSZ_PSF_KRNL; j++) {
+      sum += c_Kernel[RSZ_PSF_KRNL - j] * s_Data[threadIdx.y][threadIdx.x + i * ROWS_BLOCKDIM_X + j];
     }
     d_Dst[i * ROWS_BLOCKDIM_X] = sum;
   }
@@ -160,8 +164,8 @@ __global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, 
   for (int i = COLUMNS_HALO_STEPS; i < COLUMNS_HALO_STEPS + COLUMNS_RESULT_STEPS; i++) {
     float sum = 0;
 #pragma unroll
-    for (int j = -KERNEL_RADIUS; j <= KERNEL_RADIUS; j++) {
-      sum += c_Kernel[offKrnl + KERNEL_RADIUS - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
+    for (int j = -RSZ_PSF_KRNL; j <= RSZ_PSF_KRNL; j++) {
+      sum += c_Kernel[offKrnl + RSZ_PSF_KRNL - j] * s_Data[threadIdx.x][threadIdx.y + i * COLUMNS_BLOCKDIM_Y + j];
     }
     d_Dst[i * COLUMNS_BLOCKDIM_Y * pitch] = sum;
   }
@@ -170,11 +174,11 @@ __global__ void cnv_columns(float *d_Dst, float *d_Src, int imageW, int imageH, 
 /// d_buff: temporary image buffer
 void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, int Nvi) {
   assert(d_imgout != d_imgint);
-  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(ROWS_BLOCKDIM_X * ROWS_HALO_STEPS >= RSZ_PSF_KRNL);
   assert(Nvk % (ROWS_RESULT_STEPS * ROWS_BLOCKDIM_X) == 0);
   assert(Nvj % ROWS_BLOCKDIM_Y == 0);
 
-  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= KERNEL_RADIUS);
+  assert(COLUMNS_BLOCKDIM_Y * COLUMNS_HALO_STEPS >= RSZ_PSF_KRNL);
   assert(Nvk % COLUMNS_BLOCKDIM_X == 0);
   assert(Nvj % (COLUMNS_RESULT_STEPS * COLUMNS_BLOCKDIM_Y) == 0);
 
@@ -367,7 +371,8 @@ void osem(float *imgout,
 
 	int   *subs,
 
-	float * sensimg,
+	float *sensimg,
+	float *krnl,
 
 	float *li2rng,
 	short *li2sn,
@@ -452,13 +457,7 @@ void osem(float *imgout,
 	//--sensitivity image (images for all subsets)
 	float *d_sensim;
 
-
-#ifdef WIN32
 	HANDLE_ERROR(cudaMalloc(&d_sensim, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float)));
-#else
-	HANDLE_ERROR(cudaMallocManaged(&d_sensim, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY * sizeof(float)));
-#endif
-
 	HANDLE_ERROR(cudaMemcpy(d_sensim, sensimg, Nsub * SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyHostToDevice));
 
 	// cudaMemset(d_sensim, 0, Nsub * SZ_IMZ*SZ_IMX*SZ_IMY*sizeof(float));
@@ -470,13 +469,13 @@ void osem(float *imgout,
 	// //~~~~
 
 	// resolution modelling kernel
-	setKernelGaussian(Cnt.SIGMA_RM);
+	setConvolutionKernel(krnl);
 	float *d_convTmp; HANDLE_ERROR(cudaMalloc(&d_convTmp, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convSrc; HANDLE_ERROR(cudaMalloc(&d_convSrc, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 	float *d_convDst; HANDLE_ERROR(cudaMalloc(&d_convDst, SZ_IMX*SZ_IMY*(SZ_IMZ + 1) * sizeof(float)));
 
 	// resolution modelling sensitivity image
-	for (int i=0; i<Nsub && Cnt.SIGMA_RM>0; i++) {
+	for (int i=0; i<Nsub && krnl[0]>=0; i++) {
 		d_pad(d_convSrc, &d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY]);
 		d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 		d_unpad(&d_sensim[i*SZ_IMZ*SZ_IMX*SZ_IMY], d_convDst);
@@ -486,12 +485,7 @@ void osem(float *imgout,
 	float *d_imgout_rm;   HANDLE_ERROR(cudaMalloc(&d_imgout_rm, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
 
 	//--back-propagated image
-
-#ifdef WIN32
 	float *d_bimg;  HANDLE_ERROR(cudaMalloc(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
-#else
-	float *d_bimg;  HANDLE_ERROR(cudaMallocManaged(&d_bimg, SZ_IMY*SZ_IMY*SZ_IMZ * sizeof(float)));
-#endif
 
 	if (Cnt.LOG <= LOGDEBUG) printf("i> loaded variables in device memory for image reconstruction.\n");
 	getMemUse(Cnt);
@@ -500,7 +494,7 @@ void osem(float *imgout,
 		if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
 		//resolution modelling current image
-		if(Cnt.SIGMA_RM>0) {
+		if(krnl[0]>=0) {
 			d_pad(d_convSrc, d_imgout);
 			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 			d_unpad(d_imgout_rm, d_convDst);
@@ -521,7 +515,7 @@ void osem(float *imgout,
 		rec_bprj(d_bimg, d_esng, &d_subs[i*Nprj + 1], subs[i*Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
 		//resolution modelling backprojection
-		if (Cnt.SIGMA_RM>0) {
+		if (krnl[0]>=0) {
 			d_pad(d_convSrc, d_bimg);
 			d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
 			d_unpad(d_bimg, d_convDst);

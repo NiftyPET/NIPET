@@ -108,6 +108,7 @@
 #define SZ_IMX 320
 #define SZ_IMY 320
 #define SZ_IMZ 127
+#define RSZ_PSF_KRNL 8
 #define TFOV2 890.0f
 #define SZ_VOXY 0.208626f
 #define SZ_VOXZ 0.203125f

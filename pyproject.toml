@@ -1,3 +1,4 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "ninst>=0.6.1", "numpy>=1.14",
-            "miutil[cuda]>=0.4.0", "scikit-build>=0.11.0", "cmake>=3.18", "ninja"]
+requires = ["setuptools>=42", "wheel",
+            "ninst>=0.8.0", "numpy>=1.14", "miutil[cuda]>=0.4.0",
+            "scikit-build>=0.11.0", "cmake>=3.18", "ninja"]

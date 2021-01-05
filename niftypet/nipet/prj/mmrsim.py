@@ -127,6 +127,7 @@ def simulate_recon(
     scatter=None,
     mu_input = False,
     msk_radius = 29.,
+    psf=None,
 ):
     '''
     Reconstruct PET image from simulated input data
@@ -146,6 +147,7 @@ def simulate_recon(
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
+    psfkernel = mmrrec.psf_config(psf, Cnt)
 
     if simulate_3d:
         if ctim.ndim!=3 \
@@ -218,7 +220,7 @@ def simulate_recon(
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
 
     # resolution modelling
-    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, Cnt) if fwhm_rm else 0
+    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, voxsize=Cnt['SZ_VOXZ']*10) if fwhm_rm else 0
 
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
@@ -262,16 +264,17 @@ def simulate_recon(
               leave=log.getEffectiveLevel() < logging.INFO):
             petprj.osem(
                 eimg,
-                msk,
                 psng,
                 rsng,
                 ssng,
                 nrmsino,
                 attsino,
+                sinoTIdx,
                 sim,
+                msk,
+                psfkernel,
                 txLUT,
                 axLUT,
-                sinoTIdx,
                 Cnt)
         eim = mmrimg.convert2e7(eimg, Cnt)
 

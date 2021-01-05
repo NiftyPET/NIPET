@@ -9,8 +9,7 @@
 #define RECON_H
 
 /* separable convolution */
-#define KERNEL_RADIUS 5
-#define KERNEL_LENGTH (2*KERNEL_RADIUS + 1)
+#define KERNEL_LENGTH (2*RSZ_PSF_KRNL + 1)
 
 // Column convolution filter
 #define   COLUMNS_BLOCKDIM_X 8
@@ -34,7 +33,8 @@ void osem(float *imgout,
 
 	int   *subs,
 
-	float * sensimg,
+	float *sensimg,
+	float *krnl,
 
 	float *li2rng,
 	short *li2sn,

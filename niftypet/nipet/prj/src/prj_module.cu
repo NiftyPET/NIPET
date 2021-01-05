@@ -661,6 +661,9 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	// subsets for OSEM, first the default
 	PyObject * o_subs;
 
+	// separable kernel matrix, for x, y, and z dimensions
+	PyObject *o_krnl;
+
 	// sinos using in reconstruction (reshaped for GPU execution)
 	PyObject * o_psng; //prompts (measured)
 	PyObject * o_rsng; //randoms
@@ -672,8 +675,8 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyObject * o_imgsens;
 
 	/* ^^^^^^^^^^^^^^^^^^^^^^^ Parse the input tuple ^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
-	if (!PyArg_ParseTuple(args, "OOOOOOOOOOOO", &o_imgout, &o_rcnmsk, &o_psng, &o_rsng, &o_ssng, &o_nsng, &o_asng,
-		&o_imgsens, &o_txLUT, &o_axLUT, &o_subs, &o_mmrcnst))
+	if (!PyArg_ParseTuple(args, "OOOOOOOOOOOOO", &o_imgout, &o_psng, &o_rsng, &o_ssng, &o_nsng, &o_asng,
+		&o_subs, &o_imgsens, &o_rcnmsk, &o_krnl, &o_txLUT, &o_axLUT, &o_mmrcnst))
 		return NULL;
 	//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -707,7 +710,15 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyArrayObject *p_rcnmsk = NULL;
 	p_rcnmsk = (PyArrayObject *)PyArray_FROM_OTF(o_rcnmsk, NPY_BOOL, NPY_ARRAY_IN_ARRAY);
 
-	//sino objects
+	//sensitivity image
+	PyArrayObject *p_imgsens = NULL;
+	p_imgsens = (PyArrayObject *)PyArray_FROM_OTF(o_imgsens, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+
+	//> PSF kernel
+	PyArrayObject *p_krnl=NULL;
+	p_krnl = (PyArrayObject *)PyArray_FROM_OTF(o_krnl, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
+
+	//> sinogram objects
 	PyArrayObject *p_psng = NULL, *p_rsng = NULL, *p_ssng = NULL, *p_nsng = NULL, *p_asng = NULL;
 	p_psng = (PyArrayObject *)PyArray_FROM_OTF(o_psng, NPY_UINT16, NPY_ARRAY_IN_ARRAY);
 	p_rsng = (PyArrayObject *)PyArray_FROM_OTF(o_rsng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
@@ -719,9 +730,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	PyArrayObject *p_subs = NULL;
 	p_subs = (PyArrayObject *)PyArray_FROM_OTF(o_subs, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
-	//sensitivity image
-	PyArrayObject *p_imgsens = NULL;
-	p_imgsens = (PyArrayObject *)PyArray_FROM_OTF(o_imgsens, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
 	//axLUTs
 	PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
@@ -743,35 +751,38 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	//--
 
 	/* If that didn't work, throw an exception. */
-	if (p_imgout == NULL || p_rcnmsk == NULL || p_subs == NULL || p_psng == NULL || p_rsng == NULL || p_ssng == NULL || p_nsng == NULL || p_asng == NULL ||
-		p_imgsens == NULL || p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL || p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL)
+	if (p_imgout == NULL || p_rcnmsk == NULL || p_subs == NULL || p_psng == NULL || p_rsng == NULL || p_ssng == NULL ||
+		p_nsng == NULL || p_asng == NULL ||	p_imgsens == NULL || p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL ||
+		p_li2nos == NULL || p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL || p_krnl == NULL)
 	{
-		//output image
+		//> output image
 		PyArray_DiscardWritebackIfCopy(p_imgout);
 		Py_XDECREF(p_imgout);
 
 		Py_XDECREF(p_rcnmsk);
 
-		//sino objects
+		//>  objects in the sinogram space
 		Py_XDECREF(p_psng);
 		Py_XDECREF(p_rsng);
 		Py_XDECREF(p_ssng);
 		Py_XDECREF(p_nsng);
 		Py_XDECREF(p_asng);
 
-		//subsets
+		//> subsets
 		Py_XDECREF(p_subs);
 
+		//> objects in the image space
 		Py_XDECREF(p_imgsens);
+		Py_XDECREF(p_krnl);
 
-		//axLUTs
+		//> axLUTs
 		Py_XDECREF(p_li2rno);
 		Py_XDECREF(p_li2sn);
 		Py_XDECREF(p_li2sn1);
 		Py_XDECREF(p_li2nos);
-		//2D sino LUT
+		//> 2D sinogram LUT
 		Py_XDECREF(p_aw2ali);
-		//sino 2 crystals
+		//> sinogram to crystal LUTs
 		Py_XDECREF(p_s2c);
 		Py_XDECREF(p_crs);
 
@@ -786,7 +797,22 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	float *nsng = (float*)PyArray_DATA(p_nsng);
 	float *asng = (float*)PyArray_DATA(p_asng);
 
+	//> sensitivity image
 	float *imgsens = (float*)PyArray_DATA(p_imgsens);
+
+	//>--- PSF KERNEL ---
+	float *krnl;
+	int SZ_KRNL = (int)PyArray_DIM(p_krnl, 1);
+	if (Cnt.LOG <=LOGINFO) printf("i> kernel size [voxels]: %d\n", SZ_KRNL);
+
+	if (SZ_KRNL != KERNEL_LENGTH) {
+		if (Cnt.LOG <=LOGWARNING) printf("w> wrong kernel size.\n");
+		krnl = (float *)malloc(KERNEL_LENGTH * sizeof(float));
+    krnl[0] = -1;
+	} else {
+		krnl = (float*)PyArray_DATA(p_krnl);
+	}
+	//>-------------------
 
 	short *li2sn;
 	if (Cnt.SPN == 11) {
@@ -818,7 +844,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 
 	//<><><<><><><><<><><><><><><><><><><>
 	osem(imgout, rcnmsk, psng, rsng, ssng, nsng, asng, subs, imgsens,
-		li2rng, li2sn, li2nos, s2c, crs, Nsub, Nprj, N0crs, Cnt);
+		krnl, li2rng, li2sn, li2nos, s2c, crs, Nsub, Nprj, N0crs, Cnt);
 	//<><><><><><><><<><><><>><><><><><><>
 
 	//Clean up
@@ -835,6 +861,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args)
 	Py_DECREF(p_subs);
 
 	Py_DECREF(p_imgsens);
+	Py_DECREF(p_krnl);
 
 	Py_DECREF(p_li2rno);
 	Py_DECREF(p_li2rng);

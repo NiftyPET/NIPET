@@ -36,8 +36,8 @@ def mmrchain(
                     # each time frame separately.
 
     itr=4,          # number of OSEM iterations
-    fwhm=0.,        # Gaussian Smoothing FWHM
-    fwhm_rm=0.,     # Resolution Modelling
+    fwhm=0.,        # Gaussian Post-Smoothing FWHM
+    psf=None,       # Resolution Modelling
     recmod = -1,    # reconstruction mode: -1: undefined, chosen
                     # automatically. 3: attenuation and scatter
                     # correction, 1: attenuation correction
@@ -62,7 +62,7 @@ def mmrchain(
     store_rois = False, # stores the image of PVC ROIs
                         # as defined in pvcroi.
 
-    psfkernel=[],
+    pvcpsf=[],
     pvcitr=5,
 
     fcomment='',    # text comment used in the file name of
@@ -353,7 +353,7 @@ def mmrchain(
         recimg = mmrrec.osemone(datain, [muhd['im'], muo],
                                 hst, scanner_params,
                                 decay_ref_time=decay_ref_time,
-                                recmod=recmod, itr=itr, fwhm=fwhm, fwhm_rm=fwhm_rm,
+                                recmod=recmod, itr=itr, fwhm=fwhm, psf=psf,
                                 outpath=petimg,
                                 frmno=frmno,
                                 fcomment=fcomment+'_i',
@@ -431,12 +431,11 @@ def mmrchain(
             raise Exception('No labels and/or ROIs image definitions found!')
         else:
             # get the PSF kernel for PVC
-            if not psfkernel:
-                psfkernel = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
+            if not pvcpsf:
+                pvcpsf = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
             else:
-                if isinstance(psfkernel, (np.ndarray, np.generic)) and psfkernel.shape!=(3, 17):
-                    log.error('the PSF kernel has to be an numpy array with the shape of (3, 17)!')
-                    raise IndexError('PSF: wrong shape or not a matrix')
+                if isinstance(pvcpsf, (np.ndarray, np.generic)) and pvcpsf.shape!=(3, 2*Cnt['RSZ_PSF_KRNL']+1):
+                    raise ValueError('the PSF kernel has to be an numpy array with the shape of ({},{})'.format(3, 2*Cnt['RSZ_PSF_KRNL']+1))
 
         #> file names for NIfTI images of PVC ROIs and PVC corrected PET
         froi = []
@@ -465,7 +464,7 @@ def mmrchain(
                 datain,
                 Cnt,
                 pvcroi,
-                psfkernel,
+                pvcpsf,
                 tool=pvcreg_tool,
                 itr=pvcitr,
                 faff=faffpvc,
@@ -502,7 +501,7 @@ def mmrchain(
                     +';sub=14'                      \
                     +';itr='+str(itr)               \
                     +';fwhm='+str(fwhm)             \
-                    +';fwhm_rm='+str(fwhm_rm)       \
+                    +';psf='+str(psf)       \
                     +';nfrm='+str(nfrm)
 
         # squeeze the not needed dimensions

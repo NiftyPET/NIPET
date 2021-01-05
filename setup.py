@@ -43,7 +43,7 @@ def chck_vox_h(Cnt):
     i1 = def_h.find("//## end ##//")
     defh = def_h[i0:i1]
     # list of constants which will be kept in synch from Python
-    cnt_list = ["SZ_IMX", "SZ_IMY", "SZ_IMZ", "TFOV2", "SZ_VOXY", "SZ_VOXZ", "SZ_VOXZi"]
+    cnt_list = ["SZ_IMX", "SZ_IMY", "SZ_IMZ", "TFOV2", "SZ_VOXY", "SZ_VOXZ", "SZ_VOXZi", "RSZ_PSF_KRNL"]
     flg = False
     for s in cnt_list:
         m = re.search("(?<=#define " + s + r")\s*\d*\.*\d*", defh)
