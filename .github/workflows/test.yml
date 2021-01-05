@@ -21,7 +21,7 @@ jobs:
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
-    - run: pip install -U pre-commit twine setuptools wheel ninst scikit-build
+    - run: pip install -U pre-commit twine setuptools wheel setuptools_scm[toml] ninst scikit-build
     - run: HMUDIR=$HOME python setup.py sdist
     - run: twine check dist/*
     - run: pre-commit run -a --show-diff-on-failure

@@ -2,3 +2,7 @@
 requires = ["setuptools>=42", "wheel", "setuptools_scm[toml]>=3.4",
             "ninst>=0.8.0", "numpy>=1.14", "miutil[cuda]>=0.4.0",
             "scikit-build>=0.11.0", "cmake>=3.18", "ninja"]
+
+[tool.setuptools_scm]
+write_to = "niftypet/nipet/_dist_ver.py"
+write_to_template = "__version__ = '{version}'\n"
