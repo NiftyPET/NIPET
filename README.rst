@@ -2,7 +2,7 @@
 NIPET: high-throughput Neuro-Image PET reconstruction
 ===========================================================
 
-|Docs| |PyPI-Status| |PyPI-Downloads|
+|Docs| |Version| |Downloads| |Py-Versions| |DOI| |Licence| |Tests|
 
 NIPET is a Python sub-package of NiftyPET_, offering high-throughput PET image reconstruction as well as image processing and analysis (``nimpa``: https://github.com/NiftyPET/NIMPA) for PET/MR imaging with high quantitative accuracy and precision. The software is written in CUDA C and embedded in Python C extensions.
 
@@ -28,6 +28,7 @@ Quick Install
 Note that installation prompts for setting the path to ``NiftyPET_tools`` and
 hardware attenuation maps. This can be avoided by setting the environment
 variables ``PATHTOOLS`` and ``HMUDIR``, respectively.
+It's also recommended (but not required) to use `conda`.
 
 .. code:: sh
 
@@ -37,8 +38,7 @@ variables ``PATHTOOLS`` and ``HMUDIR``, respectively.
     # cross-platform install
     conda install -c conda-forge python=3 \
       ipykernel numpy scipy scikit-image matplotlib ipywidgets
-    pip install --verbose "git+https://github.com/NiftyPET/NIMPA@dev2#egg=nimpa"
-    pip install --verbose "git+https://github.com/NiftyPET/NIPET@dev2#egg=nipet"
+    pip install "nipet>=2"
 
 External CMake Projects
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -70,20 +70,25 @@ At this point any external project may include NIPET as follows
 Licence
 ~~~~~~~
 
-|Licence|
+|Licence| |DOI|
 
-- Author: `Pawel J. Markiewicz <https://github.com/pjmark>`__ @ University College London
-- `Contributors <https://github.com/NiftyPET/NIPET/graphs/contributors>`__:
+Copyright 2018-21
 
-  - `Casper O. da Costa-Luis <https://github.com/casperdcl>`__ @ King's College London
-
-Copyright 2018-20
+- `Pawel J. Markiewicz <https://github.com/pjmark>`__ @ University College London
+- `Casper O. da Costa-Luis <https://github.com/casperdcl>`__ @ King's College London
+- `Contributors <https://github.com/NiftyPET/NIPET/graphs/contributors>`__
 
 .. |Docs| image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
    :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
+.. |DOI| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4417680.svg
+   :target: https://doi.org/10.5281/zenodo.4417680
 .. |Licence| image:: https://img.shields.io/pypi/l/nipet.svg?label=licence
    :target: https://github.com/NiftyPET/NIPET/blob/master/LICENCE
-.. |PyPI-Downloads| image:: https://img.shields.io/pypi/dm/nipet.svg?label=PyPI%20downloads
+.. |Tests| image:: https://img.shields.io/github/workflow/status/NiftyPET/NIPET/Test?logo=GitHub
+   :target: https://github.com/NiftyPET/NIPET/actions
+.. |Downloads| image:: https://img.shields.io/pypi/dm/nipet.svg?logo=pypi&logoColor=white&label=PyPI%20downloads
    :target: https://pypi.org/project/nipet
-.. |PyPI-Status| image:: https://img.shields.io/pypi/v/nipet.svg?label=latest
+.. |Version| image:: https://img.shields.io/pypi/v/nipet.svg?logo=python&logoColor=white
+   :target: https://github.com/NiftyPET/NIPET/releases
+.. |Py-Versions| image:: https://img.shields.io/pypi/pyversions/nipet.svg?logo=python&logoColor=white
    :target: https://pypi.org/project/nipet
