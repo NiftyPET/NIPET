@@ -1,54 +1,51 @@
 """auxilary imaging functions for PET image reconstruction and analysis."""
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-
+import logging
+import os
 
 import numpy as np
-import os
-import logging
+
 from niftypet import nimpa
 
-#==============================================================================
+log = logging.getLogger(__name__)
 
-def obtain_image(img, Cnt=[], imtype=''):
+
+def obtain_image(img, Cnt=None, imtype=''):
     '''
     Obtain the image (hardware or object mu-map) from file,
     numpy array, dictionary or empty list (assuming blank then).
     The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
-    from os import path
-    log = logging.getLogger(__name__)
-
-    # establishing what and if the image object has been provided
-    # all findings go to the output dictionary
+    #> establishing what and if the image object has been provided
+    #> all findings go to the output dictionary
     output = {}
     if isinstance(img, dict):
-        if Cnt and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if Cnt is not None and img['im'].shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             log.error('provided '+imtype+' via the dictionary has inconsistent dimensions compared to Cnt.')
             raise ValueError('Wrong dimensions of the mu-map')
         else:
             output['im'] = img['im']
             output['exists'] = True
-            output['fim'] = img['fim']
+            if 'fim' in img:  output['fim'] = img['fim']
             if 'faff' in img: output['faff'] = img['faff']
             if 'fmuref' in img: output['fmuref'] = img['fmuref']
             if 'affine' in img: output['affine'] = img['affine']
-            log.debug('using '+imtype+' from dictionary')
+            log.info('using '+imtype+' from dictionary')
 
     elif isinstance(img, (np.ndarray, np.generic) ):
-        if Cnt and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if Cnt is not None and img.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             log.error('provided '+imtype+' via the numpy array has inconsistent dimensions compared to Cnt.')
             raise ValueError('Wrong dimensions of the mu-map')
         else:
             output['im'] = img
             output['exists'] = True
             output['fim'] = ''
-            log.debug('using hardware mu-map from numpy array.')
+            log.info('using hardware mu-map from numpy array.')
 
-    elif isinstance(img, basestring):
-        if path.isfile(img):
-            from niftypet import nimpa
+    elif isinstance(img, str):
+        if os.path.isfile(img):
             imdct = nimpa.getnii(img, output='all')
             output['im'] = imdct['im']
             output['affine'] = imdct['affine']
@@ -58,7 +55,7 @@ def obtain_image(img, Cnt=[], imtype=''):
             else:
                 output['exists'] = True
                 output['fim'] = img
-                log.debug('using '+imtype+' from NIfTI file.')
+                log.info('using '+imtype+' from NIfTI file.')
         else:
             log.error('provided '+imtype+' path is invalid.')
             return None
@@ -70,8 +67,6 @@ def obtain_image(img, Cnt=[], imtype=''):
     #------------------------------------------------------------------------
     return output
 
-
-#==============================================================================
 
 def dynamic_timings(flist, offset=0):
     '''
@@ -136,4 +131,3 @@ def dynamic_timings(flist, offset=0):
     # prepare the output dictionary
     out = {'total':tsum, 'frames':frms, 'timings':t_frames}
     return out
-#=================================================================================================

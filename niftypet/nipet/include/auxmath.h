@@ -17,17 +17,4 @@ void var_online(float * M1, float * M2, float * X, int b, size_t nele);
 // 	float *sct3d11;
 // };
 
-
-
-void put_gaps(float *sino,
-	float *sng,
-	int *aw2ali,
-	Cnst Cnt);
-
-void remove_gaps(float *sng,
-	float *sino,
-	int snno,
-	int * aw2ali,
-	Cnst Cnt);
-
 #endif

@@ -5,13 +5,10 @@
 
 #include <driver_types.h>
 
-#define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
-void HandleError(cudaError_t err, const char *file, int line);
-
-
-void gpu_siddon_tx(float *d_crs,
+void gpu_siddon_tx(
+	float4 *d_crs,
 	short2 *d_s2c,
 	float *d_tt,
-	unsigned char *d_tv,
-	int n1crs);
-#endif
+	unsigned char *d_tv);
+
+#endif //FWD_BCK_TX_H

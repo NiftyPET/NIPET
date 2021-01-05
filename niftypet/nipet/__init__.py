@@ -1,86 +1,73 @@
 #!/usr/bin/env python
-"""init the NiftyPET package"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-# ---------------------------------------------------------------------------------
-
-import os
-import sys
-import platform
-import logging
-
-log = logging.getLogger(__name__)
-
-# if using conda put the resources in the folder with the environment name
-if 'CONDA_DEFAULT_ENV' in os.environ:
-    env = os.environ['CONDA_DEFAULT_ENV']
-    log.debug('conda environment found:' + env)
-else:
-    env = ''
-# create the path for the resources files according to the OS platform
-if platform.system() in ['Linux', 'Darwin']:
-    path_resources = os.path.join( os.path.join(os.path.expanduser('~'),   '.niftypet'), env )
-elif platform.system() == 'Windows':
-    path_resources = os.path.join( os.path.join(os.getenv('LOCALAPPDATA'), '.niftypet'), env )
-else:
-    log.error('unrecognised operating system!')
-    
-sys.path.append(path_resources)
+"""initialise the NiftyPET NIPET package"""
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+# version detector. Precedence: installed dist, git, 'UNKNOWN'
 try:
-    import resources
+    from ._dist_ver import __version__
 except ImportError:
-    log.error("""
-    NiftyPET's resources file <resources.py> could not be imported.
-    It should be in '~/.niftypet/resources.py' (Linux) or
-    '/Users/USERNAME/AppData/Local/niftypet/resources.py' (Windows)
-    but likely it does not exist.
+    try:
+        from setuptools_scm import get_version
 
-    Tried to find in '%s'
-    """ % path_resources)
-    raise
-#===========================
+        __version__ = get_version(root="../..", relative_to=__file__)
+    except (ImportError, LookupError):
+        __version__ = "UNKNOWN"
 
+import logging
+import os
+import platform
+import re
+import sys
+from textwrap import dedent
 
-import mmraux
-from mmraux import explore_input as classify_input
-from mmraux import mMR_params as get_mmrparams
+from pkg_resources import resource_filename
+from tqdm.auto import tqdm
+
+from niftypet.ninst import cudasetup as cs
+from niftypet.ninst.dinf import dev_info, gpuinfo
+from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resources
 
 # shared CUDA C library for extended auxiliary functions for the mMR
-import mmr_auxe
+#> Siemens Biograph mMR
+from . import img, lm, mmr_auxe, mmraux, mmrnorm, prj
+from .img.mmrimg import align_mumap
+from .img.mmrimg import convert2dev as im_e72dev
+from .img.mmrimg import convert2e7 as im_dev2e7
+from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap
+from .img.pipe import mmrchain
+from .lm.mmrhist import dynamic_timings, mmrhist, randoms
+from .mmraux import explore_input as classify_input
+from .mmraux import mMR_params as get_mmrparams
+from .prj.mmrprj import back_prj, frwd_prj
+from .prj.mmrsim import simulate_recon, simulate_sino
+from .sct.mmrsct import vsm
 
-import mmrnorm
-import lm
-import prj
-import sct
-import img
+# log = logging.getLogger(__name__)
+# technically bad practice to add handlers
+# https://docs.python.org/3/howto/logging.html#library-config
+# log.addHandler(LogHandler())  # do it anyway for convenience
 
-from dinf import gpuinfo, dev_info
 
-from img.mmrimg import hdw_mumap
-from img.mmrimg import obj_mumap
-from img.mmrimg import pct_mumap
-from img.mmrimg import align_mumap
-from img.mmrimg import convert2e7 as im_dev2e7
-from img.mmrimg import convert2dev as im_e72dev
 
-from img.pipe import mmrchain
 
-from lm.mmrhist import dynamic_timings
-from lm.mmrhist import mmrhist
-from lm.mmrhist import randoms
 
-from sct.mmrsct import vsm
 
-from prj.mmrprj import frwd_prj
-from prj.mmrprj import back_prj
 
-from prj.mmrsim import simulate_sino, simulate_recon
+
+
 
 if resources.ENBLAGG:
-    from lm.pviews import video_frm, video_dyn
+    from .lm.pviews import video_dyn, video_frm
 
 if resources.ENBLXNAT:
     from xnat import xnat
 
-# import sigaux
-# import lms
+
+#> GE Signa
+#from . import aux_sig
+
+#from . import lm_sig
+#from .lm_sig.hst_sig import lminfo_sig
+
+# for use in `cmake -DCMAKE_PREFIX_PATH=...`
+cmake_prefix = resource_filename(__name__, "cmake")

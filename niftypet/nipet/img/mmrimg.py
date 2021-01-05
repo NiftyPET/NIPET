@@ -1,41 +1,45 @@
 """Image functions for PET data reconstruction and processing."""
-__author__      = "Pawel J. Markiewicz"
-__copyright__   = "Copyright 2018"
-#-------------------------------------------------------------------------------
 
-import sys
-import os
-
-import numpy as np
-import math
-from math import pi
-import random
-import scipy.ndimage as ndi
-
-import nibabel as nib
-import pydicom as dcm
-import re
 import glob
 import logging
-
-from subprocess import call
-import time
+import math
 import multiprocessing
+import os
+import random
+import re
+import shutil
+import sys
+import time
+from math import pi
+from subprocess import run
 
-from niftypet.nipet import mmraux
+import nibabel as nib
+import numpy as np
+import pydicom as dcm
+import scipy.ndimage as ndi
+
 from niftypet import nimpa
 
-import resources as rs
+from .. import mmraux
+from .. import resources as rs
+
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
+
+
+ct_nans = -1024
 
 
 #===================================================================================
 # IMAGE ROUTINES
 #===================================================================================
 
+
 def convert2e7(img, Cnt):
     '''Convert GPU optimised image to Siemens/E7 image shape (127,344,344).'''
 
-    margin = (Cnt['SO_IMX']-Cnt['SZ_IMX'])/2
+    margin = (Cnt['SO_IMX']-Cnt['SZ_IMX']) // 2
 
     #permute the dims first
     imo = np.transpose(img, (2,0,1))
@@ -51,20 +55,19 @@ def convert2e7(img, Cnt):
     imo = np.concatenate((filler, imo, filler), axis=1)
     return imo
 
+
 def convert2dev(im, Cnt):
     '''Reshape Siemens/E7 (default) image for optimal GPU execution.'''
-    log = logging.getLogger(__name__)
-
     if im.shape[1]!=Cnt['SO_IMY'] or im.shape[2]!=Cnt['SO_IMX']:
         raise ValueError('e> input image array is not of the correct Siemens shape.')
 
     if 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['rSZ_IMZ']:
         log.warning('the axial number of voxels does not match the reduced rings.')
-    elif not 'rSZ_IMZ' in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
+    elif 'rSZ_IMZ' not in Cnt and im.shape[0]!=Cnt['SZ_IMZ']:
         log.warning('the axial number of voxels does not match the rings.')
 
     im_sqzd = np.zeros((im.shape[0], Cnt['SZ_IMY'], Cnt['SZ_IMX']), dtype=np.float32)
-    margin = (Cnt['SO_IMX']-Cnt['SZ_IMX'])/2
+    margin = int((Cnt['SO_IMX']-Cnt['SZ_IMX'])/2)
     margin_=-margin
     if margin==0:
         margin = None
@@ -74,18 +77,19 @@ def convert2dev(im, Cnt):
     im_sqzd = np.transpose(im_sqzd, (1, 2, 0))
     return im_sqzd
 
+
 def cropxy(im, imsize, datain, Cnt, store_pth=''):
-    '''Crop image transaxially to the size in tuple <imsize>.
+    '''
+    Crop image transaxially to the size in tuple <imsize>.
     Return the image and the affine matrix.
     '''
-    log = logging.getLogger(__name__)
     if not imsize[0]%2==0 and not imsize[1]%2==0:
         log.error('image size has to be an even number!')
         return None
 
     # cropping indexes
-    i0 = (Cnt['SO_IMX']-imsize[0])/2
-    i1 = (Cnt['SO_IMY']+imsize[1])/2
+    i0 = int((Cnt['SO_IMX']-imsize[0])/2)
+    i1 = int((Cnt['SO_IMY']+imsize[1])/2)
 
     B = image_affine(datain, Cnt, gantry_offset=False)
     B[0,3] -= 10*Cnt['SO_VXX']*i0
@@ -95,10 +99,10 @@ def cropxy(im, imsize, datain, Cnt, store_pth=''):
 
     if store_pth!='':
         nimpa.array2nii( cim[::-1,::-1,:], B, store_pth, descrip='cropped')
-        log.debug('saved cropped image to:' + store_pth)
+        log.info('saved cropped image to:\n{}'.format(store_pth))
 
     return cim, B
-#-------------------------------------------------------------------------------------------
+
 
 def image_affine(datain, Cnt, gantry_offset=False):
     '''Creates a blank reference image, to which another image will be resampled'''
@@ -118,8 +122,6 @@ def image_affine(datain, Cnt, gantry_offset=False):
     # -------------------------------------------------------------------------------------
     return B
 
-
-#================================================================================
 
 def getmu_off(mu, Cnt, Offst=np.array([0., 0., 0.])):
     #number of voxels
@@ -164,6 +166,7 @@ def getmu_off(mu, Cnt, Offst=np.array([0., 0., 0.])):
     mur = nimpa.prc.improc.resample(mu, A, Cim)
     return mur
 
+
 def getinterfile_off(fmu, Cnt, Offst=np.array([0., 0., 0.])):
     '''
     Return the floating point mu-map in an array from Interfile, accounting for image offset (does slow interpolation).
@@ -176,16 +179,16 @@ def getinterfile_off(fmu, Cnt, Offst=np.array([0., 0., 0.])):
     # save_im(mur, Cnt, os.path.dirname(fmu) + '/mur.nii')
     #-------------------------------------------------------------------------
     mur = getmu_off(mu, Cnt)
-    #create GPU version of the mu-map
+    #> create GPU version of the mu-map
     murs = convert2dev(mur, Cnt)
-    #number of voxels
+    #> number of voxels
     nvx = im.shape[0]
-    #get the basic stats
+    #> get the basic stats
     mumax = np.max(mur)
     mumin = np.min(mur)
-    #number of voxels greater than 10% of max image value
+    #> number of voxels greater than 10% of max image value
     n10mx = np.sum(mur>0.1*mumax)
-    #return image dictionary with the image itself and some other stats
+    #> return image dictionary with the image itself and some other stats
     mu_dct = {'im':mur,
               'ims':murs,
               'max':mumax,
@@ -194,10 +197,9 @@ def getinterfile_off(fmu, Cnt, Offst=np.array([0., 0., 0.])):
               'n10mx':n10mx}
     return mu_dct
 
-#================================================================================
+
 def getinterfile(fim, Cnt):
     '''Return the floating point image file in an array from an Interfile file.'''
-
     #read the image file
     f = open(fim, 'rb')
     im = np.fromfile(f, np.float32)
@@ -227,11 +229,11 @@ def getinterfile(fim, Cnt):
               'n10mx':n10mx}
 
     return im_dct
-#================================================================================
 
 
-#=================================================================================
 #-define uniform cylinder
+
+
 def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False):
     '''Outputs image with a uniform cylinder of intensity = unival, radius = rad, and transaxial centre (xo, yo)'''
     imdsk = np.zeros((1, Cnt['SO_IMX'], Cnt['SO_IMY']), dtype=np.float32)
@@ -251,12 +253,10 @@ def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False):
     return imdsk
 
 
-#================================================================================
 def hu2mu(im):
     '''HU units to 511keV PET mu-values'''
-
     # convert nans to -1024 for the HU values only
-    im[np.isnan(im)] = -1024
+    im[np.isnan(im)] = ct_nans
     # constants
     muwater  = 0.096
     mubone   = 0.172
@@ -276,8 +276,6 @@ def hu2mu(im):
 # better use dcm2niix
 def mudcm2nii(datain, Cnt):
     '''DICOM mu-map to NIfTI'''
-    log = logging.getLogger(__name__)
-
     mu, pos, ornt = nimpa.dcm2im(datain['mumapDCM'])
     mu *= 0.0001
     A = pos['AFFINE']
@@ -305,7 +303,7 @@ def mudcm2nii(datain, Cnt):
     # -------------------------------------------------------------------------------------
     fmu = os.path.join(os.path.dirname(datain['mumapDCM']),'mu_r.nii.gz')
     if os.path.isfile( Cnt['RESPATH'] ):
-        call( [ Cnt['RESPATH'],
+        run( [ Cnt['RESPATH'],
                     '-ref', os.path.join(os.path.dirname(datain['mumapDCM']),'muref.nii.gz'),
                     '-flo', os.path.join(os.path.dirname(datain['mumapDCM']),'mu.nii.gz'),
                     '-res', fmu,
@@ -316,7 +314,7 @@ def mudcm2nii(datain, Cnt):
 
     return fmu
 
-# =====================================================================================
+
 def obj_mumap(
         datain,
         params=None,
@@ -328,7 +326,6 @@ def obj_mumap(
         del_auxilary=True,
         ):
     '''Get the object mu-map from DICOM images'''
-    log = logging.getLogger(__name__)
     if params is None:
         params = {}
 
@@ -346,18 +343,22 @@ def obj_mumap(
     else:
         fmudir = os.path.join( outpath, 'mumap-obj' )
     nimpa.create_dir(fmudir)
-    # ref file name
+
+    #> ref file name
     fmuref = os.path.join(fmudir, 'muref.nii.gz')
-    # ref affine
+
+    #> ref affine
     B = image_affine(datain, Cnt, gantry_offset=gantry_offset)
-    # ref image (blank)
+
+    #> ref image (blank)
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-    # store ref image
+
+    #> store ref image
     nimpa.array2nii(im, B, fmuref)
 
     # check if the object dicom files for MR-based mu-map exists
-    if not 'mumapDCM' in datain or not os.path.isdir(datain['mumapDCM']):
-        log.error('DICOM forlder for the mu-map does not exist.')
+    if 'mumapDCM' not in datain or not os.path.isdir(datain['mumapDCM']):
+        log.error('DICOM folder for the mu-map does not exist.')
         return None
 
     fnii = 'converted-from-object-DICOM_'
@@ -369,7 +370,7 @@ def obj_mumap(
         os.remove(d)
 
     # convert the DICOM mu-map images to nii
-    call( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', fmudir, datain['mumapDCM'] ] )
+    run( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', fmudir, datain['mumapDCM'] ] )
     #files for the T1w, pick one:
     fmunii = glob.glob( os.path.join(fmudir, '*'+fnii+tstmp+'*.nii*') )[0]
     # fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
@@ -383,17 +384,17 @@ def obj_mumap(
                     '-flo', fmunii,
                     '-res', fmu,
                     '-pad', '0']
-        if log.getEffectiveLevel() > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.INFO:
             cmd.append('-voff')
-        call(cmd)
+        run(cmd)
     else:
         log.error('path to resampling executable is incorrect!')
-        sys.exit()
+        raise IOError('Path to executable is incorrect!')
 
     nim = nib.load(fmu)
     # get the affine transform
     A = nim.get_sform()
-    mu = nim.get_data()
+    mu = nim.get_fdata(dtype=np.float32)
     mu = np.transpose(mu[:,::-1,::-1], (2, 1, 0))
     # convert to mu-values
     mu = np.float32(mu)/1e4
@@ -404,11 +405,11 @@ def obj_mumap(
     if not del_auxilary:
         mu_dct['fmuref'] = fmuref
 
-    # store the mu-map if requested
+    #> store the mu-map if requested
     if store_npy:
         # to numpy array
-        fnp = os.path.join(fmudir, 'mumap-from-DICOM.npy' )
-        np.save(fnp, (mu, A))
+        fnp = os.path.join(fmudir, "mumap-from-DICOM.npz")
+        np.savez(fnp, mu=mu, A=A)
 
     if store:
         # with this file name
@@ -421,16 +422,22 @@ def obj_mumap(
         os.remove(fmunii)
         os.remove(fmu)
 
+        if [f for f in os.listdir(fmudir) if not f.startswith('.') and not f.endswith('.json')] == []:
+            shutil.rmtree(fmudir)
 
     return mu_dct
+
 
 #=================================================================================
 # pCT/UTE MU-MAP ALIGNED
 #---------------------------------------------------------------------------------
+
+
 def align_mumap(
         datain,
         scanner_params=None,
         outpath='',
+        reg_tool='niftyreg',
         use_stored=False,
         hst=None,
         t0=0, t1=0,
@@ -444,7 +451,7 @@ def align_mumap(
         musrc='ute', # another option is pct for mu-map source
         ute_name='UTE2',
         del_auxilary=True,
-        verbose=True,
+        verbose=False,
     ):
     '''
     Align the a pCT or MR-derived mu-map to a PET image reconstructed to chosen
@@ -452,11 +459,8 @@ def align_mumap(
 
     use_sotred only works if hst or t0/t1 given but not when faff.
     '''
-    log = logging.getLogger(__name__)
     if scanner_params is None:
         scanner_params = {}
-    if hst is None:
-        hst = []
 
 
     #> output folder
@@ -468,8 +472,12 @@ def align_mumap(
     #> create the folder, if not existent
     nimpa.create_dir(opth)
 
+    #> tmp folder for not aligned mu-maps
+    tmpdir = os.path.join(opth, 'tmp')
+    nimpa.create_dir(tmpdir)
+
     #> get the timing of PET if affine not given
-    if faff!='' and 't0' in hst:
+    if faff=='' and not hst is None and isinstance(hst, dict) and 't0' in hst:
         t0 = hst['t0']
         t1 = hst['t1']
 
@@ -481,7 +489,7 @@ def align_mumap(
 
     #---------------------------------------------------------------------------
     #> used stored if requested
-    if use_stored and affine!='':
+    if use_stored:
         fmu_stored = fnm + '-aligned-to_t'\
                      + str(hst['t0'])+'-'+str(hst['t1'])+'_'+petopt.upper()\
                      + fcomment
@@ -502,42 +510,42 @@ def align_mumap(
         Cnt = scanner_params
     else:
         Cnt = rs.get_mmr_constants()
-    Cnt   = scanner_params['Cnt']
 
     #> if affine not provided histogram the LM data for recon and registration
     if not os.path.isfile(faff):
         from niftypet.nipet.prj import mmrrec
+
         #-histogram the list data if needed
-        if not hst:
+        if hst is None:
             from niftypet.nipet import mmrhist
             if 'txLUT' in scanner_params:
                 hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
             else:
                 raise ValueError(
-                    'e> full scanner parameters not provided\
-                     but required for histogramming.')
+                    'Full scanner are parameters not provided\
+                     but are required for histogramming.')
 
     #=========================================================
     #-get hardware mu-map
     if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
-        log.debug('loaded hardware mu-map from file: %s' % datain['hmumap'])
+        muh = np.load(datain['hmumap'], allow_pickle=True)["hmu"]
+        (log.info if verbose else log.debug)(
+            'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
-        if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
-            datain['hmumap'] = hmupath
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
+        if os.path.isfile(hmupath):
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
+            datain["hmumap"] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
-        log.error('obtain the hardware mu-map first.')
-        raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
+        log.error('the hardware mu-map is required first.')
+        raise IOError('Could not find the hardware mu-map!')
     #=========================================================
     #-check if T1w image is available
-    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain \
-    and not 'T1N4' in datain:
+    if not {'MRT1W#', 'T1nii', 'T1bc', 'T1N4'}.intersection(datain):
         log.error('no MR T1w images required for co-registration!')
-        raise IOError('T1w image could not be obtained')
+        raise IOError('T1w image could not be obtained!')
     #=========================================================
 
     #-if the affine is not given,
@@ -551,6 +559,7 @@ def align_mumap(
             mudic = obj_mumap(
                         datain,
                         Cnt,
+                        outpath=tmpdir,
                         del_auxilary=del_auxilary)
             muo = mudic['im']
             # reconstruct PET image with UTE mu-map to which co-register T1w
@@ -580,8 +589,10 @@ def align_mumap(
             mudic = obj_mumap(
                     datain,
                     Cnt,
+                    outpath=tmpdir,
                     del_auxilary=del_auxilary)
             muo = mudic['im']
+
             recout = mmrrec.osemone(
                 datain, [muh, muo],
                 hst, scanner_params,
@@ -598,18 +609,19 @@ def align_mumap(
             # change to NIfTI if the UTE sequence is in DICOM files (folder)
             if os.path.isdir(datain[ute_name]):
                 fnew =  os.path.basename(datain[ute_name])
-                call( [ Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name] ] )
+                run([Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name]])
                 fute = glob.glob(os.path.join(datain[ute_name], fnew+'*nii*'))[0]
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
+
             # get the affine transformation
-            try:
+            if reg_tool=='spm':
                 regdct = nimpa.coreg_spm(
                     fpet,
                     fute,
                     outpath=os.path.join(outpath,'PET', 'positioning')
                 )
-            except:
+            elif reg_tool=='niftyreg':
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     fute,
@@ -629,8 +641,10 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=log.getEffectiveLevel() <= logging.INFO
+                    verbose=verbose
                 )
+            else:
+                raise ValueError('unknown registration tool requested')
 
             faff_mrpet = regdct['faff']
 
@@ -638,13 +652,13 @@ def align_mumap(
 
             ft1w = nimpa.pick_t1w(datain)
 
-            try:
+            if reg_tool=='spm':
                 regdct = nimpa.coreg_spm(
                     fpet,
                     ft1w,
                     outpath=os.path.join(outpath,'PET', 'positioning')
                 )
-            except:
+            elif reg_tool=='niftyreg':
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     ft1w,
@@ -663,8 +677,10 @@ def align_mumap(
                     rthrsh=0.05,
                     ffwhm = 15., #millilitres
                     fthrsh=0.05,
-                    verbose=log.getEffectiveLevel() < logging.INFO
+                    verbose=verbose
                 )
+            else:
+                raise ValueError('unknown registration tool requested')
 
             faff_mrpet = regdct['faff']
 
@@ -679,8 +695,19 @@ def align_mumap(
 
     #> output file name for the aligned mu-maps
     if musrc=='pct':
-        freg = os.path.join(opth, 'pCT-res-tmp'+fcomment+'.nii.gz')
-        fflo = datain['pCT']
+
+
+        #> convert to mu-values before resampling to avoid artefacts with negative values
+        nii = nib.load(datain['pCT'])
+        img = nii.get_fdata(dtype=np.float32)
+        img_mu = hu2mu(img)
+        nii_mu = nib.Nifti1Image(img_mu, nii.affine)
+        fflo = os.path.join(tmpdir, 'pct2mu-not-aligned.nii.gz')
+        nib.save(nii_mu, fflo)
+
+        freg = os.path.join(opth, 'pct2mu-aligned-'+fcomment+'.nii.gz')
+
+
     elif musrc=='ute':
         freg = os.path.join(opth, 'UTE-res-tmp'+fcomment+'.nii.gz')
         if 'UTE' not in datain:
@@ -689,7 +716,7 @@ def align_mumap(
             # convert the DICOM mu-map images to nii
             if 'mumapDCM' not in datain:
                 raise IOError('DICOM with the UTE mu-map are not given.')
-            call( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', opth, datain['mumapDCM'] ] )
+            run( [ Cnt['DCM2NIIX'], '-f', fnii+tstmp, '-o', opth, datain['mumapDCM'] ] )
             #files for the T1w, pick one:
             fflo = glob.glob( os.path.join(opth, '*'+fnii+tstmp+'*.nii*') )[0]
         else:
@@ -699,12 +726,11 @@ def align_mumap(
                 raise IOError('The provided NIfTI UTE path is not valid.')
 
     #> call the resampling routine to get the pCT/UTE in place
-    if 'matlab_eng' in regdct:
+    if reg_tool == "spm":
         nimpa.resample_spm(
             fpet,
             fflo,
             faff_mrpet,
-            matlab_eng=regdct['matlab_eng'],
             fimout=freg,
             del_ref_uncmpr=True,
             del_flo_uncmpr=True,
@@ -717,35 +743,36 @@ def align_mumap(
             faff_mrpet,
             fimout=freg,
             executable=Cnt['RESPATH'],
-            verbose=log.getEffectiveLevel() < logging.INFO)
+            verbose=verbose)
 
 
     #-get the NIfTI of registered image
     nim = nib.load(freg)
     A   = nim.affine
-    imreg = np.float32( nim.get_data() )
+    imreg = nim.get_fdata(dtype=np.float32)
     imreg = imreg[:,::-1,::-1]
     imreg = np.transpose(imreg, (2, 1, 0))
 
     #-convert to mu-values; sort out the file name too.
     if musrc=='pct':
-        mu = hu2mu(imreg)
+        mu = imreg
     elif musrc=='ute':
         mu = np.float32(imreg)/1e4
         #-remove the converted file from DICOMs
         os.remove(fflo)
     else:
-        raise NameError('Confused o_O.')
+        raise NameError('Confused o_O')
 
-    # get rid of negatives
+    #> get rid of negatives and nans
     mu[mu<0] = 0
-    # return image dictionary with the image itself and other parameters
+    mu[np.isnan(mu)] = 0
+
+    #> return image dictionary with the image itself and other parameters
     mu_dct['im'] = mu
     mu_dct['affine'] = A
-    mu_dct['faff'] = faff
+    mu_dct['faff'] = faff_mrpet
 
     if store or store_npy:
-
         nimpa.create_dir(opth)
         if faff=='':
             fname = fnm + '-aligned-to_t'\
@@ -756,17 +783,20 @@ def align_mumap(
     if store_npy:
         #> Numpy
         if store_to_npy:
-            fnp = os.path.join(opth, fname + '.npy')
-            np.save(fnp, (mu, A, fnp))
+            fnp = os.path.join(opth, fname + ".npz")
+            np.savez(fnp, mu=mu, A=A)
     if store:
         #> NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
         mu_dct['fim'] = fmu
+
     if del_auxilary:
         os.remove(freg)
+
         if musrc=='ute' and not os.path.isfile(faff):
             os.remove(fute)
+        shutil.rmtree(tmpdir)
 
     return mu_dct
 
@@ -774,12 +804,22 @@ def align_mumap(
 #=================================================================================
 # PSEUDO CT MU-MAP
 #---------------------------------------------------------------------------------
+
+
 def pct_mumap(
-        datain, scanner_params,
-        hst=None, t0=0, t1=0, itr=2,
-        petopt='ac', faff='', fpet='',
-        fcomment='', outpath='',
-        store_npy=False, store=False
+        datain,
+        scanner_params,
+        hst=None,
+        t0=0, t1=0,
+        itr=2,
+        petopt='ac',
+        faff='',
+        fpet='',
+        fcomment='',
+        outpath='',
+        store_npy = False,
+        store=False,
+        verbose=False
     ):
     '''
     GET THE MU-MAP from pCT IMAGE (which is in T1w space)
@@ -787,38 +827,39 @@ def pct_mumap(
     * it f0 and t1 are not given the whole LM dataset will be reconstructed
     * the reconstructed PET can be attenuation and scatter corrected or NOT using petopt
     '''
-    log = logging.getLogger(__name__)
     if hst is None:
         hst = []
-
-    if not os.path.isfile(faff):
-        from niftypet.nipet.prj import mmrrec
-        # histogram the list data if needed
-        if not hst:
-            from niftypet.nipet.lm import mmrhist
-            hst = mmrhist.mmrhist(datain, scanner_params, t0=t0, t1=t1)
 
     # constants, transaxial and axial LUTs are extracted
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
+    if not os.path.isfile(faff):
+        from niftypet.nipet.prj import mmrrec
+
+        # histogram the list data if needed
+        if not hst:
+            from niftypet.nipet.lm import mmrhist
+            hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
+
     # get hardware mu-map
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']):
-        muh, _, _ = np.load(datain['hmumap'], allow_pickle=True)
-        log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
-    elif outpath!='':
-        hmupath = os.path.join( os.path.join(outpath,'mumap-hdw'), 'hmumap.npy')
+    if datain.get("hmumap", "").endswith(".npz") and os.path.isfile(datain["hmumap"]):
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
+        (log.info if verbose else log.debug)(
+            'loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
+    elif outpath:
+        hmupath = os.path.join(outpath, "mumap-hdw", "hmumap.npz")
         if os.path.isfile( hmupath ):
-            muh, _, _ = np.load(hmupath, allow_pickle=True)
+            muh = np.load(hmupath, allow_pickle=True)["hmu"]
             datain['hmumap'] = hmupath
         else:
             raise IOError('Invalid path to the hardware mu-map')
     else:
-        log.error('obtain the hardware mu-map first.')
-        raise IOError('Could not find the hardware mu-map.  Have you run the routine for hardware mu-map?')
+        log.error('The hardware mu-map is required first.')
+        raise IOError('Could not find the hardware mu-map!')
 
-    if not 'MRT1W#' in datain and not 'T1nii' in datain and not 'T1bc' in datain:
+    if not {'MRT1W#', 'T1nii', 'T1bc'}.intersection(datain):
         log.error('no MR T1w images required for co-registration!')
         raise IOError('Missing MR data')
     # ----------------------------------
@@ -869,9 +910,9 @@ def pct_mumap(
 
         fpet = recout.fpet
         mu_dct['fpet'] = fpet
+
         #------------------------------
         # get the affine transformation
-
         ft1w = nimpa.pick_t1w(datain)
         try:
             regdct = nimpa.coreg_spm(
@@ -899,7 +940,7 @@ def pct_mumap(
                 rthrsh=0.05,
                 ffwhm = 15., #millilitres
                 fthrsh=0.05,
-                verbose=log.getEffectiveLevel() < logging.INFO
+                verbose=verbose
             )
 
         faff = regdct['faff']
@@ -913,7 +954,7 @@ def pct_mumap(
     mmraux.create_dir(pctdir)
     fpct = os.path.join(pctdir, 'pCT_r_tmp'+fcomment+'.nii.gz')
 
-    #call the resampling routine to get the pCT in place
+    #> call the resampling routine to get the pCT in place
     if os.path.isfile( Cnt['RESPATH'] ):
         cmd = [Cnt['RESPATH'],
             '-ref', fpet,
@@ -921,18 +962,18 @@ def pct_mumap(
             '-trans', faff,
             '-res', fpct,
             '-pad', '0']
-        if log.getEffectiveLevel() > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.INFO:
             cmd.append('-voff')
-        call(cmd)
+        run(cmd)
     else:
         log.error('path to resampling executable is incorrect!')
-        sys.exit()
+        raise IOError('Incorrect path to executable!')
 
 
     # get the NIfTI of the pCT
     nim = nib.load(fpct)
     A   = nim.get_sform()
-    pct = np.float32( nim.get_data() )
+    pct = nim.get_fdata(dtype=np.float32)
     pct = pct[:,::-1,::-1]
     pct = np.transpose(pct, (2, 1, 0))
     # convert the HU units to mu-values
@@ -954,9 +995,10 @@ def pct_mumap(
         mmraux.create_dir(pctumapdir)
         #> Numpy
         if store_npy:
-            fnp = os.path.join(pctumapdir, 'mumap-pCT.npy')
-            np.save(fnp, (mu, A, fnp))
-        # NIfTI
+            fnp = os.path.join(pctumapdir, "mumap-pCT.npz")
+            np.savez(fnp, mu=mu, A=A)
+
+        #> NIfTI
         fmu = os.path.join(pctumapdir, 'mumap-pCT' +fcomment+ '.nii.gz')
         nimpa.array2nii(mu[::-1,::-1,:], A, fmu)
         mu_dct['fim'] = fmu
@@ -968,9 +1010,10 @@ def pct_mumap(
 #*********************************************************************************
 #GET HARDWARE MU-MAPS with positions and offsets
 #---------------------------------------------------------------------------------
+
+
 def hdr_mu(datain, Cnt):
     '''Get the headers from DICOM data file'''
-    log = logging.getLogger(__name__)
     #get one of the DICOM files of the mu-map
     if 'mumapDCM' in datain:
         files = glob.glob(os.path.join(datain['mumapDCM'],'*.dcm'))
@@ -980,7 +1023,6 @@ def hdr_mu(datain, Cnt):
         dcmf = files[0]
     else:
         raise NameError('no DICOM or DICOM filed <CSA Series Header Info> found!')
-       
     if os.path.isfile( dcmf ):
         dhdr = dcm.read_file( dcmf )
     else:
@@ -989,8 +1031,9 @@ def hdr_mu(datain, Cnt):
     # CSA Series Header Info
     if [0x29,0x1020] in dhdr:
         csahdr = dhdr[0x29,0x1020].value
-        log.debug('got CSA mu-map info.')
+        log.info('got CSA mu-map info from the DICOM header.')
     return csahdr, dhdr
+
 
 def hmu_shape(hdr):
     #regular expression to find the shape
@@ -1009,6 +1052,7 @@ def hmu_shape(hdr):
     w = int(p.findall(hdr[i0:i1])[0])
     return w,v,u
 
+
 def hmu_voxsize(hdr):
     #regular expression to find the shape
     p = re.compile(r'(?<=:=)\s*\d{1,2}[.]\d{1,10}')
@@ -1026,6 +1070,7 @@ def hmu_voxsize(hdr):
     vz = float(p.findall(hdr[i0:i1])[0])
     return np.array([0.1*vz, 0.1*vy, 0.1*vx])
 
+
 def hmu_origin(hdr):
     #regular expression to find the origin
     p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{1,10}')
@@ -1042,6 +1087,7 @@ def hmu_origin(hdr):
     i1 = i0+hdr[i0:].find('\n')
     z = -float(p.findall(hdr[i0:i1])[0])
     return np.array([z, y, x])
+
 
 def hmu_offset(hdr):
     #regular expression to find the origin
@@ -1063,6 +1109,7 @@ def hmu_offset(hdr):
     else:
         return np.array([0.0, 0.0, 0.0])
 
+
 def rd_hmu(fh):
     #--read hdr file--
     f = open(fh, 'r')
@@ -1083,21 +1130,17 @@ def rd_hmu(fh):
 
 
 def get_hmupos(datain, parts, Cnt, outpath=''):
-    log = logging.getLogger(__name__)
-
     # check if registration executable exists
     if not os.path.isfile(Cnt['RESPATH']):
-        log.error('no registration executable found!')
-        sys.exit()
-
+        raise IOError('No registration executable found!')
     #----- get positions from the DICOM list-mode file -----
     ihdr, csainfo = mmraux.hdr_lm(datain, Cnt)
     #table position origin
-    fi = csainfo.find('TablePositionOrigin')
+    fi = csainfo.find(b'TablePositionOrigin')
     tpostr = csainfo[fi:fi+200]
-    tpo = re.sub(r'[^a-zA-Z0-9\-\.]', '', tpostr).split('M')
+    tpo = re.sub(b'[^a-zA-Z0-9.\\-]', b'', tpostr).split(b'M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])]) / 10
-    log.debug('table position (z,y,x) (cm):%r' % tpozyx)
+    log.info('table position (z,y,x) (cm): {}'.format(tpozyx))
     #--------------------------------------------------------
 
     #------- get positions from the DICOM mu-map file -------
@@ -1108,9 +1151,9 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     found_off = False
     for i in idxs:
         gtostr1  = csamu[ i:i+300 ]
-        gtostr2 = re.sub(b'[^a-zA-Z0-9\-\.]', b'', gtostr1)
+        gtostr2 = re.sub(b'[^a-zA-Z0-9.\\-]', b'', gtostr1)
         # gantry table offset, through conversion of string to float
-        gtoxyz = re.findall(b'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
+        gtoxyz = re.findall(b'(?<=M)-*[\\d]{1,4}\\.[\\d]{6,9}', gtostr2)
         gtozyx = np.float32(gtoxyz)[::-1]/10
         if len(gtoxyz)>3:
             log.warning('the gantry table offset got more than 3 entries detected--check needed.')
@@ -1120,69 +1163,11 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
             break
 
     if found_off:
-        log.debug('gantry table offset (z,y,x) (cm): {}'.format(gtozyx))
+        log.info('gantry table offset (z,y,x) (cm): {}'.format(gtozyx))
     else:
         raise ValueError('Could not find the gantry table offset or the offset is unusual.')
-     #--------------------------------------------------------
+    #--------------------------------------------------------
 
-    # #------- get positions from the DICOM mu-map file -------
-    # csamu, dhdr = hdr_mu(datain, Cnt)
-    # tmp = re.search('GantryTableHomeOffset(?!_)', csamu)
-    # gtostr1  = csamu[ tmp.start():tmp.start()+300 ]
-    # gtostr2 = re.sub(r'[^a-zA-Z0-9\-\.]', '', gtostr1)
-    # # gantry table offset, through conversion of string to float
-    # gtoxyz = re.findall(r'(?<=M)-*[\d]{1,4}\.[\d]{6,9}', gtostr2)
-    # gtozyx = np.float32(gtoxyz)[::-1]/10
-    # #--------------------------------------------------------
-
-    # log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
-
-    ## ----
-    ## old II
-    # csamu, dhdr = nipet.img.mmrimg.hdr_mu(datain, Cnt)
-    # tmp = re.search('GantryTableHomeOffset(?!_)', csamu)
-    # gtostr = csamu[ tmp.start():tmp.start()+300 ]
-    # gto = re.sub(r'[^a-zA-Z0-9\-\.]', '', gtostr).split('M')
-    # # get the first three numbers
-    # zyx = np.zeros(3, dtype=np.float32)
-    # c = 0
-    # for i in range(len(gto)):
-    #     if re.search(r'[\d]{1,3}\.[\d]{6}', gto[i])!=None and c<3:
-    #         zyx[c] = np.float32(re.sub(r'[^0-9\-\.]', '', gto[i]))
-    #         c+=1
-    # #gantry table offset
-    # gtozyx = zyx[::-1]/10
-    ## ----
-
-    ## ----
-    ## old I: only worked for syngo MR B20P
-    # fi = csamu.find('GantryTableHomeOffset')
-    # gtostr =csamu[fi:fi+300]
-    # if dhdr[0x0018, 0x1020].value == 'syngo MR B20P':
-    #     gto = re.sub(r'[^a-zA-Z0-9\-\.]', '', gtostr).split('M')
-    #     # get the first three numbers
-    #     zyx = np.zeros(3, dtype=np.float32)
-    #     c = 0
-    #     for i in range(len(gto)):
-    #         if re.search(r'[\d]', gto[i])!=None and c<3:
-    #             zyx[c] = np.float32(re.sub(r'[^0-9\-\.]', '', gto[i]))
-    #             c+=1
-    #     #gantry table offset
-    #     gtozyx = zyx[::-1]/10
-    #     log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
-    # # older scanner version
-    # elif dhdr[0x0018, 0x1020].value == 'syngo MR B18P':
-    #     zyx = np.zeros(3, dtype=np.float32)
-    #     for k in range(3):
-    #         tmp = re.search(r'\{\s*[\-0-9.]*\s*\}', gtostr)
-    #         i0 = tmp.start()
-    #         i1 = tmp.end()
-    #         if gtostr[i0+1:i1-1]!=' ':  zyx[k] = np.float32(gtostr[i0+1:i1-1])
-    #         gtostr = gtostr[i1:]
-    #     #gantry table offset
-    #     gtozyx = zyx[::-1]/10
-    #     log.debug('gantry table offset (z,y,x) (cm):%r' % gtozyx)
-    ## -----
 
     # create the folder for hardware mu-maps
     if outpath=='':
@@ -1205,7 +1190,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     fi = ihdr[m.start():m.end()].find('=')
     vbedpos = 0.1*float(ihdr[m.start()+fi+1:m.end()])
 
-    log.debug('creating reference nii image for resampling')
+    log.info('creating reference NIfTI image for resampling')
     B = np.diag(np.array([-10*Cnt['SO_VXX'], 10*Cnt['SO_VXY'], 10*Cnt['SO_VXZ'], 1]))
     B[0,3] = 10*(.5*Cnt['SO_IMX'])*Cnt['SO_VXX']
     B[1,3] = 10*( -.5*Cnt['SO_IMY']+1)*Cnt['SO_VXY']
@@ -1248,7 +1233,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
             'niipath' :   os.path.join(dirhmu, '_'+Cnt['HMULIST'][i-1].split('.')[0]+'.nii.gz')
         }
         #save to NIfTI
-        log.debug('creating mu-map for:%r' % Cnt['HMULIST'][i-1])
+        log.info('creating mu-map for: {}'.format(Cnt['HMULIST'][i-1]))
         A = np.diag(np.append(10*vs[::-1], 1))
         A[0,0] *= -1
         A[0,3] =  10*(-vpos[2])
@@ -1264,14 +1249,13 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
                 '-flo', hmupos[i]['niipath'],
                 '-res', fout,
                 '-pad', '0']
-        if log.getEffectiveLevel() > logging.DEBUG:
+        if log.getEffectiveLevel() > logging.INFO:
             cmd.append('-voff')
-        call(cmd)
+        run(cmd)
 
     return hmupos
 
 
-#-------------------------------------------------------------------------------------
 def hdw_mumap(
         datain,
         hparts,
@@ -1280,8 +1264,6 @@ def hdw_mumap(
         use_stored=False,
         del_interm=True):
     '''Get hardware mu-map components, including bed, coils etc.'''
-    log = logging.getLogger(__name__)
-
     # two ways of passing Cnt are here decoded
     if 'Cnt' in params:
         Cnt = params['Cnt']
@@ -1293,37 +1275,39 @@ def hdw_mumap(
     else:
         fmudir = os.path.join(datain['corepath'], 'mumap-hdw')
 
-    # if requested to use the stored hardware mu_map get it from the path in datain
-    if 'hmumap' in datain and os.path.isfile(datain['hmumap']) and use_stored:
+    nimpa.create_dir(fmudir)
 
+    # if requested to use the stored hardware mu_map get it from the path in datain
+    if use_stored and "hmumap" in datain and os.path.isfile(datain["hmumap"]):
         if datain['hmumap'].endswith(('.nii', '.nii.gz')):
             dct = nimpa.getnii(datain['hmumap'], output='all')
             hmu = dct['im']
             A = dct['affine']
             fmu = datain['hmumap']
-        elif datain['hmumap'].endswith(('.npy')):
-            hmu, A, fmu = np.load(datain['hmumap'], allow_pickle=True)
-            log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
+        elif datain["hmumap"].endswith(".npz"):
+            arr = np.load(datain["hmumap"], allow_pickle=True)
+            hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
+            log.info('loaded hardware mu-map from file: {}'.format(datain['hmumap']))
             fnp = datain['hmumap']
-
-    elif outpath!='' and os.path.isfile(os.path.join(fmudir, 'hmumap.npy')):
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        hmu, A, fmu = np.load(fnp, allow_pickle=True)
+    elif outpath and os.path.isfile(os.path.join(fmudir, "hmumap.npz")):
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        arr = np.load(fnp, allow_pickle=True)
+        hmu, A, fmu = arr["hmu"], arr["A"], arr["fmu"]
         datain['hmumap'] = fnp
     # otherwise generate it from the parts through resampling the high resolution CT images
     else:
         hmupos = get_hmupos(datain, hparts, Cnt, outpath=outpath)
         # just to get the dims, get the ref image
         nimo = nib.load(hmupos[0]['niipath'])
-        A = nimo.get_sform()
-        imo = np.float32( nimo.get_data() )
+        A = nimo.affine
+        imo = nimo.get_fdata(dtype=np.float32)
         imo[:] = 0
 
         for i in hparts:
             fin  = os.path.join(os.path.dirname (hmupos[0]['niipath']),
                                 'r'+os.path.basename(hmupos[i]['niipath']).split('.')[0]+'.nii.gz' )
             nim = nib.load(fin)
-            mu = nim.get_data()
+            mu = nim.get_fdata(dtype=np.float32)
             mu[mu<0] = 0
 
             imo += mu
@@ -1332,13 +1316,14 @@ def hdw_mumap(
         hdr['cal_max'] = np.max(imo)
         hdr['cal_min'] = np.min(imo)
         fmu  = os.path.join(os.path.dirname (hmupos[0]['niipath']), 'hardware_umap.nii.gz' )
-        nib.save(nimo, fmu)
+        hmu_nii = nib.Nifti1Image(imo, A)
+        nib.save(hmu_nii, fmu)
 
         hmu = np.transpose(imo[:,::-1,::-1], (2, 1, 0))
 
         # save the objects to numpy arrays
-        fnp = os.path.join(fmudir, 'hmumap.npy')
-        np.save(fnp, (hmu, A, fmu))
+        fnp = os.path.join(fmudir, "hmumap.npz")
+        np.savez(fnp, hmu=hmu, A=A, fmu=fmu)
         #update the datain dictionary (assuming it is mutable)
         datain['hmumap'] = fnp
 
@@ -1362,24 +1347,21 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
     '''
     get the mu-maps for hardware and object and trim it axially for reduced rings case
     '''
-    log = logging.getLogger(__name__)
-
-    from niftypet.nipet.lm  import mmrhist
+    from niftypet.nipet.lm import mmrhist
     from niftypet.nipet.prj import mmrrec
-
     fcomment = '(R)'
 
     # get hardware mu-map
     if os.path.isfile(datain['hmumap']) and use_stored:
-        muh, _ = np.load(datain['hmumap'], allow_pickle=True)
-        log.debug('loaded hardware mu-map from file:' + datain['hmumap'])
+        muh = np.load(datain["hmumap"], allow_pickle=True)["hmu"]
+        log.info('loaded hardware mu-map from file:\n{}'.format(datain['hmumap']))
     else:
         hmudic = hdw_mumap(datain, [1,2,4], Cnt)
         muh = hmudic['im']
 
     # get pCT mu-map if stored in numpy file and then exit, otherwise do all the processing
     if os.path.isfile(datain['mumapCT']) and use_stored:
-        mup, _ = np.load(datain['mumapCT'], allow_pickle=True)
+        mup = np.load(datain["mumapCT"], allow_pickle=True)["mu"]
         muh = muh[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         mup = mup[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         return [muh, mup]
@@ -1413,18 +1395,17 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         elif os.path.isdir(datain['MRT1W']):
             # create file name for the converted NIfTI image
             fnii = 'converted'
-            call( [ Cnt['DCM2NIIX'], '-f', fnii, datain['T1nii'] ] )
+            run( [ Cnt['DCM2NIIX'], '-f', fnii, datain['T1nii'] ] )
             ft1nii = glob.glob( os.path.join(datain['T1nii'], '*converted*.nii*') )
             ft1w = ft1nii[0]
         else:
-            log.error('disaster: no T1w image!')
-            sys.exit()
+            raise IOError('Disaster: no T1w image!')
 
         #output for the T1w in register with PET
         ft1out = os.path.join(os.path.dirname(ft1w), 'T1w_r'+'.nii.gz')
         #text file fo rthe affine transform T1w->PET
         faff   = os.path.join(os.path.dirname(ft1w), fcomment+'mr2pet_affine'+'.txt')  #time.strftime('%d%b%y_%H.%M',time.gmtime())
-        #call the registration routine
+        #> call the registration routine
         if os.path.isfile( Cnt['REGPATH'] ):
             cmd = [Cnt['REGPATH'],
                  '-ref', recute.fpet,
@@ -1432,12 +1413,11 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
                  '-rigOnly', '-speeeeed',
                  '-aff', faff,
                  '-res', ft1out]
-            if log.getEffectiveLevel() > logging.DEBUG:
+            if log.getEffectiveLevel() > logging.INFO:
                 cmd.append('-voff')
-            call(cmd)
+            run(cmd)
         else:
-            log.error('path to registration executable is incorrect!')
-            sys.exit()
+            raise IOError('Path to registration executable is incorrect!')
 
         #get the pCT mu-map with the above faff
         pmudic = pct_mumap(datain, txLUT, axLUT, Cnt, faff=faff, fpet=recute.fpet, fcomment=fcomment)
@@ -1450,5 +1430,3 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         muh = muh[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         muo = muo[2*Cnt['RNG_STRT'] : 2*Cnt['RNG_END'], :, :]
         return [muh, muo]
-
-#------------------------------------------------------------------------

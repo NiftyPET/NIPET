@@ -77,10 +77,10 @@ void norm_from_components(float *sino,    //output norm sino
 
 	//=========== CUDA =====================
 	// create cuda norm sino for true and scatter data
-	
+
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 
 	int snno = -1;
@@ -198,7 +198,7 @@ void norm_from_components(float *sino,    //output norm sino
 	//CUDA grid size (in blocks)
 	int blcks = ceil(AW / (float)NTHREADS);
 
-	if (Cnt.VERBOSE == 1) printf("i> calculating normalisation sino from norm components...");
+	if (Cnt.LOG <= LOGINFO) printf("i> calculating normalisation sino from norm components...");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
@@ -214,11 +214,8 @@ void norm_from_components(float *sino,    //output norm sino
 		d_sn1sn11, d_sn1rno, d_sn1sn11no,
 		d_aw2ali,
 		Cnt);
+	HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
-
-	cudaError_t err = cudaGetLastError();
-	if (err != cudaSuccess)
-		printf("e> kernel ERROR >> normalisation for the true component: %s\n", cudaGetErrorString(err));
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);
@@ -226,7 +223,7 @@ void norm_from_components(float *sino,    //output norm sino
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf(" DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001*elapsedTime);
 	//=====================================
 
 

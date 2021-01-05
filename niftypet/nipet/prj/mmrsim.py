@@ -1,30 +1,29 @@
 """Simulations for image reconstruction with recommended reduced axial field of view"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018, University College London"
-
-import numpy as np
 import logging
 
-from niftypet import nimpa
-# from niftypet.nipet.prj import mmrprj
-
-import mmrprj
-import mmrrec
-import petprj
-
-from niftypet.nipet import mmraux
-from niftypet.nipet.img import mmrimg
-
+import numpy as np
+from scipy import ndimage as ndi
 from tqdm.auto import trange
+
+from niftypet import nimpa
+
+from .. import mmraux
+from ..img import mmrimg
+from . import mmrprj, mmrrec, petprj
+
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+log = logging.getLogger(__name__)
 
 
 def simulate_sino(
-        petim,
-        ctim,
-        scanner_params,
-        simulate_3d = False,
-        slice_idx=-1,
-        mu_input = False):
+    petim,
+    ctim,
+    scanner_params,
+    simulate_3d = False,
+    slice_idx=-1,
+    mu_input = False,
+):
     '''
     Simulate the measured sinogram with photon attenuation.
 
@@ -38,8 +37,6 @@ def simulate_sino(
     mu_input  : if True, the values are representative of a mu-map in [1/cm],
         otherwise it represents the CT in [HU].
     '''
-    log = logging.getLogger(__name__)
-
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
 
@@ -73,7 +70,7 @@ def simulate_sino(
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
-        if not 'rSZ_IMZ' in Cnt:
+        if 'rSZ_IMZ' not in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
 
     # import pdb; pdb.set_trace()
@@ -119,18 +116,19 @@ def simulate_sino(
 
 
 def simulate_recon(
-        measured_sino,
-        ctim,
-        scanner_params,
-        simulate_3d = False,
-        nitr = 60,
-        slice_idx = -1,
-        randoms=None,
-        scatter=None,
-        mu_input = False,
-        msk_radius = 29.
-    ):
-
+    measured_sino,
+    ctim,
+    scanner_params,
+    simulate_3d = False,
+    nitr=60,
+    fwhm_rm=0.,
+    slice_idx = -1,
+    randoms=None,
+    scatter=None,
+    mu_input = False,
+    msk_radius = 29.,
+    psf=None,
+):
     '''
     Reconstruct PET image from simulated input data
     using the EM-ML (2D) or OSEM (3D) algorithm.
@@ -145,12 +143,11 @@ def simulate_recon(
         axial and transaxial look up tables (LUTs)
     randoms  : randoms and scatter events (optional)
     '''
-
     #> decompose the scanner constants and LUTs for easier access
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
-
+    psfkernel = mmrrec.psf_config(psf, Cnt)
 
     if simulate_3d:
         if ctim.ndim!=3 \
@@ -165,7 +162,7 @@ def simulate_recon(
                 raise ValueError('The input image shape for x and y does not match the scanner image size.')
             # pick the right slice index (slice_idx) if not given or mistaken
             if slice_idx<0:
-                print 'w> the axial index <slice_idx> is chosen to be in the middle of axial FOV.'
+                log.warning('the axial index <slice_idx> is chosen to be in the middle of axial FOV.')
                 slice_idx = ctim.shape[0]/2
             if slice_idx>=ctim.shape[0]:
                 raise ValueError('The axial index for 2D slice selection is outside the image.')
@@ -176,7 +173,7 @@ def simulate_recon(
             ctim.shape  = (1,) + ctim.shape
             slice_idx = 0
 
-        if not 'rSZ_IMZ' in Cnt:
+        if 'rSZ_IMZ' not in Cnt:
             raise ValueError('Missing reduced axial FOV parameters.')
 
     #--------------------
@@ -216,14 +213,15 @@ def simulate_recon(
         rsng = mmraux.remgaps(randoms, txLUT, Cnt)
     else:
         rsng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
-    
+
     if isinstance(scatter, np.ndarray) and measured_sino.shape==scatter.shape:
         ssng = mmraux.remgaps(scatter, txLUT, Cnt)
     else:
         ssng = 1e-5*np.ones((Cnt['Naw'], nsinos), dtype=np.float32)
-    
 
-    log = logging.getLogger(__name__)
+    # resolution modelling
+    Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, voxsize=Cnt['SZ_VOXZ']*10) if fwhm_rm else 0
+
     if simulate_3d:
         log.debug('------ OSEM (%d) -------' % nitr)
 
@@ -266,20 +264,26 @@ def simulate_recon(
               leave=log.getEffectiveLevel() < logging.INFO):
             petprj.osem(
                 eimg,
-                msk,
                 psng,
                 rsng,
                 ssng,
                 nrmsino,
                 attsino,
+                sinoTIdx,
                 sim,
+                msk,
+                psfkernel,
                 txLUT,
                 axLUT,
-                sinoTIdx,
                 Cnt)
         eim = mmrimg.convert2e7(eimg, Cnt)
 
     else:
+        def psf(x, output=None):
+            if Cnt['SIGMA_RM']:
+                x = ndi.gaussian_filter(x, sigma=Cnt['SIGMA_RM'], mode='constant', output=None)
+            return x
+
         #> estimated image, initialised to ones
         eim = np.ones(rmu.shape, dtype=np.float32)
 
@@ -287,7 +291,10 @@ def simulate_recon(
 
         #> sensitivity image for the EM-ML reconstruction
         sim = mmrprj.back_prj(attsino, scanner_params)
+        sim_inv = 1 / psf(sim)
+        sim_inv[~msk] = 0
 
+        rndsct = rsng + ssng
         for i in trange(nitr, desc="MLEM",
               disable=log.getEffectiveLevel() > logging.INFO,
               leave=log.getEffectiveLevel() < logging.INFO):
@@ -295,17 +302,15 @@ def simulate_recon(
             #> then forward project the estimated image
             #> after which divide the measured sinogram by the estimated sinogram (forward projected)
             crrsino = mmraux.remgaps(measured_sino, txLUT, Cnt) / \
-                        (mmrprj.frwd_prj(eim, scanner_params, dev_out=True) + rndsct)
+                        (mmrprj.frwd_prj(psf(eim), scanner_params, dev_out=True) + rndsct)
 
             #> back project the correction factors sinogram
             bim = mmrprj.back_prj(crrsino, scanner_params)
+            bim = psf(bim, output=bim)
 
             #> divide the back-projected image by the sensitivity image
-            bim[msk] /= sim[msk]
-            bim[~msk] = 0
-
             #> update the estimated image and remove NaNs
-            eim *= msk*bim
+            eim *= bim * sim_inv
             eim[np.isnan(eim)] = 0
 
     return eim

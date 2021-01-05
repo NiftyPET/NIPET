@@ -10,6 +10,10 @@
 
 #define MIN( a, b ) ( ((a) < (b)) ? (a) : (b) )
 
+#define LOGDEBUG 10
+#define LOGINFO 20
+#define LOGWARNING 30
+
 
 #define RD2MEM 0
 
@@ -59,7 +63,7 @@
 #define NLI2R 2074
 
 //coincidence time window in pico-seconds
-#define CWND = 5859.38 
+#define CWND = 5859.38
 
 //====== SIGNA =======
 #define NCRS_S 448
@@ -87,39 +91,12 @@
 #define NCRS_S 448
 
 
-typedef struct{
-  char *fname;
-  size_t *atag;
-  size_t *btag;
-  int *ele4chnk;
-  int *ele4thrd;
-  size_t ele;
-  int nchnk;
-  int nitag;
-  int toff;
-  int last_ttag;
-  int tstart;
-  int tstop;
-  int tmidd;
-  int flgs; //write out sinos in span-11
-  int span; //choose span (1, 11 or SSRB)
-  int nfrm; //output dynamic sinos in span-11
-  int flgf; //do fan-sums calculations and output by randoms estimation
-  int nfrm2;
-  short *t2dfrm;
-  int frmoff; //frame offset to account for the splitting of the dynamic data into two
-
-  int bpe; //number of bytes per event (used for GE Signa)
-  int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
-} LMprop; //properties of LM data file and its breaking up into chunks of data.
-
-
 #define PI 3.1415926535f
 
 #define L21  0.001f   // threshold for special case when finding Siddon intersections
 #define TA1  0.7885139f   // angle threshold 1 for Siddon calculations ~ PI/4
 #define TA2 -0.7822831f   // angle threshold 2 for Siddon calculations ~-PI/4
-#define N_TV 907    // max number of voxels intersections with a ray (t)
+#define N_TV 1807 //907    // max number of voxels intersections with a ray (t)
 #define N_TT 10     // number of constants pre-calculated and saved for proper axial calculations
 #define UV_SHFT  9  // shift when representing 2 voxel indx in one float variable
 
@@ -131,6 +108,7 @@ typedef struct{
 #define SZ_IMX 320
 #define SZ_IMY 320
 #define SZ_IMZ 127
+#define RSZ_PSF_KRNL 8
 #define TFOV2 890.0f
 #define SZ_VOXY 0.208626f
 #define SZ_VOXZ 0.203125f

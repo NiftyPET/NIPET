@@ -1,55 +1,27 @@
-cmake_minimum_required(VERSION 3.2)
+project(nifty_scatter)
 
-# set project name as the module name of the .dll/.pyd 
-project(petsct) 
-# set name of folder, because it isnt set to the project name :(
-set(CURR_FOLDER_NAME "sct")
+file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
+include_directories(src)
+include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
-# get the site packages location, then strip the trailing whitespace
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; from distutils.sysconfig import get_python_lib; print(get_python_lib())"
-  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+add_library(${PROJECT_NAME} MODULE ${SRC})
+add_library(NiftyPET::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${${CMAKE_PROJECT_NAME}_INCLUDE_DIRS}>"
+  "$<INSTALL_INTERFACE:niftypet/${CMAKE_PROJECT_NAME}/include>")
+target_link_libraries(${PROJECT_NAME} mmr_auxe ${Python3_LIBRARIES} ${CUDA_LIBRARIES})
 
-#get source files
-file(GLOB_RECURSE SRC "src/*.cu")
-file(GLOB_RECURSE HDR "src/*.h")
-
-list(APPEND SRC ${HDR})
-
-include_directories(include ${CMAKE_BINARY_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)
-include_directories(${PYTHON_INCLUDE_DIRS})
-#include_directories(${PYTHON_SITE_PACKAGES}/numpy/core/include/)
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; import numpy; print(numpy.get_include())"
-  OUTPUT_VARIABLE PYTHON_NUMPY_INCLUDE
-  OUTPUT_STRIP_TRAILING_WHITESPACE)
-include_directories(${PYTHON_NUMPY_INCLUDE})
-
-cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
-
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES})
-
-if(WIN32)
-    set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".pyd")
-    ADD_CUSTOM_COMMAND(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${PROJECT_BINARY_DIR}/Release/${PROJECT_NAME}.pyd
-        ${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.pyd
-    )
+if(SKBUILD)
+python_extension_module(${PROJECT_NAME})
 endif()
-
-if(UNIX)
-    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
-    ADD_CUSTOM_COMMAND(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.so
-        ${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.so
-    )
-endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  VERSION ${CMAKE_PROJECT_VERSION}
+  SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
+  INTERFACE_${PROJECT_NAME}_MAJOR_VERSION ${CMAKE_PROJECT_VERSION_MAJOR})
+set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPATIBLE_INTERFACE_STRING ${PROJECT_NAME}_MAJOR_VERSION)
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}Targets
+  INCLUDES DESTINATION niftypet/${CMAKE_PROJECT_NAME}/include
+  LIBRARY DESTINATION niftypet/${CMAKE_PROJECT_NAME}/sct)
+install(EXPORT ${PROJECT_NAME}Targets FILE NiftyPET${PROJECT_NAME}Targets.cmake
+  NAMESPACE NiftyPET:: DESTINATION niftypet/${CMAKE_PROJECT_NAME}/cmake)

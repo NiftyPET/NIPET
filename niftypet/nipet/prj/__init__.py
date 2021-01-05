@@ -1,4 +1,2 @@
 # init the package folder
-import mmrprj
-import mmrsim
-import mmrrec
+from . import mmrprj, mmrrec, mmrsim

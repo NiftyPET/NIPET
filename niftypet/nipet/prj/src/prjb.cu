@@ -42,7 +42,7 @@ __global__ void bprj_drct(const float * sino,
 	const int * subs,
 	const short snno)
 {
-	int ixt = subs[blockIdx.x]; // transaxial indx 
+	int ixt = subs[blockIdx.x]; // transaxial indx
 	int ixz = threadIdx.x; // axial (z)
 
 	float bin = sino[c_li2sn[ixz].x + blockIdx.x*snno];
@@ -210,17 +210,17 @@ void gpu_bprj(float *bimg,
 	int *subs,
 	int Nprj,
 	int Naw,
-	int N0crs, int N1crs,
+	int N0crs,
 	Cnst Cnt)
 {
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- TRANSAXIAL COMPONENT
-	float *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs*N1crs * sizeof(float)));
-	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs*N1crs * sizeof(float), cudaMemcpyHostToDevice));
+	float4 *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
 
 	short2 *d_s2c;  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
 	HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
@@ -248,7 +248,7 @@ void gpu_bprj(float *bimg,
 		// number of "positive" michelogram elements used for projection (can be smaller than the maximum)
 		nil2r_c = (nrng_c + 1)*nrng_c / 2;
 		snno = nrng_c*nrng_c;
-		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction) 
+		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
 		if (nrng_c == NRINGS) {
 			snno -= 12;
 			nil2r_c -= 6;
@@ -263,9 +263,9 @@ void gpu_bprj(float *bimg,
 	vz0 = 2 * Cnt.RNG_STRT;
 	vz1 = 2 * (Cnt.RNG_END - 1);
 	nvz = 2 * nrng_c - 1;
-	if (Cnt.VERBOSE == 1) {
-		printf("ic> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
-		printf("    corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
+	if (Cnt.LOG <= LOGDEBUG) {
+		printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
+		printf("   corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
 	}
 	//-----------------------------------------------------------------
 
@@ -286,17 +286,16 @@ void gpu_bprj(float *bimg,
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	if (Cnt.VERBOSE == 1)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("i> calculating image through back projection... ");
 
 	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv, N1crs);
+	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
 	//-----------------------------------------------------------------------
 
 	//============================================================================
 	bprj_drct << <Nprj, nrng_c >> >(d_sino, d_im, d_tt, d_tv, d_subs, snno);
-	cudaError_t error = cudaGetLastError();
-	if(error != cudaSuccess){printf("CUDA kernel direct back-projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	int zoff = nrng_c;
@@ -316,18 +315,14 @@ void gpu_bprj(float *bimg,
 
 	if (Cnt.SPN == 1 && Noblq <= 1024){
 		bprj_oblq <<< Nprj, Noblq >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (SPAN1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 	}
 	else {
 		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p1): %s\n", cudaGetErrorString(error)); exit(-1); }
+		HANDLE_ERROR(cudaGetLastError());
 		zoff += NSINOS / 4;
 		bprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-		error = cudaGetLastError();
-		if (error != cudaSuccess) { printf("CUDA kernel oblique back-projector error (p2): %s\n", cudaGetErrorString(error)); exit(-1); }
-
+		HANDLE_ERROR(cudaGetLastError());
 	}
 	//============================================================================
 
@@ -337,7 +332,7 @@ void gpu_bprj(float *bimg,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1)
+	if (Cnt.LOG <= LOGDEBUG)
 		printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
@@ -357,12 +352,13 @@ void gpu_bprj(float *bimg,
 		dim3 THRD(nvz, nar, 1);
 		dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
 		imReduce << <BLCK, THRD >> >(d_imr, d_im, vz0, nvz);
+		HANDLE_ERROR(cudaGetLastError());
 		//copy to host memory
 		HANDLE_ERROR(cudaMemcpy(bimg, d_imr, SZ_IMX*SZ_IMY*nvz * sizeof(float), cudaMemcpyDeviceToHost));
 		cudaFree(d_im);
 		cudaFree(d_imr);
-		if (Cnt.VERBOSE == 1)
-			printf("ic> redued the axial (z) image size to %d\n", nvz);
+		if (Cnt.LOG <= LOGDEBUG)
+			printf("i> reduced the axial (z) image size to %d\n", nvz);
 	}
 	else {
 		//copy to host memory
@@ -405,7 +401,7 @@ void rec_bprj(float *d_bimg,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
 	//get the axial LUTs in constant memory
 	cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
@@ -421,26 +417,23 @@ void rec_bprj(float *d_bimg,
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
-	if (Cnt.VERBOSE == 1) printf("i> subset    back projection (Nprj=%d)... ", Nprj);
+	if (Cnt.LOG <= LOGDEBUG) printf("i> subset back projection (Nprj=%d)... ", Nprj);
 
 	//============================================================================
 	bprj_drct << <Nprj, NRINGS >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
-	// cudaError_t error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel direct projector error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	int zoff = NRINGS;
 	//============================================================================
 	bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (+) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	zoff += NSINOS / 4;
 	//============================================================================
 	bprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-	// error = cudaGetLastError();
-	// if(error != cudaSuccess){printf("CUDA kernel oblique projector (-) error: %s\n", cudaGetErrorString(error)); exit(-1);}
+	// HANDLE_ERROR(cudaGetLastError());
 	//============================================================================
 
 	cudaEventRecord(stop, 0);
@@ -449,7 +442,7 @@ void rec_bprj(float *d_bimg,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

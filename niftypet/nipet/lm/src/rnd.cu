@@ -22,7 +22,7 @@ __constant__ short c_li2span11[nrSN1];
 __inline__ __device__
 float warpsum(float rval) {
 	for (int off = 16; off>0; off /= 2)
-		rval += __shfl_down_sync(0xFFFFFFFF, rval, off);
+		rval += __shfl_down_sync(0xffffffff, rval, off);//__shfl_down(rval, off);
 	return rval;
 }
 
@@ -197,7 +197,7 @@ void gpu_randoms(float *rsn,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	//--- the sino for estimated random events
 	float * d_rsino;
@@ -326,25 +326,25 @@ void gpu_randoms(float *rsn,
 
 
 	//=============================================<<<<<<<<
-	if (Cnt.VERBOSE == 1) printf("\ni> estimating random events (variance reduction)... ");
+	if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events (variance reduction)... ");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 
 	// //===== Number of Crystal in Coincidence ======
 	dim3 dBpG(Cnt.NRNG, Cnt.NCRSR, 1);
 	dim3 dTpB(Cnt.NRNG, 16, 1);//16 is chosen as with Cnt.NRNG it makes max for no of threads ie 1024
 	rnd << <dBpG, dTpB >> >(d_ncrs, d_ones);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	// //=============================================
 
 
 	//========= INIT ==============================
 	rinit << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_fsum, d_ncrs);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 
 	//========= ITERATE ===========================
@@ -353,13 +353,13 @@ void gpu_randoms(float *rsn,
 		rdiv << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_res2, d_fsum, d_res1);
 		radd << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_res2, 0.5);
 	}
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 	HANDLE_ERROR(cudaDeviceSynchronize());
 
 	//=== form randoms sino ===
 	sgl2sino << <(NSINOS*AW + 1024) / 1024, 1024 >> >(d_rsino, d_resp, d_s2cr, d_aw2sn, d_sn2rng, Cnt.SPN);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//===
 
 	HANDLE_ERROR(cudaDeviceSynchronize());
@@ -370,7 +370,7 @@ void gpu_randoms(float *rsn,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf(" DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001*elapsedTime);
 	//=============================================<<<<<<<<
 
 
@@ -513,8 +513,8 @@ void p_randoms(float *rsn,
 
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
-	
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
+
 	//--- the sino for estimated random events
 	float * d_rsino;
 	unsigned long long tot_bins = 0;
@@ -654,25 +654,25 @@ void p_randoms(float *rsn,
 
 
 	//=============================================<<<<<<<<
-	if (Cnt.VERBOSE == 1) printf("\ni> estimating random events from prompts... ");
+	if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events from prompts... ");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 
 	// //===== Number of Crystal in Coincidence ======
 	dim3 dBpG(Cnt.NRNG, Cnt.NCRSR, 1);
 	dim3 dTpB(Cnt.NRNG, 16, 1);//16 is chosen as with Cnt.NRNG it makes max for no of threads ie 1024
 	p_rnd << <dBpG, dTpB >> >(d_ncrs, d_ones, d_pmsksn, d_Msn1, d_cr2s);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	// //=============================================
 
 
 	//========= INIT ==============================
 	rinit << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_fsum, d_ncrs);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 
 	//========= ITERATE ===========================
@@ -681,13 +681,13 @@ void p_randoms(float *rsn,
 		rdiv << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_res2, d_fsum, d_res1);
 		radd << <Cnt.NRNG*Cnt.NCRSR / 1024, 1024 >> >(d_resp, d_res2, 0.5);
 	}
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//=============================================
 	HANDLE_ERROR(cudaDeviceSynchronize());
 
 	//=== form randoms sino ===
 	sgl2sino << <(NSINOS*AW + 1024) / 1024, 1024 >> >(d_rsino, d_resp, d_s2cr, d_aw2sn, d_sn2rng, Cnt.SPN);
-	HANDLE_ERROR(cudaPeekAtLastError());
+	HANDLE_ERROR(cudaGetLastError());
 	//===
 
 	HANDLE_ERROR(cudaDeviceSynchronize());
@@ -698,7 +698,7 @@ void p_randoms(float *rsn,
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf(" DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001*elapsedTime);
 	//=============================================<<<<<<<<
 
 

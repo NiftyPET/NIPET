@@ -8,6 +8,20 @@
 #ifndef RECON_H
 #define RECON_H
 
+/* separable convolution */
+#define KERNEL_LENGTH (2*RSZ_PSF_KRNL + 1)
+
+// Column convolution filter
+#define   COLUMNS_BLOCKDIM_X 8
+#define   COLUMNS_BLOCKDIM_Y 8
+#define COLUMNS_RESULT_STEPS 8
+#define   COLUMNS_HALO_STEPS 1
+
+// Row convolution filter
+#define   ROWS_BLOCKDIM_X 8
+#define   ROWS_BLOCKDIM_Y 8
+#define ROWS_RESULT_STEPS 8
+#define   ROWS_HALO_STEPS 1
 
 void osem(float *imgout,
 	bool  *rcnmsk,
@@ -19,7 +33,8 @@ void osem(float *imgout,
 
 	int   *subs,
 
-	float * sensimg,
+	float *sensimg,
+	float *krnl,
 
 	float *li2rng,
 	short *li2sn,
@@ -28,9 +43,7 @@ void osem(float *imgout,
 	float *crs,
 
 	int Nsub, int Nprj,
-	int N0crs, int N1crs,
+	int N0crs,
 	Cnst Cnt);
-
-void getMemUse(Cnst Cnt);
 
 #endif

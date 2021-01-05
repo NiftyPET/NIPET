@@ -1,79 +1,70 @@
 """mmraux.py: auxilary functions for PET list-mode data processing."""
-
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-
-#-------------------------------------------------------------------------------
-import numpy as np
-import sys
-import os
-import pydicom as dcm
 import re
-from pkg_resources import resource_filename
-import logging
+import sys
+from os import fspath, path
+from pathlib import Path
 
-#auxiliary functions through Python extensions in CUDA
-import mmr_auxe
+import numpy as np
+import pydicom as dcm
+from pkg_resources import resource_filename
+
+from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
+
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
 
 
 #=================================================================================================
 # GET NORM COMPONENTS
 #=================================================================================================
+
+
 def get_components(datain, Cnt):
     "Return the normalisation components from provided file."
-    log = logging.getLogger(__name__)
 
-    if 'nrm_ima' in datain and os.path.isfile(datain['nrm_ima']):
+    if path.isfile(datain.get("nrm_ima", "")) and path.isfile(datain['nrm_bf']):
         fnrm_dat = datain['nrm_bf']
         fnrm_hdr = datain['nrm_ima']
-
-    elif 'nrm_dcm' in datain and os.path.isfile(datain['nrm_dcm']) and os.path.isfile(datain['nrm_bf']):
+    elif path.isfile(datain.get("nrm_dcm", "")) and path.isfile(datain['nrm_bf']):
         fnrm_dat = datain['nrm_bf']
         fnrm_hdr = datain['nrm_dcm']
     else:
-        log.error('norm file does not exist or it is incomplete.')
-        raise NameError('NoNorm')
+        raise NameError('norm file does not exist or it is incomplete')
 
-    f = open(fnrm_dat, 'rb')
-    #geometric effects
-    geo       = np.fromfile(f, np.float32, Cnt['NSBINS']*Cnt['NSEG0'])
-    geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
-    #crystal interference
-    crs_intf  = np.fromfile(f, np.float32, 9*Cnt['NSBINS'])
-    crs_intf.shape = (Cnt['NSBINS'],9)
-    #crystal efficiencies
-    crs_eff   = np.fromfile(f, np.float32, Cnt['NCRS']*Cnt['NRNG'])
-    crs_eff.shape  = (Cnt['NRNG'], Cnt['NCRS'])
-    #axial effects
-    ax_eff1   = np.fromfile(f, np.float32, Cnt['NSN11'])
-    #paralyzing ring DT parameters
-    rng_dtp   = np.fromfile(f, np.float32, Cnt['NRNG'])
-    #non-paralyzing ring DT parameters
-    rng_dtnp  = np.fromfile(f, np.float32, Cnt['NRNG'])
-    #TX crystal DT parameter
-    crs_dt    = np.fromfile(f, np.float32, 9)
-    #additional axial effects
-    ax_eff2   = np.fromfile(f, np.float32, Cnt['NSN11'])
-    f.close()
+    with open(fnrm_dat, 'rb') as f:
+        #geometric effects
+        geo       = np.fromfile(f, np.float32, Cnt['NSBINS']*Cnt['NSEG0'])
+        geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
+        #crystal interference
+        crs_intf  = np.fromfile(f, np.float32, 9*Cnt['NSBINS'])
+        crs_intf.shape = (Cnt['NSBINS'],9)
+        #crystal efficiencies
+        crs_eff   = np.fromfile(f, np.float32, Cnt['NCRS']*Cnt['NRNG'])
+        crs_eff.shape  = (Cnt['NRNG'], Cnt['NCRS'])
+        #axial effects
+        ax_eff1   = np.fromfile(f, np.float32, Cnt['NSN11'])
+        #paralyzing ring DT parameters
+        rng_dtp   = np.fromfile(f, np.float32, Cnt['NRNG'])
+        #non-paralyzing ring DT parameters
+        rng_dtnp  = np.fromfile(f, np.float32, Cnt['NRNG'])
+        #TX crystal DT parameter
+        crs_dt    = np.fromfile(f, np.float32, 9)
+        #additional axial effects
+        ax_eff2   = np.fromfile(f, np.float32, Cnt['NSN11'])
 
     #-------------------------------------------------
     #the files below are found based on a 24hr scan of germanium-68 phantom
+    auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
     # axial effects for span-1
-    fnm = 'AxialFactorForSpan1.npy'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)#'niftypet'
-    ax_f1 = np.load(fpth, allow_pickle=True)
+    ax_f1 = np.load(fspath(auxdata / "AxialFactorForSpan1.npy"))
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
-    fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan11.f32'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
-    f = open(fpth, 'rb')
-    sax_f11 = np.fromfile(f, np.float32, Cnt['NSN11'])
-    f.close()
+    sax_f11 = np.fromfile(
+        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan11.f32"),
+        np.float32, Cnt['NSN11'])
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
-    fnm = 'RelativeScaleFactors_scatter_axial_ssrTOspan1.f32'
-    fpth = os.path.join(resource_filename(__name__, '../auxdata'), fnm)
-    f = open(fpth, 'rb')
-    sax_f1 = np.fromfile(f, np.float32, Cnt['NSN1'])
-    f.close()
+    sax_f1 = np.fromfile(
+        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
+        np.float32, Cnt['NSN1'])
     #-------------------------------------------------
 
     #-------------------------------------------------
@@ -82,21 +73,24 @@ def get_components(datain, Cnt):
     nhdr_locations = [[0x29,0x1010], [0x29,0x1110]]
     # read the DICOM file
     d = dcm.read_file(fnrm_hdr)
-    if   d[0x0018, 0x1020].value == 'syngo MR B20P' or d[0x0018, 0x1020].value == 'syngo MR E11':
-        nhdr = d[0x29,0x1010].value
-    elif d[0x0018, 0x1020].value == 'syngo MR B18P':
-        found_nhdr = False
-        for loc in nhdr_locations:
-            if loc in d:
-                nhdr = d[loc].value
-                if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
-                    log.debug('got the normalisation interfile header from [%#x, %#x]' % (loc[0], loc[1]))
-                    found_nhdr = True
-                    break
-        if not found_nhdr:
-            log.error('DICOM field with normalisation interfile header has not been found!')
-            return None, None
-    else: log.error('unknown scanner software version!');  return None, None
+
+    # if   d[0x0018, 0x1020].value == 'syngo MR B20P' or d[0x0018, 0x1020].value == 'syngo MR E11':
+    #     nhdr = d[0x29,0x1010].value.decode()
+    # elif d[0x0018, 0x1020].value == 'syngo MR B18P':
+
+    found_nhdr = False
+    for loc in nhdr_locations:
+        if loc in d:
+            try:
+                nhdr = d[loc].value.decode()
+            except:
+                continue
+            if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
+                if Cnt['VERBOSE']: print('i> got the normalisation interfile header from [', hex(loc[0]),',', hex(loc[1]), ']')
+                found_nhdr = True
+                break
+    if not found_nhdr:
+        raise ValueError('DICOM field with normalisation interfile header has not been found!')
 
     f0 = nhdr.find('scanner quantification factor')
     f1 = f0+nhdr[f0:].find('\n')
@@ -120,7 +114,7 @@ def get_components(datain, Cnt):
 def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
     #get the normalisation components
-    if normcomp==None:
+    if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
 
     #number of sino planes (2D sinos) depends on the span used
@@ -151,12 +145,14 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
-    mmr_auxe.pgaps(sino, s, txLUT, Cnt)
+    mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2,0,1))
 
     return sino
 
+
 def get_norm_sino(datain, scanner_params, hst):
+
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
@@ -175,7 +171,7 @@ def get_norm_sino(datain, scanner_params, hst):
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
-    mmr_auxe.pgaps(sino, s, txLUT, Cnt)
+    mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2,0,1))
 
     return sino

@@ -1,38 +1,26 @@
 /*------------------------------------------------------------------------
 CUDA C extention for Python
-Provides functionality for forward and back projection in 
+Provides functionality for forward and back projection in
 transaxial dimension.
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2020
 ------------------------------------------------------------------------*/
 #include "tprj.h"
 #include "scanner_0.h"
 
-//Error handling for CUDA routines
-void HandleError(cudaError_t err, const char *file, int line) {
-	if (err != cudaSuccess) {
-		printf("%s in %s at line %d\n", cudaGetErrorString(err), file, line);
-		exit(EXIT_FAILURE);
-	}
-}
-
-
 /*************** TRANSAXIAL FWD/BCK *****************/
 __global__ void sddn_tx(
-	const float * crs,
+	const float4 * crs,
 	const short2 * s2c,
 	float * tt,
-	unsigned char * tv,
-	int n1crs)
+	unsigned char * tv)
 {
 	// indexing along the transaxial part of projection space
-	// (angle fast changing) 
+	// (angle fast changing)
 	int idx = blockIdx.x*blockDim.x + threadIdx.x;
 
 	if (idx<AW) {
-
-		const int C = nCRS;  // no of crystal per ring                             
 
 		// get crystal indexes from projection index
 		short c1 = s2c[idx].x;
@@ -40,43 +28,21 @@ __global__ void sddn_tx(
 
 		float cc1[3];
 		float cc2[3];
-		cc1[0] = .5*(crs[c1] + crs[c1 + C * 2]);
-		cc2[0] = .5*(crs[c2] + crs[c2 + C * 2]);
+		cc1[0] = .5*(crs[c1].x + crs[c1].z);
+		cc2[0] = .5*(crs[c2].x + crs[c2].z);
 
-		cc1[1] = .5*(crs[c1 + C] + crs[c1 + C * 3]);
-		cc2[1] = .5*(crs[c2 + C] + crs[c2 + C * 3]);
+		cc1[1] = .5*(crs[c1].y + crs[c1].w);
+		cc2[1] = .5*(crs[c2].y + crs[c2].w);
+
 
 		// crystal edge vector
 		float e[2];
-		e[0] = crs[c1 + 2 * C] - crs[c1];
-		e[1] = crs[c1 + 3 * C] - crs[c1 + C];
+		e[0] = crs[c1].z - crs[c1].x;
+		e[1] = crs[c1].w - crs[c1].y;
 
 		float px, py;
-		px = crs[c1] + 0.5*e[0];
-		py = crs[c1 + C] + 0.5*e[1];
-
-
-		// int c1 = s2c[2*idx];
-		// int c2 = s2c[2*idx + 1];
-
-		// // int c1 = s2c[idx];
-		// // int c2 = s2c[idx + AW];
-
-		// float cc1[3];
-		// float cc2[3];
-		// cc1[0] = .5*( crs[n1crs*c1] + crs[n1crs*c1+2] );
-		// cc2[0] = .5*( crs[n1crs*c2] + crs[n1crs*c2+2] );
-
-		// cc1[1] = .5*( crs[n1crs*c1+1] + crs[n1crs*c1+3] );
-		// cc2[1] = .5*( crs[n1crs*c2+1] + crs[n1crs*c2+3] );
-
-		// float e[2];			// crystal Edge vector
-		// e[0] = crs[n1crs*c1+2] - crs[n1crs*c1];
-		// e[1] = crs[n1crs*c1+3] - crs[n1crs*c1+1];
-
-		// float px, py;
-		// px = crs[n1crs*c1]   + 0.5*e[0];
-		// py = crs[n1crs*c1+1] + 0.5*e[1];
+		px = crs[c1].x + 0.5*e[0];
+		py = crs[c1].y + 0.5*e[1];
 
 		float at[3], atn;
 		for (int i = 0; i<2; i++) {
@@ -107,17 +73,17 @@ __global__ void sddn_tx(
 
 		float tr1 = (lr1 - py) / at[1];				 // first ray interaction with a row
 		float tr2 = (lr2 - py) / at[1];				 // last ray interaction with a row
-													 //boolean 
+													 //boolean
 		bool y21 = (fabsf(y2 - y1) >= SZ_VOXY);
 		bool lr21 = (fabsf(lr1 - lr2) < L21);
 		int nr = y21 * roundf(abs(lr2 - lr1) / SZ_VOXY) + lr21; // number of rows on the way *_SZVXY
 		float dtr;
 		if (nr>0)
-			dtr = (tr2 - tr1) / nr + lr21*t2;	 // t increament for each row; add max (t2) when only one
+			dtr = (tr2 - tr1) / nr + lr21*t2;	 // t increment for each row; add max (t2) when only one
 		else
 			dtr = t2;
 
-		//-columns 
+		//-columns
 		double x1 = px + at[0] * t1;
 		float lc1 = SZ_VOXY*(ceil(x1 / SZ_VOXY) - signbit(at[0]));
 		int u = 0.5*SZ_IMX + floor(x1 / SZ_VOXY); //starting voxel column
@@ -137,21 +103,12 @@ __global__ void sddn_tx(
 		else
 			dtc = t2;
 
-
-		tt[N_TT*idx] = tr1;
-		tt[N_TT*idx + 1] = tc1;
-		tt[N_TT*idx + 2] = dtr;
-		tt[N_TT*idx + 3] = dtc;
-		tt[N_TT*idx + 4] = t1;
-		tt[N_TT*idx + 5] = fminf(tr1, tc1);
-		tt[N_TT*idx + 6] = t2;
-		tt[N_TT*idx + 7] = atn;
-		tt[N_TT*idx + 8] = u + (v << UV_SHFT);
-
 		// if(idx==62301){
 		//   printf("\n$$$> e[0] = %f, e[1] = %f | px[0] = %f, py[1] = %f\n", e[0], e[1], px, py );
 		//   for(int i=0; i<9; i++) printf("tt[%d] = %f\n",i, tt[N_TT*idx+i]);
 		// }
+
+
 		/***************************************************************/
 		float ang = atanf(at[1] / at[0]); // angle of the ray
 		bool tsin;			    // condition for the slower changing <t> to be in
@@ -207,17 +164,27 @@ __global__ void sddn_tx(
 				k += 1;
 			}
 		}
+
+		tt[N_TT*idx    ] = tr1;
+		tt[N_TT*idx + 1] = tc1;
+		tt[N_TT*idx + 2] = dtr;
+		tt[N_TT*idx + 3] = dtc;
+		tt[N_TT*idx + 4] = t1;
+		tt[N_TT*idx + 5] = fminf(tr1, tc1);
+		tt[N_TT*idx + 6] = t2;
+		tt[N_TT*idx + 7] = atn;
+		tt[N_TT*idx + 8] = u + (v << UV_SHFT);
 		tt[N_TT*idx + 9] = k; 	// note: the first two are used for signs
-								/*************************************************************/
-								//tsino[idx] = dtc;
+		/***************************************************************/
+		//tsino[idx] = dtc;
 	}
 }
 
-void gpu_siddon_tx(float *d_crs,
+void gpu_siddon_tx(
+	float4 *d_crs,
 	short2 *d_s2c,
 	float *d_tt,
-	unsigned char *d_tv,
-	int n1crs)
+	unsigned char *d_tv)
 {
 
 	//============================================================================
@@ -230,10 +197,9 @@ void gpu_siddon_tx(float *d_crs,
 	//-----
 	dim3 BpG(ceil(AW / (float)NTHREADS), 1, 1);
 	dim3 TpB(NTHREADS, 1, 1);
-	sddn_tx << <BpG, TpB >> >(d_crs, d_s2c, d_tt, d_tv, n1crs);
+	sddn_tx<<<BpG, TpB>>>(d_crs, d_s2c, d_tt, d_tv);
+	HANDLE_ERROR(cudaGetLastError());
 	//-----
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel tx SIDDON error: %s\n", cudaGetErrorString(error)); exit(-1); }
 
 	cudaEventRecord(stop, 0);
 	cudaEventSynchronize(stop);

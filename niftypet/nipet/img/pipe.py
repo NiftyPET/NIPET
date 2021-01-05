@@ -1,79 +1,95 @@
 """module for pipelined image reconstruction and analysis"""
-__author__      = "Pawel Markiewicz"
-__copyright__   = "Copyright 2018"
-#------------------------------------------------------------------------------
+__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__   = "Copyright 2020"
+
+import logging
+import os
+import sys
+from numbers import Integral
+from subprocess import call
+from textwrap import dedent
 
 import numpy as np
-import sys
-import os
 import scipy.ndimage as ndi
-from subprocess import call
-import logging
 
 from niftypet import nimpa
 
-from niftypet.nipet.lm import dynamic_timings
-from niftypet.nipet.prj import mmrrec
-from niftypet.nipet.img import obtain_image
-from niftypet.nipet.img.mmrimg import image_affine
-from niftypet.nipet.lm.mmrhist import mmrhist
+from ..lm import dynamic_timings
+from ..lm.mmrhist import mmrhist
+from ..prj import mmrrec
+from . import obtain_image
+from .mmrimg import image_affine
 
-integers = (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)
+log = logging.getLogger(__name__)
 
-#------------------------------------------------------------------------------
-def mmrchain(datain,        # all input data in a dictionary
-            scanner_params, # all scanner parameters in one dictionary
-                            # containing constants, transaxial and axial
-                            # LUTs.
-            outpath='',     # output path for results
-            frames=['fluid', [0,0]], # definition of time frames.
-            mu_h = [],      # hardware mu-map.
-            mu_o = [],      # object mu-map.
-            tAffine = [],   # affine transformations for the mu-map for
-                            # each time frame separately.
 
-            itr=4,          # number of OSEM iterations
-            fwhm=0.,        # Gaussian Smoothing FWHM
-            recmod = -1,    # reconstruction mode: -1: undefined, chosen
-                            # automatically. 3: attenuation and scatter
-                            # correction, 1: attenuation correction
-                            # only, 0: no correction (randoms only).
-            histo=[],       # input histogram (from list-mode data);
-                            # if not given, it will be performed.
+def mmrchain(
+    datain,         # all input data in a dictionary
+    scanner_params, # all scanner parameters in one dictionary
+                    # containing constants, transaxial and axial
+                    # LUTs.
+    outpath='',     # output path for results
+    frames=['fluid', [0,0]], # definition of time frames.
+    mu_h = [],      # hardware mu-map.
+    mu_o = [],      # object mu-map.
+    tAffine = None, # affine transformations for the mu-map for
+                    # each time frame separately.
 
-            trim=False,
-            trim_scale=2,
-            trim_interp=1,  # interpolation for upsampling used in PVC
-            trim_memlim=True,   # reduced use of memory for machines
-                                # with limited memory (slow though)
+    itr=4,          # number of OSEM iterations
+    fwhm=0.,        # Gaussian Post-Smoothing FWHM
+    psf=None,       # Resolution Modelling
+    recmod = -1,    # reconstruction mode: -1: undefined, chosen
+                    # automatically. 3: attenuation and scatter
+                    # correction, 1: attenuation correction
+                    # only, 0: no correction (randoms only).
+    histo=None,     # input histogram (from list-mode data);
+                    # if not given, it will be performed.
 
-            pvcroi=[],      # ROI used for PVC.  If undefined no PVC
-                            # is performed.
-            pvcreg_tool = 'niftyreg', # the registration tool used in PVC
-            store_rois = False, # stores the image of PVC ROIs
-                                # as defined in pvcroi.
+    decay_ref_time=None, # decay corrects relative to the reference
+                    # time provided; otherwise corrects to the scan
+                    # start time.
 
-            psfkernel=[],
-            pvcitr=5,
+    trim=False,
+    trim_scale=2,
+    trim_interp=0,  # interpolation for upsampling used in PVC
+    trim_memlim=True,   # reduced use of memory for machines
+                        # with limited memory (slow though)
 
-            fcomment='',    # text comment used in the file name of
-                            # generated image files
-            ret_sinos=False,# return prompt, scatter and randoms
-                            # sinograms for each reconstruction
-            store_img = True,
-            store_img_intrmd=False,
-            store_itr=[],   # store any reconstruction iteration in
-                            # the list.  ignored if the list is empty.
-            del_img_intrmd=False):
-    log = logging.getLogger(__name__)
+    pvcroi=[],      # ROI used for PVC.  If undefined no PVC
+                    # is performed.
 
+    pvcreg_tool = 'niftyreg', # the registration tool used in PVC
+    store_rois = False, # stores the image of PVC ROIs
+                        # as defined in pvcroi.
+
+    pvcpsf=[],
+    pvcitr=5,
+
+    fcomment='',    # text comment used in the file name of
+                    # generated image files
+    ret_sinos=False,# return prompt, scatter and randoms
+                    # sinograms for each reconstruction
+    ret_histo=False,# return histogram (LM processing output) for
+                    # each image frame
+    store_img = True,
+    store_img_intrmd=False,
+    store_itr=[],   # store any reconstruction iteration in
+                    # the list.  ignored if the list is empty.
+    del_img_intrmd=False,
+):
     # decompose all the scanner parameters and constants
     Cnt   = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-
     # -------------------------------------------------------------------------
+    # HISOTGRAM PRECEEDS FRAMES
+    if not histo==None and 'psino' in histo:
+        frames = ['fluid', [histo['t0'], histo['t1']]]
+    else:
+        histo = None
+        log.warning('the given histogram does not contain a prompt sinogram--will generate a histogram.')
+
     # FRAMES
     # check for the provided dynamic frames
     if isinstance(frames, list):
@@ -88,27 +104,28 @@ def mmrchain(datain,        # all input data in a dictionary
         #   provided the t0 and t1 are within the acquisition times.
 
         # 2D starting with entry 'fluid' or 'timings'
-        if  isinstance(frames[0], basestring) and (frames[0]=='fluid' or frames[0]=='timings') \
-            and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
+        if (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
+            and all([isinstance(t, list) and len(t) == 2 for t in frames[1:]])):
             t_frms = frames[1:]
-
         # if 2D definitions, starting with entry 'def':
-        elif isinstance(frames[0], basestring) and frames[0]=='def' \
-            and all([isinstance(t,list) and len(t)==2 for t in frames[1:]]):
+        elif (isinstance(frames[0], str) and frames[0]=='def'
+              and all([isinstance(t,list) and len(t)==2 for t in frames[1:]])):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
             t_frms = dfrms[1:]
 
         # if 1D:
-        elif all([isinstance(t, integers) for t in frames]):
+        elif all([isinstance(t, Integral) for t in frames]):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
             t_frms = dfrms[1:]
 
         else:
-            log.error('osemdyn: frames definitions are not given in the correct list format: 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')
+            log.error('osemdyn: frames definitions are not given\
+                in the correct list format: 1D [15,15,30,30,...]\
+                or 2D list [[2,15], [2,30], ...]')
     else:
-        log.error('osemdyn: provided dynamic frames definitions are not in either Python list or nympy array.')
+        log.error('provided dynamic frames definitions are incorrect (should be a list of definitions).')
         raise TypeError('Wrong data type for dynamic frames')
     # number of dynamic time frames
     nfrm = len(t_frms)
@@ -140,8 +157,7 @@ def mmrchain(datain,        # all input data in a dictionary
         petimg = os.path.join(petdir, 'single-frame')
         pvcdir = os.path.join(pvcdir, 'single-frame')
     else:
-        log.error('confused!')
-        raise TypeError('Unrecognised time frames!')
+        raise TypeError('Unrecognised/confusing time frames!')
     # create now the folder
     nimpa.create_dir(petimg)
     # create folder
@@ -152,7 +168,7 @@ def mmrchain(datain,        # all input data in a dictionary
     # -------------------------------------------------------------------------
     # MU-MAPS
     # get the mu-maps, if given;  otherwise will use blank mu-maps.
-    if tAffine:
+    if not tAffine is None:
         muod = obtain_image(mu_o, imtype='object mu-map')
     else:
         muod = obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
@@ -161,13 +177,13 @@ def mmrchain(datain,        # all input data in a dictionary
     muhd = obtain_image(mu_h, Cnt, imtype='hardware mu-map')
 
     # choose the mode of reconstruction based on the provided (or not) mu-maps
-    if recmod == -1:
-        if muod['exists'] and muhd['exists']:
-            recmod = 3
-        elif muod['exists'] or muhd['exists']:
-            recmod = 1
-            log.warning('partial mu-map:  scatter correction is switched off.')
-        else:
+    if muod['exists'] and muhd['exists'] and recmod==-1:
+        recmod = 3
+    elif  (muod['exists'] or muhd['exists']) and recmod==-1:
+        recmod = 1
+        log.warning('partial mu-map:  scatter correction is switched off.')
+    else:
+        if recmod==-1:
             recmod = 0
             log.warning('no mu-map provided: scatter and attenuation corrections are switched off.')
     # -------------------------------------------------------------------------
@@ -181,25 +197,28 @@ def mmrchain(datain,        # all input data in a dictionary
     output['#frames'] = nfrm
 
     # if affine transformation is given the baseline mu-map in NIfTI file or dictionary has to be given
-    if not tAffine:
-        log.debug('using the provided mu-map the same way for all frames.')
+    if tAffine is None:
+        log.info('using the provided mu-map the same way for all frames.')
     else:
         if len(tAffine)!=nfrm:
-            log.error('the number of affine transformations in the list has to be the same as the number of dynamic frames!')
-            raise IndexError('Inconsistent number of frames.')
+            log.error('the number of affine transformations in the list\
+                has to be the same as the number of dynamic frames!')
+            raise ValueError('Inconsistent number of frames.')
         elif not isinstance(tAffine, list):
-            log.error('tAffine has to be a list of either 4x4 numpy arrays of affine transformations or a list of file path strings!')
-            raise IndexError('Expecting a list.')
-        elif not 'fim' in muod:
-            log.error('when tAffine is given, the object mu-map has to be provided either as a dictionary or NIfTI file!')
+            log.error('tAffine has to be a list of either 4x4 numpy arrays\
+                of affine transformations or a list of file path strings!')
+            raise ValueError('Expecting a list.')
+        elif 'fim' not in muod:
+            log.error('when tAffine is given, the object mu-map has to be\
+                provided either as a dictionary or NIfTI file!')
             raise NameError('No path to object mu-map.')
 
         # check if all are file path strings to the existing files
-        if all([isinstance(t, basestring) for t in tAffine]):
+        if all([isinstance(t, str) for t in tAffine]):
             if all([os.path.isfile(t) for t in tAffine]):
                 # the internal list of affine transformations
                 faff_frms = tAffine
-                log.debug('using provided paths to affine transformations for each dynamic frame.')
+                log.info('using provided paths to affine transformations for each dynamic frame.')
             else:
                 log.error('not all provided paths are valid!')
                 raise IOError('Wrong paths.')
@@ -212,16 +231,16 @@ def mmrchain(datain,        # all input data in a dictionary
                 fout = os.path.join(petaff, 'affine_frame('+str(i)+').txt')
                 np.savetxt(fout, tAffine[i], fmt='%3.9f')
                 faff_frms.append(fout)
-            log.debug('using provided numpy arrays affine transformations for each dynamic frame.')
+            log.info('using provided numpy arrays affine transformations for each dynamic frame.')
         else:
-            raise StandardError('Affine transformations for each dynamic frame could not be established.')
+            raise ValueError('Affine transformations for each dynamic frame could not be established.')
 
         # -------------------------------------------------------------------------------------
         # get ref image for mu-map resampling
         # -------------------------------------------------------------------------------------
         if 'fmuref' in muod:
             fmuref = muod['fmuref']
-            log.debug('reusing the reference mu-map from the object mu-map dictionary.')
+            log.info('reusing the reference mu-map from the object mu-map dictionary.')
         else:
             # create folder if doesn't exists
             nimpa.create_dir(fmudir)
@@ -233,24 +252,32 @@ def mmrchain(datain,        # all input data in a dictionary
             im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
             # store ref image
             nimpa.array2nii(im, B, fmuref)
-            log.debug('generated a reference mu-map in' + fmuref)
+            log.info('generated a reference mu-map in:\n{}'.format(fmuref))
         # -------------------------------------------------------------------------------------
 
         output['fmuref'] = fmuref
         output['faffine'] = faff_frms
 
-    # output list of intermidiate file names for mu-maps and PET images (useful for dynamic imaging)
-    if tAffine: output['fmureg'] = []
-    if store_img_intrmd: output['fpeti'] = []
+    # output list of intermediate file names for mu-maps and PET images (useful for dynamic imaging)
+    if not tAffine is None: output['fmureg'] = []
+
+    if store_img_intrmd:
+        output['fpeti'] = []
+        if fwhm>0:
+            output['fsmoi'] = []
 
     # dynamic images in one numpy array
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
     #if asked, output only scatter+randoms sinogram for each frame
     if ret_sinos and itr>1 and recmod>2:
-        dynmsk = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        dynmsk = np.zeros((nfrm, Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+
+    #> returning dictionary of histograms if requested
+    if ret_histo:
+        hsts = {}
 
 
     # import pdb; pdb.set_trace()
@@ -266,19 +293,29 @@ def mmrchain(datain,        # all input data in a dictionary
         # --------------
         # check if there is enough prompt data to do a reconstruction
         # --------------
-        log.info('dynamic frame times t0, t1:%r, %r' % (t0, t1))
-        if not histo:
+        log.info('dynamic frame times t0={}, t1={}:'.format(t0, t1))
+        if histo==None:
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
-            log.info('using provided histogram')
+            log.info(dedent('''\
+                ------------------------------------------------------
+                using provided histogram
+                ------------------------------------------------------'''))
+
+        if ret_histo:
+            hsts[str(t0)+'-'+str(t1)] = hst
+
         if np.sum(hst['dhc'])>0.99*np.sum(hst['phc']):
-            log.warning('the amount of random events is the greatest part of prompt events => omitting reconstruction')
+            log.warning(dedent('''\
+                ===========================================================================
+                amount of randoms is the greater part of prompts => omitting reconstruction
+                ==========================================================================='''))
             ifrmP = ifrm+1
             continue
         # --------------------
         # transform the mu-map if given the affine transformation for each frame
-        if tAffine:
+        if not tAffine is None:
             # create the folder for aligned (registered for motion compensation) mu-maps
             nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size
@@ -291,12 +328,11 @@ def mmrchain(datain,        # all input data in a dictionary
                 '-trans', faff_frms[ifrm],
                 '-res', fmu,
                 '-pad', '0']
-                if log.getEffectiveLevel() > log.DEBUG:
+                if log.getEffectiveLevel() > log.INFO:
                     cmd.append('-voff')
                 call(cmd)
             else:
-                log.error('path to the executable for resampling is incorrect!')
-                raise IOError('Incorrect NiftyReg (resampling) executable.')
+                raise IOError('Incorrect path to NiftyReg (resampling) executable.')
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
             muo = muodct['im']
@@ -316,28 +352,46 @@ def mmrchain(datain,        # all input data in a dictionary
         # run OSEM reconstruction of a single time frame
         recimg = mmrrec.osemone(datain, [muhd['im'], muo],
                                 hst, scanner_params,
-                                recmod=recmod, itr=itr, fwhm=fwhm,
+                                decay_ref_time=decay_ref_time,
+                                recmod=recmod, itr=itr, fwhm=fwhm, psf=psf,
                                 outpath=petimg,
                                 frmno=frmno,
                                 fcomment=fcomment+'_i',
                                 store_img=store_img_intrmd,
                                 store_itr=store_itr,
                                 ret_sinos=ret_sinos)
-        # form dynamic numpy array
-        dynim[ifrm,:,:,:] = recimg.im
+
+        # form dynamic Numpy array
+        if fwhm>0:
+            dynim[ifrm,:,:,:] = recimg.imsmo
+        else:
+            dynim[ifrm,:,:,:] = recimg.im
+
         if ret_sinos and itr>1 and recmod>2:
-            dynpsn[ifrm,:,:,:] = hst['psino']
-            dynssn[ifrm,:,:,:] = recimg.ssn
-            dynrsn[ifrm,:,:,:] = recimg.rsn
-            dynmsk[ifrm,:,:,:] = recimg.amsk
+            dynpsn[ifrm,:,:,:] = np.squeeze(hst['psino'])
+            dynssn[ifrm,:,:,:] = np.squeeze(recimg.ssn)
+            dynrsn[ifrm,:,:,:] = np.squeeze(recimg.rsn)
+            dynmsk[ifrm,:,:,:] = np.squeeze(recimg.amsk)
 
+        if store_img_intrmd:
+            output['fpeti'].append(recimg.fpet)
+            if fwhm>0:
+                output['fsmoi'].append(recimg.fsmo)
 
-        if store_img_intrmd: output['fpeti'].append(recimg.fpet)
         if nfrm==1: output['tuple'] = recimg
 
     output['im'] = np.squeeze(dynim)
+
     if ret_sinos and itr>1 and recmod>2:
-        output['sinos'] = {'psino':dynpsn, 'ssino':dynssn, 'rsino':dynrsn, 'amask':dynmsk}
+        output['sinos'] = {
+            'psino':dynpsn,
+            'ssino':dynssn,
+            'rsino':dynrsn,
+            'amask':dynmsk}
+
+    if ret_histo:
+        output['hst'] = hsts
+
 
     # ----------------------------------------------------------------------
     # trim the PET image
@@ -350,7 +404,7 @@ def mmrchain(datain,        # all input data in a dictionary
         elif 'lm_ima' in datain:
             fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
-        petu = nimpa.trimim(
+        petu = nimpa.imtrimup(
             dynim,
             affine=image_affine(datain, Cnt),
             scale=trim_scale,
@@ -360,7 +414,7 @@ def mmrchain(datain,        # all input data in a dictionary
             fcomment=fcomment,
             store_img_intrmd=store_img_intrmd,
             memlim=trim_memlim,
-            verbose=log.getEffectiveLevel() < logging.INFO
+            verbose=log.getEffectiveLevel()
         )
 
         output.update({'trimmed': { 'im':petu['im'],
@@ -374,17 +428,15 @@ def mmrchain(datain,        # all input data in a dictionary
     #run PVC if requested and required input given
     if pvcroi:
         if not os.path.isfile(datain['T1lbl']):
-            log.error('no label image from T1 parcellations and/or ROI definitions!')
-            raise StandardError('No ROIs')
+            raise Exception('No labels and/or ROIs image definitions found!')
         else:
             # get the PSF kernel for PVC
-            if not psfkernel:
-                psfkernel = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
+            if not pvcpsf:
+                pvcpsf = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
             else:
-                if isinstance(psfkernel, (np.ndarray, np.generic)) and psfkernel.shape!=(3, 17):
-                    log.error('the PSF kernel has to be an numpy array with the shape of (3, 17)!')
-                    raise IndexError('PSF: wrong shape or not a matrix')
-        
+                if isinstance(pvcpsf, (np.ndarray, np.generic)) and pvcpsf.shape!=(3, 2*Cnt['RSZ_PSF_KRNL']+1):
+                    raise ValueError('the PSF kernel has to be an numpy array with the shape of ({},{})'.format(3, 2*Cnt['RSZ_PSF_KRNL']+1))
+
         #> file names for NIfTI images of PVC ROIs and PVC corrected PET
         froi = []
         fpvc = []
@@ -393,12 +445,13 @@ def mmrchain(datain,        # all input data in a dictionary
         dynpvc = np.zeros(petu['im'].shape, dtype=np.float32)
         for i in range(ifrmP,nfrm):
             # transform the parcellations (ROIs) if given the affine transformation for each frame
-            if not tAffine:
+            if tAffine is None:
                 log.warning('affine transformation are not provided: will generate for the time frame.')
-                faffpvc = ''
+                faffpvc = None
                 #raise StandardError('No affine transformation')
             else:
                 faffpvc = faff_frms[i]
+
             # chose file name of individual PVC images
             if nfrm>1:
                 fcomment_pvc = '_frm'+str(i)+fcomment
@@ -411,7 +464,7 @@ def mmrchain(datain,        # all input data in a dictionary
                 datain,
                 Cnt,
                 pvcroi,
-                psfkernel,
+                pvcpsf,
                 tool=pvcreg_tool,
                 itr=pvcitr,
                 faff=faffpvc,
@@ -424,13 +477,15 @@ def mmrchain(datain,        # all input data in a dictionary
                 dynpvc[i,:,:,:] = petpvc_dic['im']
             else:
                 dynpvc = petpvc_dic['im']
-
             fpvc.append(petpvc_dic['fpet'])
 
             if store_rois: froi.append(petpvc_dic['froi'])
 
         #> update output dictionary
         output.update({'impvc':dynpvc})
+        output['fprc'] = petpvc_dic['fprc']
+        output['imprc'] = petpvc_dic['imprc']
+
         if store_img_intrmd: output.update({'fpvc':fpvc})
         if store_rois: output.update({'froi':froi})
     # ----------------------------------------------------------------------
@@ -446,6 +501,7 @@ def mmrchain(datain,        # all input data in a dictionary
                     +';sub=14'                      \
                     +';itr='+str(itr)               \
                     +';fwhm='+str(fwhm)             \
+                    +';psf='+str(psf)       \
                     +';nfrm='+str(nfrm)
 
         # squeeze the not needed dimensions

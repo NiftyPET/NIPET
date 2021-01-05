@@ -1,13 +1,20 @@
 #include <stdio.h>
 #include "def.h"
 
-#ifndef AUX_H
-#define AUX_H
+#ifndef SCANNER_0_H
+#define SCANNER_0_H
 
+
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+// SCANNER CONSTANTS
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 struct Cnst {
-	int A;  //sino angles
-	int W;  //sino bins for any angular index
-	int aw; //sino bins (active only)
+	int BPE; 	// bytes per single event
+	int LMOFF;	// offset for the LM file (e.g., offsetting for header)
+
+	int A;  	//sino angles
+	int W;  	//sino bins for any angular index
+	int aw; 	//sino bins (active only)
 
 	int NCRS;  //number of crystals
 	int NCRSR; //reduced number of crystals by gaps
@@ -37,7 +44,6 @@ struct Cnst {
 	int MRD;
 
 	float ALPHA;  //angle subtended by a crystal
-	float RE;    //effective ring diameter
 	float AXR;  //axial crystal dim
 
 	float COSUPSMX; //cosine of max allowed scatter angle
@@ -51,26 +57,49 @@ struct Cnst {
 	char BTP; 	//0: no bootstrapping, 1: no-parametric, 2: parametric (recommended)
 	float BTPRT; // ratio of bootstrapped/original events in the target sinogram (1.0 default)
 
-	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations 
-	bool VERBOSE;
+	char DEVID; // device (GPU) ID.  allows choosing the device on which to perform calculations
+	char LOG; //different levels of verbose/logging like in Python's logging package
 
 
+	float SIGMA_RM; // resolution modelling sigma
+	// float RE;    //effective ring diameter
 	// float ICOSSTP;
-
-	// short SS_IMZ;
-	// short SS_IMY;
-	// short SS_IMX;
-	// short SS_VXZ;
-	// short SS_VXY;
-
-	// short SSE_IMZ;
-	// short SSE_IMY;
-	// short SSE_IMX;
-	// short SSE_VXZ;
-	// short SSE_VXY;
 
 	float ETHRLD;
 };
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+
+
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+// LIST MODE DATA PROPERTIES
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+typedef struct{
+  char *fname;
+  size_t *atag;
+  size_t *btag;
+  int *ele4chnk;
+  int *ele4thrd;
+  size_t ele;
+  int nchnk;
+  int nitag;
+  int toff;
+  int lmoff; //offset for starting LM events
+  int last_ttag;
+  int tstart;
+  int tstop;
+  int tmidd;
+  int flgs; //write out sinos in span-11
+  int span; //choose span (1, 11 or SSRB)
+  int flgf; //do fan-sums calculations and output by randoms estimation
+
+  int bpe; //number of bytes per event
+  int btp; //whether to use bootstrap and if so what kind of bootstrap (0:no, 1:non-parametric, 2:parametric)
+
+  int log; //for logging in list mode processing
+
+} LMprop; //properties of LM data file and its breaking up into chunks of data.
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
 
 #define HANDLE_ERROR(err) (HandleError( err, __FILE__, __LINE__ ))
@@ -113,11 +142,6 @@ struct txLUTs {
 	int naw;
 };
 
-//structure for 2D sino lookup tables (GE Signa)
-struct txLUT_S {
-	int *c2s;
-};
-
 //structure for axial look up tables (Siemens mMR)
 struct axialLUT {
 	int * li2rno;   // linear indx to ring indx
@@ -132,34 +156,41 @@ struct axialLUT {
 	int Nli2nos;
 };
 
+//structure for 2D sino lookup tables (GE Signa)
+struct txLUT_S {
+	int *c2s;
+};
+
+
 //structure for axial look up tables (GE Signa)
 struct axialLUT_S {
 	short *r2s;
 };
 
 
-void getMemUse(void);
-
-LORcc *get_sn2crs(void);
-
-txLUTs get_txlut(Cnst Cnt);
-
-//LORcc *get_sn2rng(void);
-
-//get the properties of LM and the chunks into which the LM is divided
-void getLMinfo(char *flm);
-
-//modify the properties of LM in case of dynamic studies as the number of frames wont fit in the memory
-void modifyLMinfo(int tstart, int tstop);
-
-//setup the GPU arrays
-void d_setup(int * d_rprmt, int * d_rdlyd,
-	mMass d_mass, unsigned int * d_snview,
-	unsigned int * d_fansums, unsigned int * d_bucks,
-	unsigned int * d_sino);
+void getMemUse(const Cnst cnt);
 
 //LUT for converstion from span-1 to span-11
 span11LUT span1_span11(const Cnst Cnt);
 
 
-#endif //AUX_H
+//------------------------
+// mMR gaps
+//------------------------
+void put_gaps(
+	float *sino,
+	float *sng,
+	int *aw2ali,
+	int sino_no,
+	Cnst Cnt
+	);
+
+void remove_gaps(
+	float *sng,
+	float *sino,
+	int snno,
+	int * aw2ali,
+	Cnst Cnt);
+//------------------------
+
+#endif //SCANNER_0_H

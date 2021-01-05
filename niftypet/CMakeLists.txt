@@ -1,40 +1,35 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
+if("${NIPET_BUILD_VERSION}" STREQUAL "")
+set(NIPET_BUILD_VERSION 2 CACHE STRING "version" FORCE)
+endif()
+project(nipet LANGUAGES C CXX CUDA VERSION "${NIPET_BUILD_VERSION}")
 
-project(nipet)
+cmake_policy(PUSH)
+cmake_policy(SET CMP0074 NEW)  # <PackageName>_ROOT hints for find_package
+cmake_policy(SET CMP0104 NEW)  # CMAKE_CUDA_ARCHITECTURES
+find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+if(SKBUILD)
+find_package(PythonExtensions REQUIRED)
+endif()
+cmake_policy(POP)
 
-set(PREINSTALL_NAME "_preinstall")
+message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-# find cuda, maybe set a minimum version
-find_package(CUDA REQUIRED)
+add_subdirectory(nipet)
 
-find_package(PythonInterp)
-find_package(PythonLibs)
-
-# find_library(PYTHON_LIBRARY
-#               NAMES python27 libpython2.7.so
-#               PATHS ${PYTHON_PREFIX_PATH}/libs/
-#               ${PYTHON_PREFIX_PATH}/lib/
-#             )
-# set(PYTHON_LIBRARIES)
-# set(PYTHON_INCLUDE_DIRS)
-set(PYTHON_PREFIX_PATH)
-
-add_subdirectory(${CMAKE_PROJECT_NAME})
-add_subdirectory(${CMAKE_PROJECT_NAME}/dinf)
-add_subdirectory(${CMAKE_PROJECT_NAME}/lm)
-# add_subdirectory(${CMAKE_PROJECT_NAME}/lms)
-add_subdirectory(${CMAKE_PROJECT_NAME}/prj)
-add_subdirectory(${CMAKE_PROJECT_NAME}/sct)
-
-set(CMAKE_BUILD_TYPE Release)
-
-
-execute_process(
-  COMMAND "${PYTHON_EXECUTABLE}" -c "from __future__ import print_function; import sys; print(sys.prefix)"
-  OUTPUT_VARIABLE PYTHON_ENV_ROOT OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  SET(CMAKE_INSTALL_PREFIX
-    ${PYTHON_ENV_ROOT} CACHE PATH "Set the path of the anaconda environment to which you wish to install this package to" FORCE
-    )
-ENDIF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+include(CMakePackageConfigHelpers)
+configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/Config.cmake.in
+  "${CMAKE_CURRENT_BINARY_DIR}/NiftyPET${CMAKE_PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION niftypet/${CMAKE_PROJECT_NAME}/cmake)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/NiftyPET${CMAKE_PROJECT_NAME}ConfigVersion.cmake"
+  VERSION "${CMAKE_PROJECT_VERSION}" COMPATIBILITY AnyNewerVersion)
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/NiftyPET${CMAKE_PROJECT_NAME}Config.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/NiftyPET${CMAKE_PROJECT_NAME}ConfigVersion.cmake"
+  DESTINATION niftypet/${CMAKE_PROJECT_NAME}/cmake)

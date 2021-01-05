@@ -12,7 +12,7 @@ __inline__ __device__
 float warpsum(float uval)
 {
 	for (int off = 16; off>0; off /= 2)
-		uval += __shfl_down_sync(0xFFFFFFFF, uval, off);
+		uval += __shfl_down_sync(0xffffffff, uval, off);
 	return uval;
 }
 
@@ -20,7 +20,7 @@ float warpsum(float uval)
 __inline__ __device__
 float warpsum_xor(float val) {
 	for (int mask = 16; mask > 0; mask /= 2)
-		val += __shfl_xor_sync(0xFFFFFFFF, val, mask);
+		val += __shfl_xor_sync(0xffffffff, val, mask);
 	return val;
 }
 
@@ -121,7 +121,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 	// check which device is going to be used
 	int dev_id;
 	cudaGetDevice(&dev_id);
-	if (Cnt.VERBOSE == 1) printf("ic> using CUDA device #%d\n", dev_id);
+	if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
 	// Allocate result of transformation in device memory
 	short *d_LUTout;
@@ -134,21 +134,20 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 
 	//return d_LUTout;
 
-	if (Cnt.VERBOSE == 1) printf("i> precalculating attenuation paths into LUT...");
+	if (Cnt.LOG <= LOGINFO) printf("i> precalculating attenuation paths into LUT...");
 	cudaEvent_t start, stop;
 	cudaEventCreate(&start);
 	cudaEventCreate(&stop);
 	cudaEventRecord(start, 0);
 	//<<<<<<<<<<<<<<<<<<<<<<<<<<<< KERNEL <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	//dimenstion of the grid.  depending on how many scatter crystals there are.
-	dim3 grid(d_mu_msk.nvx, d_scrsdef.nscrs, 1);//d_mu_msk.nvx
+	//dimension of the grid.  depending on how many scatter crystals there are.
+	dim3 grid(d_mu_msk.nvx, d_scrsdef.nscrs, 1);
 	dim3 block(SS_WRP, d_scrsdef.nsrng, 1);
-	satt << <grid, block >> >(d_LUTout,
+	satt <<<grid, block >>>(d_LUTout,
 		texo_mu3d,
 		d_mu_msk.i2v,
 		d_scrsdef);
-	cudaError_t error = cudaGetLastError();
-	if (error != cudaSuccess) { printf("CUDA kernel <satt> error: %s\n", cudaGetErrorString(error)); exit(-1); }
+	HANDLE_ERROR(cudaGetLastError());
 
 	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	cudaEventRecord(stop, 0);
@@ -157,7 +156,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 	cudaEventElapsedTime(&elapsedTime, start, stop);
 	cudaEventDestroy(start);
 	cudaEventDestroy(stop);
-	if (Cnt.VERBOSE == 1) printf("DONE in %fs.\n", 0.001*elapsedTime);
+	if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 0.001*elapsedTime);
 
 	cudaDeviceSynchronize();
 

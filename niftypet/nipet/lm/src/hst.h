@@ -11,10 +11,11 @@
 extern LMprop lmprop;
 extern int* lm;
 
-curandStatePhilox4_32_10_t* setup_curand();
+curandState* setup_curand();
 
-void gpu_hst(unsigned int *d_ssrb,
-	unsigned int *d_sino,
+void gpu_hst(
+	unsigned int *d_psino,
+	unsigned int *d_ssrb,
 	unsigned int *d_rdlyd,
 	unsigned int *d_rprmt,
 	mMass d_mass,
