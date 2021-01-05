@@ -80,8 +80,8 @@ Copyright 2018-21
 
 .. |Docs| image:: https://readthedocs.org/projects/niftypet/badge/?version=latest
    :target: https://niftypet.readthedocs.io/en/latest/?badge=latest
-.. |DOI| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4417680.svg
-   :target: https://doi.org/10.5281/zenodo.4417680
+.. |DOI| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.4417679.svg
+   :target: https://doi.org/10.5281/zenodo.4417679
 .. |Licence| image:: https://img.shields.io/pypi/l/nipet.svg?label=licence
    :target: https://github.com/NiftyPET/NIPET/blob/master/LICENCE
 .. |Tests| image:: https://img.shields.io/github/workflow/status/NiftyPET/NIPET/Test?logo=GitHub
