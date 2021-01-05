@@ -14,7 +14,6 @@ import scipy.ndimage as ndi
 from scipy.interpolate import CloughTocher2DInterpolator, interp2d
 from scipy.spatial import qhull
 from scipy.special import erfc
-from tqdm.auto import trange
 
 from .. import mmr_auxe, mmraux, mmrnorm
 from ..img import mmrimg
@@ -65,23 +64,16 @@ def get_scrystals(scanner_params):
     scrs = []
 
     #> transaxial scatter crystal selection for modelling
-    with trange(
-        Cnt['NCRS'],
-        desc="transaxial scatter",
-        disable=log.getEffectiveLevel() > logging.INFO,
-    ) as pbar:
-        for c in pbar:
-            if (((c + 1) % 9) == 0):
-                continue
-            cntr += 1
-            if (cntr == SCRS_T):
-                cntr = 0
-                scrs.append([
-                    c, 0.5*(crs[c, 0] + crs[c, 2]), 0.5*(crs[c, 1] + crs[c, 3])
-                ])
-
-                pbar.set_postfix(crystal=iscrs, num=c, x=scrs[-1][1], y=scrs[-1][2])
-                iscrs += 1
+    for c in range(Cnt['NCRS']):
+        if (((c + 1) % 9) == 0):
+            continue
+        cntr += 1
+        if (cntr == SCRS_T):
+            cntr = 0
+            scrs.append([
+                c, 0.5*(crs[c, 0] + crs[c, 2]), 0.5*(crs[c, 1] + crs[c, 3])
+            ])
+            iscrs += 1
 
     #> convert the scatter crystal table to Numpy array
     scrs = np.array(scrs, dtype=np.float32)
