@@ -345,7 +345,7 @@ def osemone(datain, mumaps, hst, scanner_params,
     B = mmrimg.image_affine(datain, Cnt)
 
     # resolution modelling
-    psfkernel = psf_config(psf)
+    psfkernel = psf_config(psf, Cnt)
 
     #-time it
     stime = time.time()
