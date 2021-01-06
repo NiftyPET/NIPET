@@ -1,6 +1,5 @@
 name: Test
-on:
-- push
+on: [push, pull_request]
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -21,9 +20,9 @@ jobs:
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
-    - run: pip install -U pre-commit twine setuptools wheel setuptools_scm[toml] ninst scikit-build
-    - run: HMUDIR=$HOME python setup.py sdist
-    - run: twine check dist/*
+    - name: dependencies
+      run: |
+        pip install -U pre-commit
     - run: pre-commit run -a --show-diff-on-failure
   test:
     runs-on: [self-hosted, cuda]
@@ -38,7 +37,6 @@ jobs:
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   deploy:
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     needs: [check, test]
     name: PyPI Deploy
     runs-on: ubuntu-latest
@@ -47,31 +45,34 @@ jobs:
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
-      with:
-        python-version: '3.x'
     - run: pip install -U twine setuptools wheel setuptools_scm[toml] ninst scikit-build
-    - run: HMUDIR=$HOME python setup.py sdist
-    - run: twine upload dist/*
+    - run: PATHTOOLS=$HOME/NiftyPET_tools HMUDIR=$HOME python setup.py sdist
+    - run: twine check dist/*
+    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+      run: twine upload dist/*
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         skip_existing: true
-    - id: collect_assets
+    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+      id: collect_assets
       name: Collect assets
       run: |
         echo "::set-output name=asset_path::$(ls dist/*.tar.gz)"
         echo "::set-output name=asset_name::$(basename dist/*.tar.gz)"
         git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD > _CHANGES.md
-    - id: create_release
+    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
         tag_name: ${{ github.ref }}
-        release_name: ninst ${{ github.ref }} beta
+        release_name: nipet ${{ github.ref }} stable
         body_path: _CHANGES.md
         draft: true
-    - uses: actions/upload-release-asset@v1
+    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
+      uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
