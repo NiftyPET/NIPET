@@ -25,17 +25,23 @@ jobs:
         pip install -U pre-commit
     - run: pre-commit run -a --show-diff-on-failure
   test:
-    runs-on: [self-hosted, cuda]
+    if: github.event_name != 'pull_request' || github.head_ref != 'devel'
+    runs-on: [self-hosted, cuda, python]
     name: Test
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
+    - name: Run setup-python
+      run: setup-python -p3.7
     - run: pip install -U -e .[dev]
     - run: pytest
     - run: codecov
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - name: Post Run setup-python
+      run: setup-python -p3.7 -Dr
+      if: ${{ always() }}
   deploy:
     needs: [check, test]
     name: PyPI Deploy
