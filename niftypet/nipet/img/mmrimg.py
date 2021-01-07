@@ -164,7 +164,7 @@ def getinterfile_off(fmu, Cnt, Offst=np.array([0., 0., 0.])):
     # > create GPU version of the mu-map
     murs = convert2dev(mur, Cnt)
     # > number of voxels
-    nvx = im.shape[0]
+    nvx = mu.shape[0]
     # > get the basic stats
     mumax = np.max(mur)
     mumin = np.min(mur)
@@ -447,7 +447,7 @@ def align_mumap(
     nimpa.create_dir(tmpdir)
 
     # > get the timing of PET if affine not given
-    if faff == '' and not hst is None and isinstance(hst, dict) and 't0' in hst:
+    if faff == '' and hst is not None and isinstance(hst, dict) and 't0' in hst:
         t0 = hst['t0']
         t1 = hst['t1']
 
@@ -714,10 +714,8 @@ def align_mumap(
         else:
             fname = fnm + '-aligned-to-given-affine' + fcomment
     if store_npy:
-        # > Numpy
-        if store_to_npy:
-            fnp = os.path.join(opth, fname + ".npz")
-            np.savez(fnp, mu=mu, A=A)
+        fnp = os.path.join(opth, fname + ".npz")
+        np.savez(fnp, mu=mu, A=A)
     if store:
         # > NIfTI
         fmu = os.path.join(opth, fname + '.nii.gz')
@@ -828,7 +826,7 @@ def pct_mumap(datain, scanner_params, hst=None, t0=0, t1=0, itr=2, petopt='ac', 
         try:
             regdct = nimpa.coreg_spm(fpet, ft1w,
                                      outpath=os.path.join(outpath, 'PET', 'positioning'))
-        except:
+        except Exception:
             regdct = nimpa.affine_niftyreg(
                 fpet,
                 ft1w,
@@ -1310,7 +1308,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
             raise IOError('Path to registration executable is incorrect!')
 
         # pet the pCT mu-map with the above faff
-        pmudic = pct_mumap(datain, txLUT, axLUT, Cnt, faff=faff, fpet=recute.fpet,
+        pmudic = pct_mumap(datain, txLUT_, axLUT_, Cnt, faff=faff, fpet=recute.fpet,
                            fcomment=fcomment)
         mup = pmudic['im']
 
