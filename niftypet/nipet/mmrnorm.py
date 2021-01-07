@@ -77,7 +77,7 @@ def get_components(datain, Cnt):
         if loc in d:
             try:
                 nhdr = d[loc].value.decode()
-            except:
+            except Exception:
                 continue
             if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
                 if Cnt['VERBOSE']:

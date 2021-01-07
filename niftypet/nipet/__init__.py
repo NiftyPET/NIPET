@@ -16,9 +16,9 @@ __all__ = [
     # GPU utils
     'resource_filename', 'cs', 'dev_info', 'gpuinfo',
     # utils
-    'LOG_FORMAT', 'LogHandler', 'path_resources', 'resources'
+    'LOG_FORMAT', 'LogHandler', 'path_resources', 'resources',
     # package
-    'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj'
+    'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj',
     # img
     'align_mumap', 'im_e72dev', 'im_dev2e7', 'hdw_mumap', 'obj_mumap',
     'pct_mumap', 'mmrchain',
@@ -29,7 +29,9 @@ __all__ = [
     # prj
     'back_prj', 'frwd_prj', 'simulate_recon', 'simulate_sino',
     # sct
-    'vsm']  # yapf: disable
+    'vsm',
+    # optional
+    'video_dyn', 'video_frm', 'xnat']  # yapf: disable
 from pkg_resources import resource_filename
 
 from niftypet.ninst import cudasetup as cs
@@ -58,9 +60,13 @@ from .sct.mmrsct import vsm
 
 if resources.ENBLAGG:
     from .lm.pviews import video_dyn, video_frm
+else:
+    video_dyn, video_frm = None, None
 
 if resources.ENBLXNAT:
     from xnat import xnat
+else:
+    xnat = None
 
 # > GE Signa
 # from . import aux_sig

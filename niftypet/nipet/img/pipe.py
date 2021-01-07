@@ -21,60 +21,73 @@ log = logging.getLogger(__name__)
 
 
 def mmrchain(
-    datain,                   # all input data in a dictionary
-    scanner_params,           # all scanner parameters in one dictionary
-                              # containing constants, transaxial and axial
-                              # LUTs.
-    outpath='',               # output path for results
-    frames=['fluid', [0, 0]], # definition of time frames.
-    mu_h=[],                  # hardware mu-map.
-    mu_o=[],                  # object mu-map.
-    tAffine=None,             # affine transformations for the mu-map for
-                              # each time frame separately.
-    itr=4,                    # number of OSEM iterations
-    fwhm=0.,                  # Gaussian Post-Smoothing FWHM
-    psf=None,                 # Resolution Modelling
-    recmod=-1,                # reconstruction mode: -1: undefined, chosen
-                              # automatically. 3: attenuation and scatter
-                              # correction, 1: attenuation correction
-                              # only, 0: no correction (randoms only).
-    histo=None,               # input histogram (from list-mode data);
-                              # if not given, it will be performed.
-    decay_ref_time=None,      # decay corrects relative to the reference
-                              # time provided; otherwise corrects to the scan
-                              # start time.
+    datain,                 # all input data in a dictionary
+    scanner_params,         # all scanner parameters in one dictionary
+                            # containing constants, transaxial and axial
+                            # LUTs.
+    outpath='',             # output path for results
+    frames=None,            # definition of time frames, default: ['fluid', [0, 0]]
+    mu_h=None,              # hardware mu-map.
+    mu_o=None,              # object mu-map.
+    tAffine=None,           # affine transformations for the mu-map for
+                            # each time frame separately.
+    itr=4,                  # number of OSEM iterations
+    fwhm=0.,                # Gaussian Post-Smoothing FWHM
+    psf=None,               # Resolution Modelling
+    recmod=-1,              # reconstruction mode: -1: undefined, chosen
+                            # automatically. 3: attenuation and scatter
+                            # correction, 1: attenuation correction
+                            # only, 0: no correction (randoms only).
+    histo=None,             # input histogram (from list-mode data);
+                            # if not given, it will be performed.
+    decay_ref_time=None,    # decay corrects relative to the reference
+                            # time provided; otherwise corrects to the scan
+                            # start time.
     trim=False,
     trim_scale=2,
-    trim_interp=0,            # interpolation for upsampling used in PVC
-    trim_memlim=True,         # reduced use of memory for machines
-                              # with limited memory (slow though)
-    pvcroi=[],                # ROI used for PVC.  If undefined no PVC
-                              # is performed.
-    pvcreg_tool='niftyreg',   # the registration tool used in PVC
-    store_rois=False,         # stores the image of PVC ROIs
-                              # as defined in pvcroi.
-    pvcpsf=[],
+    trim_interp=0,          # interpolation for upsampling used in PVC
+    trim_memlim=True,       # reduced use of memory for machines
+                            # with limited memory (slow though)
+    pvcroi=None,            # ROI used for PVC.  If undefined no PVC
+                            # is performed.
+    pvcreg_tool='niftyreg', # the registration tool used in PVC
+    store_rois=False,       # stores the image of PVC ROIs
+                            # as defined in pvcroi.
+    pvcpsf=None,
     pvcitr=5,
-    fcomment='',              # text comment used in the file name of
-                              # generated image files
-    ret_sinos=False,          # return prompt, scatter and randoms
-                              # sinograms for each reconstruction
-    ret_histo=False,          # return histogram (LM processing output) for
-                              # each image frame
+    fcomment='',            # text comment used in the file name of
+                            # generated image files
+    ret_sinos=False,        # return prompt, scatter and randoms
+                            # sinograms for each reconstruction
+    ret_histo=False,        # return histogram (LM processing output) for
+                            # each image frame
     store_img=True,
     store_img_intrmd=False,
-    store_itr=[],             # store any reconstruction iteration in
-                              # the list.  ignored if the list is empty.
+    store_itr=None,         # store any reconstruction iteration in
+                            # the list.  ignored if the list is empty.
     del_img_intrmd=False,
 ):
-                              # decompose all the scanner parameters and constants
+    if frames is None:
+        frames = ['fluid', [0, 0]]
+    if mu_h is None:
+        mu_h = []
+    if mu_o is None:
+        mu_o = []
+    if pvcroi is None:
+        pvcroi = []
+    if pvcpsf is None:
+        pvcpsf = []
+    if store_itr is None:
+        store_itr = []
+
+    # decompose all the scanner parameters and constants
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
     # -------------------------------------------------------------------------
     # HISOTGRAM PRECEEDS FRAMES
-    if not histo == None and 'psino' in histo:
+    if histo is not None and 'psino' in histo:
         frames = ['fluid', [histo['t0'], histo['t1']]]
     else:
         histo = None
@@ -157,7 +170,7 @@ def mmrchain(
     # -------------------------------------------------------------------------
     # MU-MAPS
     # get the mu-maps, if given;  otherwise will use blank mu-maps.
-    if not tAffine is None:
+    if tAffine is not None:
         muod = obtain_image(mu_o, imtype='object mu-map')
     else:
         muod = obtain_image(mu_o, Cnt=Cnt, imtype='object mu-map')
@@ -284,7 +297,7 @@ def mmrchain(
         # check if there is enough prompt data to do a reconstruction
         # --------------
         log.info('dynamic frame times t0={}, t1={}:'.format(t0, t1))
-        if histo == None:
+        if histo is None:
             hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
         else:
             hst = histo
@@ -307,7 +320,7 @@ def mmrchain(
             continue
         # --------------------
         # transform the mu-map if given the affine transformation for each frame
-        if not tAffine is None:
+        if tAffine is not None:
             # create the folder for aligned (registered for motion compensation) mu-maps
             nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size

@@ -257,7 +257,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     # SCAT
     # -------------------------------------------------------------------------
     if recmod == 2:
-        if not sctsino is None:
+        if sctsino is not None:
             ssng = mmraux.remgaps(sctsino, txLUT, Cnt)
         elif sctsino is None and os.path.isfile(datain['em_crr']):
             emd = nimpa.getnii(datain['em_crr'])
@@ -308,7 +308,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     if Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
         # > decay correct to the reference time (e.g., injection time) if provided
         # > otherwise correct in reference to the scan start time
-        if not decay_ref_time is None:
+        if decay_ref_time is not None:
             tref = decay_ref_time
         else:
             tref = hst['t0']

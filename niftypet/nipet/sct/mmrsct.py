@@ -14,6 +14,7 @@ import scipy.ndimage as ndi
 from scipy.interpolate import CloughTocher2DInterpolator, interp2d
 from scipy.spatial import qhull
 from scipy.special import erfc
+from scipy.interpolate import interp2d
 
 from .. import mmr_auxe, mmraux, mmrnorm
 from ..img import mmrimg

@@ -10,6 +10,7 @@ from ..img import mmrimg
 from . import petprj
 
 log = logging.getLogger(__name__)
+ISUB_DEFAULT = np.array([-1], dtype=np.int32)
 
 # ========================================================================
 # transaxial (one-slice) projector
@@ -46,10 +47,10 @@ def trnx_prj(scanner_params, sino=None, im=None):
 # ------------------------------------------------------------------------
 
 
-def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=False,
-             attenuation=False):
-    ''' Calculate forward projection (a set of sinograms) for the provided input image.
-        Arguments:
+def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False):
+    """
+    Calculate forward projection (a set of sinograms) for the provided input image.
+    Arguments:
         im -- input image (can be emission or mu-map image).
         scanner_params -- dictionary of all scanner parameters, containing scanner constants,
             transaxial and axial look up tables (LUT).
@@ -61,7 +62,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             is calculated; the default is False, meaning emission sinogram; for attenuation
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
-    '''
+    """
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
@@ -132,7 +133,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
