@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """initialise the NiftyPET NIPET package"""
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
+__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__ = "Copyright 2020"
 # version detector. Precedence: installed dist, git, 'UNKNOWN'
 try:
     from ._dist_ver import __version__
@@ -47,21 +47,11 @@ from .sct.mmrsct import vsm
 # https://docs.python.org/3/howto/logging.html#library-config
 # log.addHandler(LogHandler())  # do it anyway for convenience
 
-
-
-
-
-
-
-
-
-
 if resources.ENBLAGG:
     from .lm.pviews import video_dyn, video_frm
 
 if resources.ENBLXNAT:
     from xnat import xnat
-
 
 #> GE Signa
 #from . import aux_sig

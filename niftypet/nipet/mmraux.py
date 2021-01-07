@@ -20,8 +20,8 @@ from niftypet import nimpa
 
 from . import mmr_auxe, resources
 
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
+__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 
@@ -32,7 +32,7 @@ def create_dir(pth):
 
 def fwhm2sig(fwhm):
     Cnt = resources.get_mmr_constants()
-    return (fwhm/Cnt['SZ_VOXY']) / (2*(2*np.log(2))**.5)
+    return (fwhm / Cnt['SZ_VOXY']) / (2 * (2 * np.log(2))**.5)
 
 
 def lm_pos(datain, Cnt):
@@ -46,20 +46,21 @@ def lm_pos(datain, Cnt):
         return None
 
     #---find GantryOffset
-    if dhdr[0x0018, 0x1020].value == 'syngo MR B20P'  or dhdr[0x0018, 0x1020].value == 'syngo MR E11':
+    if dhdr[0x0018, 0x1020].value == 'syngo MR B20P' or dhdr[0x0018,
+                                                             0x1020].value == 'syngo MR E11':
         flip = 1
-        if [0x29,0x1120] in dhdr:
-            csainfo = dhdr[0x29,0x1120].value
+        if [0x29, 0x1120] in dhdr:
+            csainfo = dhdr[0x29, 0x1120].value
         else:
             log.error('DICOM field [0x29,0x1120] not found!')
             return None
     # this is for older scanner software
     elif dhdr[0x0018, 0x1020].value == 'syngo MR B18P':
         flip = -1
-        if [0x29,0x1020] in dhdr:
-            csainfo = dhdr[0x29,0x1020].value
-        elif [0x29,0x1120] in dhdr:
-            csainfo = dhdr[0x29,0x1120].value
+        if [0x29, 0x1020] in dhdr:
+            csainfo = dhdr[0x29, 0x1020].value
+        elif [0x29, 0x1120] in dhdr:
+            csainfo = dhdr[0x29, 0x1120].value
         else:
             log.error(' DICOM field [0x29,0x1020] not found!')
             return None
@@ -67,24 +68,24 @@ def lm_pos(datain, Cnt):
         raise ValueError('unknown scanner software version!')
 
     fi = re.search(b'GantryOffset(?!_)', csainfo).start() #csainfo.find('GantryOffset')
-    #regular expression for the needed three numbers
+                                                          #regular expression for the needed three numbers
     p = re.compile(b'-?\\d.\\d{4,10}')
-    xyz = p.findall(csainfo[fi:fi+200])
-    #offset in cm
-    # xoff = float(xyz[0])/10
-    # yoff = float(xyz[1])/10
-    # zoff = float(xyz[2])/10
-    #> hack to avoid other numbers (counting from the back)
-    xoff = float(xyz[-3])/10
-    yoff = float(xyz[-2])/10
-    zoff = float(xyz[-1])/10
+    xyz = p.findall(csainfo[fi:fi + 200])
+                                                          #offset in cm
+                                                          # xoff = float(xyz[0])/10
+                                                          # yoff = float(xyz[1])/10
+                                                          # zoff = float(xyz[2])/10
+                                                          #> hack to avoid other numbers (counting from the back)
+    xoff = float(xyz[-3]) / 10
+    yoff = float(xyz[-2]) / 10
+    zoff = float(xyz[-1]) / 10
 
     goff = flip * np.array([xoff, yoff, zoff])
     log.info('gantry offset from DICOM:\n{}'.format(goff))
 
     fi = csainfo.find(b'TablePositionOrigin')
     #regular expression for the needed three numbers
-    tpostr = csainfo[fi:fi+200]
+    tpostr = csainfo[fi:fi + 200]
     tpo = re.sub(b'[^a-zA-Z0-9\\-]', b'', tpostr).split(b'M')
     tpozyx = np.array([float(tpo[-1]), float(tpo[-2]), float(tpo[-3])])
     log.info('table position origin from DICOM:\n{}'.format(tpozyx))
@@ -103,21 +104,22 @@ def hdr_lm(datain, Cnt):
         return None
 
     # list possible DICOM locations for list-mode interfile header
-    lmhdr_locations = [[0x29,0x1010], [0x29,0x1110]]
+    lmhdr_locations = [[0x29, 0x1010], [0x29, 0x1110]]
 
     # for newer scanner software
-    if dhdr[0x0018, 0x1020].value == 'syngo MR B20P' or dhdr[0x0018, 0x1020].value == 'syngo MR E11':
+    if dhdr[0x0018, 0x1020].value == 'syngo MR B20P' or dhdr[0x0018,
+                                                             0x1020].value == 'syngo MR E11':
         # interfile header
-        if [0x29,0x1010] in dhdr:
-            lmhdr = dhdr[0x29,0x1010].value
+        if [0x29, 0x1010] in dhdr:
+            lmhdr = dhdr[0x29, 0x1010].value
             log.info('got LM interfile.')
         else:
             log.warning('DICOM field [0x29,0x1010] not found!')
             lmhdr = None
 
         #CSA Series Header Info
-        if [0x29,0x1120] in dhdr:
-            csahdr = dhdr[0x29,0x1120].value
+        if [0x29, 0x1120] in dhdr:
+            csahdr = dhdr[0x29, 0x1120].value
             log.info('got CSA info.')
         else:
             log.error('DICOM field [0x29,0x1120] not found!')
@@ -132,7 +134,8 @@ def hdr_lm(datain, Cnt):
             if loc in dhdr:
                 lmhdr = dhdr[loc].value
                 if '!INTERFILE' in lmhdr and 'start horizontal bed position' in lmhdr:
-                    log.info(dedent('''\
+                    log.info(
+                        dedent('''\
                         obtained list-mode interfile header from:
                         [{}, {}]''').format(hex(loc[0]), hex(loc[1])))
                     found_lmhdr = True
@@ -142,11 +145,11 @@ def hdr_lm(datain, Cnt):
             lmhdr = None
 
         #CSA Series Header Info
-        if [0x29,0x1020] in dhdr:
-            csahdr = dhdr[0x29,0x1020].value
+        if [0x29, 0x1020] in dhdr:
+            csahdr = dhdr[0x29, 0x1020].value
             log.info('got CSA info.')
-        elif [0x29,0x1120] in dhdr:
-            csahdr = dhdr[0x29,0x1120].value
+        elif [0x29, 0x1120] in dhdr:
+            csahdr = dhdr[0x29, 0x1120].value
             log.info('got CSA info (may not be accurate, please check).')
         else:
             log.error('DICOM field [0x29,0x1020] not found!')
@@ -162,43 +165,35 @@ def vh_bedpos(datain, Cnt):
     p = re.compile(r'start horizontal bed position.*\d{1,3}\.*\d*')
     m = p.search(ihdr)
     fi = ihdr[m.start():m.end()].find('=')
-    hbedpos = 0.1*float(ihdr[m.start()+fi+1:m.end()])
+    hbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
 
     #start vertical bed position
     p = re.compile(r'start vertical bed position.*\d{1,3}\.*\d*')
     m = p.search(ihdr)
     fi = ihdr[m.start():m.end()].find('=')
-    vbedpos = 0.1*float(ihdr[m.start()+fi+1:m.end()])
+    vbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
 
     return vbedpos, hbedpos
 
 
-def hmu_resample0(hmupos, parts ,Cnt):
+def hmu_resample0(hmupos, parts, Cnt):
 
     #output image sampling
     Cim = {
-        'VXSRx':Cnt['SO_VXX'],
-        'VXSRy':Cnt['SO_VXY'],
-        'VXSRz':Cnt['SO_VXZ'],
-        'VXNRx':Cnt['SO_IMX'],
-        'VXNRy':Cnt['SO_IMY'],
-        'VXNRz':Cnt['SO_IMZ']
-    }
+        'VXSRx': Cnt['SO_VXX'], 'VXSRy': Cnt['SO_VXY'], 'VXSRz': Cnt['SO_VXZ'],
+        'VXNRx': Cnt['SO_IMX'], 'VXNRy': Cnt['SO_IMY'], 'VXNRz': Cnt['SO_IMZ']}
     #voxel position/offset
-    Cim['OFFRx'] = -0.5*Cim['VXNRx']*Cim['VXSRx']#-0.5*Cim['VXSRx']
-    Cim['OFFRy'] = -0.5*Cim['VXNRy']*Cim['VXSRy']#-0.5*Cim['VXSRy']
-    Cim['OFFRz'] = -0.5*Cim['VXNRz']*Cim['VXSRz']-hmupos[0]['HBedPos']
+    Cim['OFFRx'] = -0.5 * Cim['VXNRx'] * Cim['VXSRx'] #-0.5*Cim['VXSRx']
+    Cim['OFFRy'] = -0.5 * Cim['VXNRy'] * Cim['VXSRy'] #-0.5*Cim['VXSRy']
+    Cim['OFFRz'] = -0.5 * Cim['VXNRz'] * Cim['VXSRz'] - hmupos[0]['HBedPos']
 
     Trnsl = (0.0, 0.0, 0.0)
     #transformation matrix
     A = np.array(
-        [[ 1., 0., 0.,  Trnsl[0] ],
-        [  0., 1., 0.,  Trnsl[1] ],
-        [  0., 0., 1.,  Trnsl[2] ],
-        [  0., 0., 0.,  1. ]], dtype=np.float32
-        )
+        [[1., 0., 0., Trnsl[0]], [0., 1., 0., Trnsl[1]], [0., 0., 1., Trnsl[2]], [0., 0., 0., 1.]],
+        dtype=np.float32)
 
-    imr = np.zeros( (Cnt['SO_IMZ'],Cnt['SO_IMY'],Cnt['SO_IMX']), dtype=np.float32)
+    imr = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
     #===== Go through the hardware mu-map parts =====
     for i in parts:
         Cim['VXSOx'] = hmupos[i]['ivs'][2]
@@ -210,21 +205,21 @@ def hmu_resample0(hmupos, parts ,Cnt):
         #original image offset
         Cim['OFFOx'] = hmupos[i]['vpos'][2]
         Cim['OFFOy'] = hmupos[i]['vpos'][1]
-        Cim['OFFOz'] =-hmupos[i]['vpos'][0]
+        Cim['OFFOz'] = -hmupos[i]['vpos'][0]
 
         #resample!
-        if i==4:
+        if i == 4:
             #does the bed just partly (no point doing all the long bed)
-            offresZ = (-.5*Cnt['SO_IMZ']*Cnt['SO_VXZ']-hmupos[0]['HBedPos'])
+            offresZ = (-.5 * Cnt['SO_IMZ'] * Cnt['SO_VXZ'] - hmupos[0]['HBedPos'])
             #excess of the hrdwr mu-map axially
             excemuZ = offresZ - (-hmupos[4]['vpos'][0])
-            excevox = int( excemuZ/hmupos[4]['ivs'][0] ) - 5# with extra margin of 5
-            newoffZ = -hmupos[4]['vpos'][0] + excevox*hmupos[4]['ivs'][0]
-            #number of voxels included axially
-            inclvox = Cnt['SO_IMZ']*Cnt['SO_VXZ']/hmupos[4]['ivs'][0] + 10 #with extra margin...
-            #truncate the image
-            im = hmupos[i]['img'][excevox:excevox+inclvox,:,:]
-            #update dictionary Cim
+            excevox = int(excemuZ / hmupos[4]['ivs'][0]) - 5                   # with extra margin of 5
+            newoffZ = -hmupos[4]['vpos'][0] + excevox * hmupos[4]['ivs'][0]
+                                                                               #number of voxels included axially
+            inclvox = Cnt['SO_IMZ'] * Cnt['SO_VXZ'] / hmupos[4]['ivs'][0] + 10 #with extra margin...
+                                                                               #truncate the image
+            im = hmupos[i]['img'][excevox:excevox + inclvox, :, :]
+                                                                               #update dictionary Cim
             Cim['OFFOz'] = newoffZ
             Cim['VXNOz'] = im.shape[0]
             imr += nimpa.prc.improc.resample(im, A, Cim)
@@ -245,38 +240,41 @@ def time_diff_norm_acq(datain):
         return None
 
     # acq date
-    s = l[0x08,0x21].value
+    s = l[0x08, 0x21].value
     y = int(s[:4])
     m = int(s[4:6])
     d = int(s[6:8])
     # acq time
-    s = l[0x08,0x32].value
+    s = l[0x08, 0x32].value
     hrs = int(s[:2])
     mns = int(s[2:4])
     sec = int(s[4:6])
 
     # calib date
-    s = l[0x18,0x1200].value
+    s = l[0x18, 0x1200].value
     cy = int(s[:4])
     cm = int(s[4:6])
     cd = int(s[6:8])
     # calib time
-    s = l[0x18,0x1201].value
+    s = l[0x18, 0x1201].value
     chrs = int(s[:2])
     cmns = int(s[2:4])
     csec = int(s[4:6])
 
     tdiff = (hrs*3600 + mns*60 + sec) - (chrs*3600 + cmns*60 + csec)
-    dhrs = tdiff/3600
-    dmns = (tdiff - 3600*dhrs)/60
-    if dhrs>12:
-        log.warning('time difference between calibration and acquisition is: {} hrs and {} mins'.format(dhrs, dmns))
+    dhrs = tdiff / 3600
+    dmns = (tdiff - 3600*dhrs) / 60
+    if dhrs > 12:
+        log.warning(
+            'time difference between calibration and acquisition is: {} hrs and {} mins'.format(
+                dhrs, dmns))
 
-    if np.sum([cy-y, cm-m, cd-d])!=0:
-        log.warning(dedent('''\
+    if np.sum([cy - y, cm - m, cd - d]) != 0:
+        log.warning(
+            dedent('''\
             daily QC/calibration was performed on different day(!):
             {}-{}-{} vs. {}-{}-{}
-            ''').format(cy, cm, cd, y,m,d))
+            ''').format(cy, cm, cd, y, m, d))
 
 
 def timings_from_list(flist, offset=0):
@@ -293,10 +291,12 @@ def timings_from_list(flist, offset=0):
     '''
     if not isinstance(flist, list):
         raise TypeError('Wrong type of frame data input')
-    if all([isinstance(t,(int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32)) for t in flist]):
+    if all([
+            isinstance(t, (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32))
+            for t in flist]):
         tsum = offset
         # list of frame timings
-        if offset>0:
+        if offset > 0:
             t_frames = [[0, offset]]
         else:
             t_frames = []
@@ -309,16 +309,16 @@ def timings_from_list(flist, offset=0):
             # append the timings to the list
             t_frames.append([t0, t1])
         frms = np.uint16(flist)
-    elif all([isinstance(t,list) and len(t)==2 for t in flist]):
-        if offset>0:
-            flist.insert(0,[1,offset])
+    elif all([isinstance(t, list) and len(t) == 2 for t in flist]):
+        if offset > 0:
+            flist.insert(0, [1, offset])
             farray = np.asarray(flist, dtype=np.uint16)
         else:
             farray = np.array(flist)
         # number of dynamic frames
-        nfrm = np.sum(farray[:,0])
+        nfrm = np.sum(farray[:, 0])
         # list of frame duration
-        frms = np.zeros(nfrm,dtype=np.uint16)
+        frms = np.zeros(nfrm, dtype=np.uint16)
         #frame iterator
         fi = 0
         #time sum of frames
@@ -326,20 +326,20 @@ def timings_from_list(flist, offset=0):
         # list of frame timings
         t_frames = []
         for i in range(0, farray.shape[0]):
-            for t in range(0, farray[i,0]):
+            for t in range(0, farray[i, 0]):
                 # frame start time
                 t0 = tsum
-                tsum += farray[i,1]
+                tsum += farray[i, 1]
                 # frame end time
                 t1 = tsum
                 # append the timings to the list
                 t_frames.append([t0, t1])
-                frms[fi] = farray[i,1]
+                frms[fi] = farray[i, 1]
                 fi += 1
     else:
         raise TypeError('Unrecognised data input.')
     # prepare the output dictionary
-    out = {'total':tsum, 'frames':frms, 'timings':t_frames}
+    out = {'total': tsum, 'frames': frms, 'timings': t_frames}
     return out
 
 
@@ -349,117 +349,120 @@ def axial_lut(Cnt):
     '''
     NRNG = Cnt['NRNG']
 
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         NSN1_c = NRNG_c**2
         # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
-        if NRNG_c==64:
+        if NRNG_c == 64:
             NSN1_c -= 12
-        SEG0_c = 2*NRNG_c-1
+        SEG0_c = 2*NRNG_c - 1
     else:
         NRNG_c = NRNG
         NSN1_c = Cnt['NSN1']
-        if Cnt['RNG_END']!=NRNG or Cnt['RNG_STRT']!=0:
+        if Cnt['RNG_END'] != NRNG or Cnt['RNG_STRT'] != 0:
             log.error('the reduced axial FOV only works in span-1!')
             return None
 
     #ring dimensions
-    rng = np.zeros((NRNG,2), dtype = np.float32)
-    z = -.5*NRNG*Cnt['AXR']
+    rng = np.zeros((NRNG, 2), dtype=np.float32)
+    z = -.5 * NRNG * Cnt['AXR']
     for i in range(NRNG):
-        rng[i,0] = z
+        rng[i, 0] = z
         z += Cnt['AXR']
-        rng[i,1] = z
+        rng[i, 1] = z
 
     #--create mapping from ring difference to segment number
     #ring difference range
-    rd = list(range(-Cnt['MRD'],Cnt['MRD']+1))
+    rd = list(range(-Cnt['MRD'], Cnt['MRD'] + 1))
     #ring difference to segment
-    rd2sg = -1*np.ones((len(rd),2,), dtype=np.int32)
+    rd2sg = -1 * np.ones((
+        len(rd),
+        2,
+    ), dtype=np.int32)
     for i in range(len(rd)):
         for iseg in range(len(Cnt['MNRD'])):
-            if ( rd[i]>=Cnt['MNRD'][iseg] ) and ( rd[i]<=Cnt['MXRD'][iseg] ):
-                rd2sg[i,:] = np.array([rd[i], iseg])
+            if (rd[i] >= Cnt['MNRD'][iseg]) and (rd[i] <= Cnt['MXRD'][iseg]):
+                rd2sg[i, :] = np.array([rd[i], iseg])
 
     #create two Michelograms for segments (Mseg)
     #and absolute axial position for individual sinos (Mssrb) which is single slice rebinning
-    Mssrb = -1*np.ones((NRNG,NRNG), dtype=np.int32)
-    Mseg = -1*np.ones((NRNG,NRNG), dtype=np.int32)
+    Mssrb = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    Mseg = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
     for r1 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
         for r0 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
-            if abs(r1-r0)>Cnt['MRD']:
+            if abs(r1 - r0) > Cnt['MRD']:
                 continue
-            ssp = r0+r1  #segment sino position (axially: 0-126)
-            rd = r1-r0
-            jseg = rd2sg[rd2sg[:,0]==rd, 1]
-            Mssrb[r1,r0] = ssp
-            Mseg[r1,r0] = jseg #negative segments are on top diagonals
+            ssp = r0 + r1       #segment sino position (axially: 0-126)
+            rd = r1 - r0
+            jseg = rd2sg[rd2sg[:, 0] == rd, 1]
+            Mssrb[r1, r0] = ssp
+            Mseg[r1, r0] = jseg #negative segments are on top diagonals
 
     # np.savetxt("Mssrb.csv", Mssrb, delimiter=",", fmt='%d')
     # np.savetxt("Mseg.csv", Mseg, delimiter=",", fmt='%d')
 
     #create a Michelogram map from rings to sino number in span-11 (1..837)
-    Msn = -1*np.ones((NRNG,NRNG), dtype=np.int32)
+    Msn = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
     #number of span-1 sinos per sino in span-11
-    Mnos = -1*np.ones((NRNG,NRNG), dtype=np.int32)
+    Mnos = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
     i = 0
-    for iseg in range(0,len(Cnt['SEG'])):
-        msk = (Mseg==iseg)
+    for iseg in range(0, len(Cnt['SEG'])):
+        msk = (Mseg == iseg)
         Mtmp = np.copy(Mssrb)
         Mtmp[~msk] = -1
         uq = np.unique(Mtmp[msk])
-        for u in range(0,len(uq)):
+        for u in range(0, len(uq)):
             #print(i)
-            Msn [ Mtmp==uq[u] ] = i
-            Mnos[ Mtmp==uq[u] ] = np.sum(Mtmp==uq[u])
+            Msn[Mtmp == uq[u]] = i
+            Mnos[Mtmp == uq[u]] = np.sum(Mtmp == uq[u])
             i += 1
     # np.savetxt("Mnos.csv", Mnos, delimiter=",", fmt='%d')
     # np.savetxt("Msn.csv", Msn, delimiter=",", fmt='%d')
 
     #====full LUT
-    sn1_rno = np.zeros((NSN1_c,2), dtype=np.int16)
-    sn1_ssrb= np.zeros((NSN1_c), dtype=np.int16)
-    sn1_sn11= np.zeros((NSN1_c), dtype=np.int16)
+    sn1_rno = np.zeros((NSN1_c, 2), dtype=np.int16)
+    sn1_ssrb = np.zeros((NSN1_c), dtype=np.int16)
+    sn1_sn11 = np.zeros((NSN1_c), dtype=np.int16)
     sn1_sn11no = np.zeros((NSN1_c), dtype=np.int8)
-    sni = 0 #full linear index, upto 4084
-    Msn1 = -1*np.ones((NRNG,NRNG), dtype=np.int16) #michelogram of sino numbers for spn-1
-    for ro in range(0,NRNG):
-        if ro==0:
+    sni = 0                                           #full linear index, upto 4084
+    Msn1 = -1 * np.ones((NRNG, NRNG), dtype=np.int16) #michelogram of sino numbers for spn-1
+    for ro in range(0, NRNG):
+        if ro == 0:
             oblique = 1
         else:
             oblique = 2
         for m in range(oblique):
-            strt = NRNG*(ro+Cnt['RNG_STRT']) + Cnt['RNG_STRT']
-            stop = (Cnt['RNG_STRT']+NRNG_c)*NRNG
-            step = NRNG+1
-            for li in range(strt, stop, step): #goes along a diagonal started in the first row at r1
-                #linear indecies of michelogram --> subscript indecies for positive and negative RDs
-                if m==0:
-                    r1 = int(li/NRNG)
+            strt = NRNG * (ro + Cnt['RNG_STRT']) + Cnt['RNG_STRT']
+            stop = (Cnt['RNG_STRT'] + NRNG_c) * NRNG
+            step = NRNG + 1
+            for li in range(strt, stop, step):        #goes along a diagonal started in the first row at r1
+                                                      #linear indecies of michelogram --> subscript indecies for positive and negative RDs
+                if m == 0:
+                    r1 = int(li / NRNG)
                     r0 = int(li - r1*NRNG)
-                else: #for positive now (? or vice versa)
-                    r0 = int(li/NRNG)
+                else:                                 #for positive now (? or vice versa)
+                    r0 = int(li / NRNG)
                     r1 = int(li - r0*NRNG)
-                #avoid case when RD>MRD
-                if (Msn[r1,r0])<0:
+                                                      #avoid case when RD>MRD
+                if (Msn[r1, r0]) < 0:
                     continue
 
-                sn1_rno[sni,0] = r0
-                sn1_rno[sni,1] = r1
+                sn1_rno[sni, 0] = r0
+                sn1_rno[sni, 1] = r1
 
-                sn1_ssrb[sni] = Mssrb[r1,r0]
-                sn1_sn11[sni] = Msn[r0,r1]
+                sn1_ssrb[sni] = Mssrb[r1, r0]
+                sn1_sn11[sni] = Msn[r0, r1]
 
-                sn1_sn11no[sni] = Mnos[r0,r1]
+                sn1_sn11no[sni] = Mnos[r0, r1]
 
-                Msn1[r0,r1] = sni
+                Msn1[r0, r1] = sni
                 #--
                 sni += 1
 
     #span-11 sino to SSRB
-    sn11_ssrb = np.zeros(Cnt['NSN11'], dtype=np.int32);
+    sn11_ssrb = np.zeros(Cnt['NSN11'], dtype=np.int32)
     sn11_ssrb[:] -= 1
     sn1_ssrno = np.zeros(Cnt['NSEG0'], dtype=np.int8)
     for i in range(NSN1_c):
@@ -468,77 +471,77 @@ def axial_lut(Cnt):
 
     sn11_ssrno = np.zeros(Cnt['NSEG0'], dtype=np.int8)
     for i in range(Cnt['NSN11']):
-        if sn11_ssrb[i]>0: sn11_ssrno[sn11_ssrb[i]] += 1
+        if sn11_ssrb[i] > 0: sn11_ssrno[sn11_ssrb[i]] += 1
 
-    sn1_ssrno  =  sn1_ssrno[np.unique(sn1_ssrb)]
+    sn1_ssrno = sn1_ssrno[np.unique(sn1_ssrb)]
     sn11_ssrno = sn11_ssrno[np.unique(sn1_ssrb)]
-    sn11_ssrb = sn11_ssrb[sn11_ssrb>=0]
+    sn11_ssrb = sn11_ssrb[sn11_ssrb >= 0]
 
     #---------------------------------------------------------------------
     #linear index (along diagonals of Michelogram) to rings
     # the number of Michelogram elements considered in projection calculations
-    NLI2R_c = int(NRNG_c**2/2. + NRNG_c/2.)
+    NLI2R_c = int(NRNG_c**2 / 2. + NRNG_c/2.)
     # if the whole scanner is used then account for the MRD and subtract 6 ring permutations
-    if NRNG_c==NRNG:
+    if NRNG_c == NRNG:
         NLI2R_c -= 6
 
-    li2r   = np.zeros((NLI2R_c,2), dtype=np.int8)
+    li2r = np.zeros((NLI2R_c, 2), dtype=np.int8)
     #the same as above but to sinos in span-11
-    li2sn  = np.zeros((NLI2R_c,2), dtype=np.int16)
-    li2sn1  = np.zeros((NLI2R_c,2), dtype=np.int16)
-    li2rng = np.zeros((NLI2R_c,2), dtype=np.float32)
+    li2sn = np.zeros((NLI2R_c, 2), dtype=np.int16)
+    li2sn1 = np.zeros((NLI2R_c, 2), dtype=np.int16)
+    li2rng = np.zeros((NLI2R_c, 2), dtype=np.float32)
     #...to number of sinos (nos)
     li2nos = np.zeros((NLI2R_c), dtype=np.int8)
 
     dli = 0
     for ro in range(0, NRNG_c):
         # selects the sub-Michelogram of the whole Michelogram
-        strt = NRNG*(ro+Cnt['RNG_STRT']) + Cnt['RNG_STRT']
-        stop = (Cnt['RNG_STRT']+NRNG_c)*NRNG
-        step = NRNG+1
+        strt = NRNG * (ro + Cnt['RNG_STRT']) + Cnt['RNG_STRT']
+        stop = (Cnt['RNG_STRT'] + NRNG_c) * NRNG
+        step = NRNG + 1
 
         for li in range(strt, stop, step): #goes along a diagonal started in the first row at r2o
-            #from the linear indexes of Michelogram get the subscript indexes
-            r1 = int(li/NRNG)
+                                           #from the linear indexes of Michelogram get the subscript indexes
+            r1 = int(li / NRNG)
             r0 = int(li - r1*NRNG)
-            #avoid case when RD>MRD
-            if (Msn[r1,r0])<0:
+                                           #avoid case when RD>MRD
+            if (Msn[r1, r0]) < 0:
                 continue
-            # li2r[0, dli] = r0
-            # li2r[1, dli] = r1
-            # #--
-            # li2rng[0, dli] = rng[r0,0];
-            # li2rng[1, dli] = rng[r1,0];
-            # #--
-            # li2sn[0, dli] = Msn[r0,r1]
-            # li2sn[1, dli] = Msn[r1,r0]
+                                           # li2r[0, dli] = r0
+                                           # li2r[1, dli] = r1
+                                           # #--
+                                           # li2rng[0, dli] = rng[r0,0];
+                                           # li2rng[1, dli] = rng[r1,0];
+                                           # #--
+                                           # li2sn[0, dli] = Msn[r0,r1]
+                                           # li2sn[1, dli] = Msn[r1,r0]
 
-            li2r[dli,0] = r0
-            li2r[dli,1] = r1
+            li2r[dli, 0] = r0
+            li2r[dli, 1] = r1
             #--
-            li2rng[dli,0] = rng[r0,0]
-            li2rng[dli,1] = rng[r1,0]
+            li2rng[dli, 0] = rng[r0, 0]
+            li2rng[dli, 1] = rng[r1, 0]
             #--
-            li2sn[dli, 0] = Msn[r0,r1]
-            li2sn[dli, 1] = Msn[r1,r0]
+            li2sn[dli, 0] = Msn[r0, r1]
+            li2sn[dli, 1] = Msn[r1, r0]
 
-            li2sn1[dli, 0] = Msn1[r0,r1]
-            li2sn1[dli, 1] = Msn1[r1,r0]
+            li2sn1[dli, 0] = Msn1[r0, r1]
+            li2sn1[dli, 1] = Msn1[r1, r0]
 
             # li2sn[0, dli] = Msn[r1,r0]
             # li2sn[1, dli] = Msn[r0,r1]
             #--
-            li2nos[dli] = Mnos[r1,r0]
+            li2nos[dli] = Mnos[r1, r0]
             #--
             dli += 1
     # log.info('number of diagonal indexes (in Michelogram) accounted for: {}'.format(dli))
     #---------------------------------------------------------------------
 
-
-    axLUT = {'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn1, 'li2nos':li2nos, 'li2rng':li2rng,
-             'sn1_rno':sn1_rno, 'sn1_ssrb':sn1_ssrb, 'sn1_sn11':sn1_sn11, 'sn1_sn11no':sn1_sn11no,
-             'sn11_ssrb':sn11_ssrb, 'sn1_ssrno':sn1_ssrno, 'sn11_ssrno':sn11_ssrno,
-             'Msn11':Msn, 'Msn1':Msn1, 'Mnos':Mnos, 'rng':rng}
+    axLUT = {
+        'li2rno': li2r, 'li2sn': li2sn, 'li2sn1': li2sn1, 'li2nos': li2nos, 'li2rng': li2rng,
+        'sn1_rno': sn1_rno, 'sn1_ssrb': sn1_ssrb, 'sn1_sn11': sn1_sn11, 'sn1_sn11no': sn1_sn11no,
+        'sn11_ssrb': sn11_ssrb, 'sn1_ssrno': sn1_ssrno, 'sn11_ssrno': sn11_ssrno, 'Msn11': Msn,
+        'Msn1': Msn1, 'Mnos': Mnos, 'rng': rng}
 
     log.debug('axial LUTs done.')
 
@@ -546,10 +549,10 @@ def axial_lut(Cnt):
 
 
 def sino2ssr(sino, axLUT, Cnt):
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         slut = axLUT['sn1_ssrb']
         snno = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         slut = axLUT['sn11_ssrb']
         snno = Cnt['NSN11']
     else:
@@ -559,7 +562,7 @@ def sino2ssr(sino, axLUT, Cnt):
     ssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
     for i in range(snno):
-        ssr[slut[i],:,:] += sino[i,:,:]
+        ssr[slut[i], :, :] += sino[i, :, :]
 
     return ssr
 
@@ -583,13 +586,13 @@ def reduce_rings(pars, rs=0, re=64):
     # RNG_STRT is included in detection
     # RNG_END is not included in detection process
     pars['Cnt']['RNG_STRT'] = rs
-    pars['Cnt']['RNG_END']  = re
+    pars['Cnt']['RNG_END'] = re
     # now change the voxels dims too
-    vz0 = 2*pars['Cnt']['RNG_STRT']
-    vz1 = 2*(pars['Cnt']['RNG_END']-1)
+    vz0 = 2 * pars['Cnt']['RNG_STRT']
+    vz1 = 2 * (pars['Cnt']['RNG_END'] - 1)
     # number of axial voxels
-    pars['Cnt']['rSO_IMZ'] = vz1-vz0+1
-    pars['Cnt']['rSZ_IMZ'] = vz1-vz0+1
+    pars['Cnt']['rSO_IMZ'] = vz1 - vz0 + 1
+    pars['Cnt']['rSZ_IMZ'] = vz1 - vz0 + 1
     # axial voxel size for scatter (mu-map and emission image)
     # pars['Cnt']['SS_IMZ'] = pars['Cnt']['rSG_IMZ']
     # number of rings customised for the given ring range (only optional in span-1)
@@ -600,7 +603,7 @@ def reduce_rings(pars, rs=0, re=64):
     pars['Cnt']['rNSN1'] = rNSN1
     # correct for the limited max. ring difference in the full axial extent.
     # don't use ring range (1,63) as for this case no correction
-    if rNRNG==64:  rNSN1 -= 12
+    if rNRNG == 64: rNSN1 -= 12
     # apply the new ring subset to axial LUTs
     raxLUT = axial_lut(pars['Cnt'])
     # michelogram for reduced rings in span-1
@@ -609,7 +612,7 @@ def reduce_rings(pars, rs=0, re=64):
     Msn1 = np.copy(pars['axLUT']['Msn1'])
     # from full span-1 sinogram index to reduced rings sinogram index
     rlut = np.zeros(rNSN1, dtype=np.int16)
-    rlut[Msn1_c[Msn1_c>=0]] = Msn1[Msn1_c>=0]
+    rlut[Msn1_c[Msn1_c >= 0]] = Msn1[Msn1_c >= 0]
     raxLUT['rLUT'] = rlut
     pars['axLUT'] = raxLUT
 
@@ -624,10 +627,10 @@ def transaxial_lut(Cnt, visualisation=False):
 
     if visualisation:
         #---visualisation of the crystal ring in transaxial view
-        p = 8 #pixel density of the visualisation
-        VISXY = Cnt['SO_IMX']*p
-        T = np.zeros((VISXY,VISXY), dtype=np.float32)
-        #---
+        p = 8      #pixel density of the visualisation
+        VISXY = Cnt['SO_IMX'] * p
+        T = np.zeros((VISXY, VISXY), dtype=np.float32)
+                   #---
 
     #--- crystal coordinates transaxially
     #> block width
@@ -636,62 +639,60 @@ def transaxial_lut(Cnt, visualisation=False):
     #> block gap [cm]
     dg = 0.474
     NTBLK = 56
-    alpha = 0.1122  #2*pi/NTBLK
-    crs = np.zeros((Cnt['NCRS'],4), dtype=np.float32)
+    alpha = 0.1122 #2*pi/NTBLK
+    crs = np.zeros((Cnt['NCRS'], 4), dtype=np.float32)
 
     #> phi angle points in the middle and is used for obtaining the normal of detector block
-    phi = 0.5*pi - alpha/2 -0.001
+    phi = 0.5*pi - alpha/2 - 0.001
     for bi in range(NTBLK):
         #> tangent point (ring against detector block)
         # ye = RE*np.sin(phi)
         # xe = RE*np.cos(phi)
-        y  =  Cnt['R_RING']*np.sin(phi)
-        x  =  Cnt['R_RING']*np.cos(phi)
+        y = Cnt['R_RING'] * np.sin(phi)
+        x = Cnt['R_RING'] * np.cos(phi)
 
         #> vector for the face of crystals
-        pv  = np.array([-y, x])
+        pv = np.array([-y, x])
         pv /= np.sum(pv**2)**.5
 
         #> update phi for next block
         phi -= alpha
 
         #> end block points
-        xcp = x + (bw/2)*pv[0]
-        ycp = y + (bw/2)*pv[1]
+        xcp = x + (bw/2) * pv[0]
+        ycp = y + (bw/2) * pv[1]
 
         if visualisation:
-            u = int( .5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)) )
-            v = int( .5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)) )
-            T[v,u] = 5
+            u = int(.5*VISXY + np.floor(xcp / (Cnt['SO_VXY'] / p)))
+            v = int(.5*VISXY - np.ceil(ycp / (Cnt['SO_VXY'] / p)))
+            T[v, u] = 5
 
-        for n in range(1,9):
-            c = bi*9 +n-1
-            crs[c,0] = xcp
-            crs[c,1] = ycp
-            xc = x + (bw/2-n*bw/8)*pv[0]
-            yc = y + (bw/2-n*bw/8)*pv[1]
-            crs[c,2] = xc
-            crs[c,3] = yc
+        for n in range(1, 9):
+            c = bi*9 + n - 1
+            crs[c, 0] = xcp
+            crs[c, 1] = ycp
+            xc = x + (bw/2 - n*bw/8) * pv[0]
+            yc = y + (bw/2 - n*bw/8) * pv[1]
+            crs[c, 2] = xc
+            crs[c, 3] = yc
             xcp = xc
             ycp = yc
 
             if visualisation:
-                u = int(.5*VISXY + np.floor(xcp/(Cnt['SO_VXY']/p)))
-                v = int(.5*VISXY - np.ceil (ycp/(Cnt['SO_VXY']/p)))
-                T[v,u] = 2.5
+                u = int(.5*VISXY + np.floor(xcp / (Cnt['SO_VXY'] / p)))
+                v = int(.5*VISXY - np.ceil(ycp / (Cnt['SO_VXY'] / p)))
+                T[v, u] = 2.5
 
     out = dict(crs=crs)
 
     if visualisation:
         out['visual'] = T
 
-
-
     #> crystals reduced by the gaps (dead crystals)
-    crsr = -1*np.ones(Cnt['NCRS'], dtype=np.int16)
+    crsr = -1 * np.ones(Cnt['NCRS'], dtype=np.int16)
     ci = 0
     for i in range(Cnt['NCRS']):
-        if (((i + Cnt['OFFGAP']) % Cnt['TGAP'])>0):
+        if (((i + Cnt['OFFGAP']) % Cnt['TGAP']) > 0):
             crsr[i] = ci
             ci += 1
         if visualisation:
@@ -705,75 +706,79 @@ def transaxial_lut(Cnt, visualisation=False):
     msino = np.zeros((Cnt['NSBINS'], Cnt['NSANGLES']), dtype=np.int8)
 
     # LUT: sino -> crystal and crystal -> sino
-    s2cF = np.zeros((Cnt['NSBINS']*Cnt['NSANGLES'], 2), dtype=np.int16)
-    c2sF = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
+    s2cF = np.zeros((Cnt['NSBINS'] * Cnt['NSANGLES'], 2), dtype=np.int16)
+    c2sF = -1 * np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
 
     #> with projection bin <w> fast changing (c2s has angle changing fast).
     #> this is used in scatter estimation
-    c2sFw = -1*np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
+    c2sFw = -1 * np.ones((Cnt['NCRS'], Cnt['NCRS']), dtype=np.int32)
 
     #> global sinogram index (linear) of live crystals (excludes gaps)
     awi = 0
 
     for iw in range(Cnt['NSBINS']):
         for ia in range(Cnt['NSANGLES']):
-            c0 = int( np.floor( (ia + 0.5*(Cnt['NCRS'] - 2 + Cnt['NSBINS']/2 - iw))   % Cnt['NCRS'] ) )
-            c1 = int( np.floor( (ia + 0.5*(2*Cnt['NCRS'] - 2 - Cnt['NSBINS']/2 + iw)) % Cnt['NCRS'] ) )
+            c0 = int(
+                np.floor((ia + 0.5 * (Cnt['NCRS'] - 2 + Cnt['NSBINS'] / 2 - iw)) % Cnt['NCRS']))
+            c1 = int(
+                np.floor(
+                    (ia + 0.5 * (2 * Cnt['NCRS'] - 2 - Cnt['NSBINS'] / 2 + iw)) % Cnt['NCRS']))
 
-            s2cF[ia + iw*Cnt['NSANGLES'], 0] = c0
-            s2cF[ia + iw*Cnt['NSANGLES'], 1] = c1
+            s2cF[ia + iw * Cnt['NSANGLES'], 0] = c0
+            s2cF[ia + iw * Cnt['NSANGLES'], 1] = c1
 
-            c2sF[c1, c0] = ia + iw*Cnt['NSANGLES']
-            c2sF[c0, c1] = ia + iw*Cnt['NSANGLES']
+            c2sF[c1, c0] = ia + iw * Cnt['NSANGLES']
+            c2sF[c0, c1] = ia + iw * Cnt['NSANGLES']
 
-            if (((((c0 + Cnt['OFFGAP']) % Cnt['TGAP']) * ((c1 + Cnt['OFFGAP']) % Cnt['TGAP']))>0)):
+            if (((((c0 + Cnt['OFFGAP']) % Cnt['TGAP']) *
+                  ((c1 + Cnt['OFFGAP']) % Cnt['TGAP'])) > 0)):
                 #> masking gaps in 2D sinogram
                 msino[iw, ia] = 1
                 awi += 1
 
-            c2sFw[c1, c0] = iw + ia*Cnt['NSBINS']
-            c2sFw[c0, c1] = iw + ia*Cnt['NSBINS']
+            c2sFw[c1, c0] = iw + ia * Cnt['NSBINS']
+            c2sFw[c0, c1] = iw + ia * Cnt['NSBINS']
 
-    out['s2cF']  = s2cF
-    out['c2sF']  = c2sF
+    out['s2cF'] = s2cF
+    out['c2sF'] = c2sF
     out['c2sFw'] = c2sFw
     out['msino'] = msino
 
     #> number of total transaxial live crystals (excludes gaps)
     out['Naw'] = awi
 
-    s2c    = np.zeros((out['Naw'],2), dtype=np.int16)
-    s2cr   = np.zeros((out['Naw'],2), dtype=np.int16)
-    cr2s   = np.zeros((Cnt['NCRSR'],Cnt['NCRSR']), dtype=np.int32);
-    aw2sn  = np.zeros((out['Naw'],2), dtype=np.int16)
+    s2c = np.zeros((out['Naw'], 2), dtype=np.int16)
+    s2cr = np.zeros((out['Naw'], 2), dtype=np.int16)
+    cr2s = np.zeros((Cnt['NCRSR'], Cnt['NCRSR']), dtype=np.int32)
+    aw2sn = np.zeros((out['Naw'], 2), dtype=np.int16)
     aw2ali = np.zeros(out['Naw'], dtype=np.int32)
 
     #> live crystals which are in coincidence
-    cij = np.zeros((Cnt['NCRSR'],Cnt['NCRSR']), dtype=np.int8)
+    cij = np.zeros((Cnt['NCRSR'], Cnt['NCRSR']), dtype=np.int8)
 
     awi = 0
 
     for iw in range(Cnt['NSBINS']):
         for ia in range(Cnt['NSANGLES']):
 
-            if (msino[iw,ia]>0):
-                c0 = s2cF[Cnt['NSANGLES']*iw + ia, 0]
-                c1 = s2cF[Cnt['NSANGLES']*iw + ia, 1]
+            if (msino[iw, ia] > 0):
+                c0 = s2cF[Cnt['NSANGLES'] * iw + ia, 0]
+                c1 = s2cF[Cnt['NSANGLES'] * iw + ia, 1]
 
-                s2c[awi,0] = c0
-                s2c[awi,1] = c1
+                s2c[awi, 0] = c0
+                s2c[awi, 1] = c1
 
-                s2cr[awi,0] = crsr[c0]
-                s2cr[awi,1] = crsr[c1]
+                s2cr[awi, 0] = crsr[c0]
+                s2cr[awi, 1] = crsr[c1]
 
                 #> reduced crystal index (after getting rid of crystal gaps)
                 cr2s[crsr[c1], crsr[c0]] = awi
                 cr2s[crsr[c0], crsr[c1]] = awi
 
-                aw2sn[awi,0] = ia
-                aw2sn[awi,1] = iw
+                aw2sn[awi, 0] = ia
+                aw2sn[awi, 1] = iw
 
-                aw2ali[awi] = iw + Cnt['NSBINS']*ia
+                aw2ali[awi] = iw + Cnt['NSBINS'] * ia
 
                 #> square matrix of crystals in coincidence
                 cij[crsr[c0], crsr[c1]] = 1
@@ -781,14 +786,13 @@ def transaxial_lut(Cnt, visualisation=False):
 
                 awi += 1
 
-    out['s2c']    = s2c
-    out['s2cr']   = s2cr
-    out['cr2s']   = cr2s
-    out['aw2sn']  = aw2sn
+    out['s2c'] = s2c
+    out['s2cr'] = s2cr
+    out['cr2s'] = cr2s
+    out['aw2sn'] = aw2sn
     out['aw2ali'] = aw2ali
-    out['cij']    = cij
+    out['cij'] = cij
     #----------------------------------
-
 
     # # cij    - a square matrix of crystals in coincidence (transaxially)
     # # crsri  - indexes of crystals with the gap crystals taken out (therefore reduced)
@@ -807,7 +811,6 @@ def transaxial_lut(Cnt, visualisation=False):
     #          'aw2ali':aw2ali, 's2c':s2c, 's2cr':s2cr, 's2cF':s2cF, 'Naw':Naw,
     #          'c2sF':c2sF, 'cr2s':cr2s}
 
-
     return out
 
 
@@ -818,7 +821,8 @@ def transaxial_lut(Cnt, visualisation=False):
 
 def get_npfiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger(dedent('''\
+    logger(
+        dedent('''\
         ------------------------------------------------------------------
         file: {}
         ------------------------------------------------------------------
@@ -838,7 +842,7 @@ def get_npfiles(dfile, datain, v=False):
         datain['hmumap'] = dfile
         logger('mu-map for hardware.')
 
-    if os.path.basename(dfile)[:8]=='sinos_s1':
+    if os.path.basename(dfile)[:8] == 'sinos_s1':
         datain['sinos'] = dfile
         logger('prompt sinogram data.')
 
@@ -849,36 +853,37 @@ def get_npfiles(dfile, datain, v=False):
 
 def get_niifiles(dfile, datain, v=False):
     logger = log.info if v else log.debug
-    logger(dedent('''\
+    logger(
+        dedent('''\
         ------------------------------------------------------------------
         file: {}
         ------------------------------------------------------------------
         ''').format(dfile))
 
     #> NIfTI file of converted MR-based mu-map from DICOMs
-    if os.path.basename(dfile).split('.nii')[0]=='mumap-from-DICOM':
+    if os.path.basename(dfile).split('.nii')[0] == 'mumap-from-DICOM':
         datain['mumapNII'] = dfile
         logger('mu-map for the object.')
 
     #> NIfTI file of pseudo CT
-    fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_synth.nii*') )
-    if len(fpct)>0:
+    fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*_synth.nii*'))
+    if len(fpct) > 0:
         datain['pCT'] = fpct[0]
         logger('pseudoCT of the object.')
 
-    fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*') )
-    if len(fpct)>0:
+    fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*'))
+    if len(fpct) > 0:
         datain['pCT'] = fpct[0]
         logger('pseudoCT of the object.')
 
     #MR T1
-    fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*.nii*') )
-    if len(fmri)==1:
+    fmri = glob.glob(os.path.join(os.path.dirname(dfile), '[tT]1*.nii*'))
+    if len(fmri) == 1:
         bnm = os.path.basename(fmri[0]).lower()
         if not {'giflabels', 'parcellation', 'pct', 'n4bias'}.intersection(bnm):
             datain['T1nii'] = fmri[0]
             logger('NIfTI for T1w of the object.')
-    elif len(fmri)>1:
+    elif len(fmri) > 1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
             if not {'giflabels', 'parcellation', 'pct', 'n4bias'}.intersection(bnm):
@@ -888,13 +893,13 @@ def get_niifiles(dfile, datain, v=False):
                     datain['T1nii_2'] = fg
 
     #MR T1 N4bias-corrected
-    fmri = glob.glob( os.path.join(os.path.dirname(dfile), '[tT]1*[nN]4bias*.nii*') )
-    if len(fmri)==1:
+    fmri = glob.glob(os.path.join(os.path.dirname(dfile), '[tT]1*[nN]4bias*.nii*'))
+    if len(fmri) == 1:
         bnm = os.path.basename(fmri[0]).lower()
         if not {'giflabels', 'parcellation', 'pct'}.intersection(bnm):
             datain['T1N4'] = fmri[0]
             logger('NIfTI for T1w of the object.')
-    elif len(fmri)>1:
+    elif len(fmri) > 1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
             if not {'giflabels', 'parcellation', 'pct'}.intersection(bnm):
@@ -903,43 +908,43 @@ def get_niifiles(dfile, datain, v=False):
                 elif 'usable' in bnm:
                     datain['T1N4_2'] = fg
 
-
     #T1w corrected
-    fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*gifbc.nii*') )
-    if len(fbc)==1:
+    fbc = glob.glob(os.path.join(os.path.dirname(dfile), '*gifbc.nii*'))
+    if len(fbc) == 1:
         datain['T1bc'] = fbc[0]
         logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
-    fbc = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*BiasCorrected.nii*') )
-    if len(fbc)==1:
+    fbc = glob.glob(os.path.join(os.path.dirname(dfile), '*[tT]1*BiasCorrected.nii*'))
+    if len(fbc) == 1:
         datain['T1bc'] = fbc[0]
         logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
 
     #T1-based labels after parcellation
-    flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*giflabels.nii*') )
-    if len(flbl)==1:
+    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*giflabels.nii*'))
+    if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
         logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
-    flbl = glob.glob( os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*') )
-    if len(flbl)==1:
+    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*'))
+    if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
         logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
 
     #reconstructed emission data without corrections, minimum 2 osem iter
-    fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*__ACbed.nii*') )
-    if len(fpct)>0:
+    fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*__ACbed.nii*'))
+    if len(fpct) > 0:
         datain['em_nocrr'] = fpct[0]
         logger('pseudoCT of the object.')
 
     #reconstructed emission data with corrections, minimum 3 osem iter
-    fpct = glob.glob( os.path.join(os.path.dirname(dfile), '*QNT*.nii*') )
-    if len(fpct)>0:
+    fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*QNT*.nii*'))
+    if len(fpct) > 0:
         datain['em_crr'] = fpct[0]
         logger('pseudoCT of the object.')
 
 
 def get_dicoms(dfile, datain, Cnt):
     # v = Cnt['VERBOSE']
-    log.debug(dedent('''\
+    log.debug(
+        dedent('''\
         ------------------------------------------------------------------
         file: {}
         ------------------------------------------------------------------
@@ -950,23 +955,23 @@ def get_dicoms(dfile, datain, Cnt):
 
     #> check if it is norm file
     if 'mmr' in dcmtype and 'norm' in dcmtype:
-        if os.path.splitext(dfile)[-1].lower()=='.dcm':
+        if os.path.splitext(dfile)[-1].lower() == '.dcm':
             datain['nrm_dcm'] = dfile
 
             #> check if the binary file exists
-            if os.path.isfile(dfile[:-4]+'.bf'):
-                datain['nrm_bf'] = dfile[:-4]+'.bf'
+            if os.path.isfile(dfile[:-4] + '.bf'):
+                datain['nrm_bf'] = dfile[:-4] + '.bf'
             else:
-                log.error('file does not exists:\n{}'.format(dfile[:-4]+'.bf'))
-        elif os.path.splitext(dfile)[-1].lower()=='.ima':
+                log.error('file does not exists:\n{}'.format(dfile[:-4] + '.bf'))
+        elif os.path.splitext(dfile)[-1].lower() == '.ima':
             datain['nrm_ima'] = dfile
             # extract the binary norm data from the IMA DICOM
-            if [0x7fe1,0x1010] in d:
-                nrm = d[0x7fe1,0x1010].value
+            if [0x7fe1, 0x1010] in d:
+                nrm = d[0x7fe1, 0x1010].value
             else:
                 log.error('could not find binary normalisation data in the IMA DICOM file.')
             # binary file name
-            bf = os.path.splitext(dfile)[0]+'.bf'
+            bf = os.path.splitext(dfile)[0] + '.bf'
             with open(bf, 'wb') as f:
                 f.write(nrm)
             datain['nrm_bf'] = bf
@@ -974,26 +979,27 @@ def get_dicoms(dfile, datain, Cnt):
 
     #--- check if it is list-mode file
     elif 'mmr' in dcmtype and 'list' in dcmtype:
-        if os.path.splitext(dfile)[-1]=='.dcm':
+        if os.path.splitext(dfile)[-1] == '.dcm':
             datain['lm_dcm'] = dfile
             #check if the binary file exists
-            if os.path.isfile(dfile[:-4]+'.bf'):
-                datain['lm_bf'] = dfile[:-4]+'.bf'
+            if os.path.isfile(dfile[:-4] + '.bf'):
+                datain['lm_bf'] = dfile[:-4] + '.bf'
             else:
-                log.error('file does not exists: \n{}'.format(dfile[:-4]+'.bf'))
-        elif os.path.splitext(dfile)[-1].lower()=='.ima':
+                log.error('file does not exists: \n{}'.format(dfile[:-4] + '.bf'))
+        elif os.path.splitext(dfile)[-1].lower() == '.ima':
             datain['lm_ima'] = dfile
             # extract the binary list-mode data from the IMA DICOM if it does not exist already
             # binary file name
             bf = os.path.splitext(dfile)[0] + '.bf'
-            if [0x7fe1,0x1010] in d and not os.path.isfile(bf):
-                lm = d[0x7fe1,0x1010].value
+            if [0x7fe1, 0x1010] in d and not os.path.isfile(bf):
+                lm = d[0x7fe1, 0x1010].value
                 with open(bf, 'wb') as f:
                     f.write(lm)
                 datain['lm_bf'] = bf
                 log.debug('saved list-mode data to binary file: \n{}'.format(bf))
             elif os.path.isfile(bf):
-                log.debug('the binary list-mode data was already extracted from the IMA DICOM file.')
+                log.debug(
+                    'the binary list-mode data was already extracted from the IMA DICOM file.')
                 datain['lm_bf'] = bf
             else:
                 log.error('could not find binary list-mode data in the IMA DICOM file.')
@@ -1008,8 +1014,8 @@ def get_dicoms(dfile, datain, Cnt):
         else:
             f0 = -1
 
-        if f0>=0:
-            f1 = f0+lmhdr[f0:].find('\n')
+        if f0 >= 0:
+            f1 = f0 + lmhdr[f0:].find('\n')
             #regular expression for the isotope symbol
             p = re.compile(r'(?<=:=)\s*\S*')
             # the name of isotope:
@@ -1020,17 +1026,17 @@ def get_dicoms(dfile, datain, Cnt):
         #> if no info in interfile header than look in the CSA header
         else:
             f0 = csahdr.find('RadionuclideCodeSequence')
-            if f0<0:
-                print('w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']')
+            if f0 < 0:
+                print('w> could not find isotope name.  enter manually into Cnt[' 'ISOTOPE' ']')
                 return None
-            istp_coded = re.search(r'(?<=CodeValue:)\S*', csahdr[f0:f0+100]).group()
-            if   istp_coded=='C-111A1':   Cnt['ISOTOPE'] = 'F18'
-            elif istp_coded=='C-105A1':   Cnt['ISOTOPE'] = 'C11'
-            elif istp_coded=='C-B1038':   Cnt['ISOTOPE'] = 'O15'
-            elif istp_coded=='C-128A2':   Cnt['ISOTOPE'] = 'Ge68'
-            elif istp_coded=='C-131A3':   Cnt['ISOTOPE'] = 'Ga68'
+            istp_coded = re.search(r'(?<=CodeValue:)\S*', csahdr[f0:f0 + 100]).group()
+            if istp_coded == 'C-111A1': Cnt['ISOTOPE'] = 'F18'
+            elif istp_coded == 'C-105A1': Cnt['ISOTOPE'] = 'C11'
+            elif istp_coded == 'C-B1038': Cnt['ISOTOPE'] = 'O15'
+            elif istp_coded == 'C-128A2': Cnt['ISOTOPE'] = 'Ge68'
+            elif istp_coded == 'C-131A3': Cnt['ISOTOPE'] = 'Ga68'
             else:
-                print('w> could not find isotope name.  enter manually into Cnt[''ISOTOPE'']')
+                print('w> could not find isotope name.  enter manually into Cnt[' 'ISOTOPE' ']')
                 return None
         #---
 
@@ -1072,7 +1078,6 @@ def get_dicoms(dfile, datain, Cnt):
         else:
             datain['#UTE1'] += 1
 
-
     if Cnt['VERBOSE']: print('')
 
 
@@ -1082,7 +1087,7 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
         recurse: int, [default: 1] subfolder deep. Use -1 for infinite recursion.
     """
     fldr, fpth = fspath(fldr), Path(fldr)
-    Cnt = params.get('Cnt', params)  # two ways of passing Cnt are here decoded
+    Cnt = params.get('Cnt', params) # two ways of passing Cnt are here decoded
 
     if not os.path.isdir(fldr):
         log.error('provide a valid folder path for the data.')
@@ -1112,7 +1117,7 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
     if print_paths:
         print('--------------------------------------------------')
         for x in datain:
-            print(x,':',datain[x])
+            print(x, ':', datain[x])
         print('--------------------------------------------------')
 
     return datain
@@ -1121,23 +1126,23 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
 def putgaps(s, txLUT, Cnt, sino_no=0):
 
     #number of sino planes (2D sinos) depends on the span used
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
         # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
-        if NRNG_c==64:
+        if NRNG_c == 64:
             nsinos -= 12
 
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
     #preallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
     mmr_auxe.pgaps(sino, s.astype(np.float32), txLUT, Cnt, sino_no)
-    sino = np.transpose(sino, (2,0,1))
+    sino = np.transpose(sino, (2, 0, 1))
 
     return sino.astype(s.dtype)
 
@@ -1169,9 +1174,10 @@ def mmrinit():
 
     return Cnt, txLUT, axLUT
 
+
 def mMR_params():
     '''
     get all scanner parameters in one dictionary
     '''
     Cnt, txLUT, axLUT = mmrinit()
-    return {'Cnt':Cnt, 'txLUT':txLUT, 'axLUT':axLUT}
+    return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}

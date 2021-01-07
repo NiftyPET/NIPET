@@ -10,9 +10,8 @@ from pkg_resources import resource_filename
 
 from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
 
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
-
+__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__ = "Copyright 2020"
 
 #=================================================================================================
 # GET NORM COMPONENTS
@@ -33,24 +32,24 @@ def get_components(datain, Cnt):
 
     with open(fnrm_dat, 'rb') as f:
         #geometric effects
-        geo       = np.fromfile(f, np.float32, Cnt['NSBINS']*Cnt['NSEG0'])
+        geo = np.fromfile(f, np.float32, Cnt['NSBINS'] * Cnt['NSEG0'])
         geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
         #crystal interference
-        crs_intf  = np.fromfile(f, np.float32, 9*Cnt['NSBINS'])
-        crs_intf.shape = (Cnt['NSBINS'],9)
+        crs_intf = np.fromfile(f, np.float32, 9 * Cnt['NSBINS'])
+        crs_intf.shape = (Cnt['NSBINS'], 9)
         #crystal efficiencies
-        crs_eff   = np.fromfile(f, np.float32, Cnt['NCRS']*Cnt['NRNG'])
-        crs_eff.shape  = (Cnt['NRNG'], Cnt['NCRS'])
+        crs_eff = np.fromfile(f, np.float32, Cnt['NCRS'] * Cnt['NRNG'])
+        crs_eff.shape = (Cnt['NRNG'], Cnt['NCRS'])
         #axial effects
-        ax_eff1   = np.fromfile(f, np.float32, Cnt['NSN11'])
+        ax_eff1 = np.fromfile(f, np.float32, Cnt['NSN11'])
         #paralyzing ring DT parameters
-        rng_dtp   = np.fromfile(f, np.float32, Cnt['NRNG'])
+        rng_dtp = np.fromfile(f, np.float32, Cnt['NRNG'])
         #non-paralyzing ring DT parameters
-        rng_dtnp  = np.fromfile(f, np.float32, Cnt['NRNG'])
+        rng_dtnp = np.fromfile(f, np.float32, Cnt['NRNG'])
         #TX crystal DT parameter
-        crs_dt    = np.fromfile(f, np.float32, 9)
+        crs_dt = np.fromfile(f, np.float32, 9)
         #additional axial effects
-        ax_eff2   = np.fromfile(f, np.float32, Cnt['NSN11'])
+        ax_eff2 = np.fromfile(f, np.float32, Cnt['NSN11'])
 
     #-------------------------------------------------
     #the files below are found based on a 24hr scan of germanium-68 phantom
@@ -58,19 +57,17 @@ def get_components(datain, Cnt):
     # axial effects for span-1
     ax_f1 = np.load(fspath(auxdata / "AxialFactorForSpan1.npy"))
     # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
-    sax_f11 = np.fromfile(
-        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan11.f32"),
-        np.float32, Cnt['NSN11'])
+    sax_f11 = np.fromfile(fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan11.f32"),
+                          np.float32, Cnt['NSN11'])
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
-    sax_f1 = np.fromfile(
-        fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
-        np.float32, Cnt['NSN1'])
+    sax_f1 = np.fromfile(fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
+                         np.float32, Cnt['NSN1'])
     #-------------------------------------------------
 
     #-------------------------------------------------
     # HEADER FILE
     # possible DICOM locations for the Interfile header
-    nhdr_locations = [[0x29,0x1010], [0x29,0x1110]]
+    nhdr_locations = [[0x29, 0x1010], [0x29, 0x1110]]
     # read the DICOM file
     d = dcm.read_file(fnrm_hdr)
 
@@ -86,14 +83,16 @@ def get_components(datain, Cnt):
             except:
                 continue
             if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
-                if Cnt['VERBOSE']: print('i> got the normalisation interfile header from [', hex(loc[0]),',', hex(loc[1]), ']')
+                if Cnt['VERBOSE']:
+                    print('i> got the normalisation interfile header from [', hex(loc[0]), ',',
+                          hex(loc[1]), ']')
                 found_nhdr = True
                 break
     if not found_nhdr:
         raise ValueError('DICOM field with normalisation interfile header has not been found!')
 
     f0 = nhdr.find('scanner quantification factor')
-    f1 = f0+nhdr[f0:].find('\n')
+    f1 = f0 + nhdr[f0:].find('\n')
     #regular expression for the needed three numbers
     p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{3,10}[e][+-]\d{1,4}')
     #-quantification factor:
@@ -102,11 +101,10 @@ def get_components(datain, Cnt):
     qf_loc = 0.205
     #-------------------------------------------------
 
-    nrmcmp = {'qf':qf, 'qf_loc':qf_loc, 'geo':geo, 'cinf':crs_intf, 'ceff':crs_eff,
-                'axe1':ax_eff1, 'dtp':rng_dtp, 'dtnp':rng_dtnp,
-                'dtc':crs_dt, 'axe2':ax_eff2, 'axf1':ax_f1,
-                'sax_f11':sax_f11, 'sax_f1':sax_f1}
-
+    nrmcmp = {
+        'qf': qf, 'qf_loc': qf_loc, 'geo': geo, 'cinf': crs_intf, 'ceff': crs_eff, 'axe1': ax_eff1,
+        'dtp': rng_dtp, 'dtnp': rng_dtnp, 'dtc': crs_dt, 'axe2': ax_eff2, 'axf1': ax_f1,
+        'sax_f11': sax_f11, 'sax_f1': sax_f1}
 
     return nrmcmp, nhdr
 
@@ -118,9 +116,9 @@ def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
         normcomp, _ = get_components(datain, Cnt)
 
     #number of sino planes (2D sinos) depends on the span used
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
     #predefine the sinogram
@@ -135,9 +133,9 @@ def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 def get_sino(datain, hst, axLUT, txLUT, Cnt):
 
     #number of sino planes (2D sinos) depends on the span used
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
     #get sino with no gaps
@@ -146,7 +144,7 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
     mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
-    sino = np.transpose(sino, (2,0,1))
+    sino = np.transpose(sino, (2, 0, 1))
 
     return sino
 
@@ -161,9 +159,9 @@ def get_norm_sino(datain, scanner_params, hst):
     #     hst = mmrhist.mmrhist(datain, scanner_params)
 
     #number of sino planes (2D sinos) depends on the span used
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
     #get sino with no gaps
@@ -172,6 +170,6 @@ def get_norm_sino(datain, scanner_params, hst):
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
     #fill the sino with gaps
     mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
-    sino = np.transpose(sino, (2,0,1))
+    sino = np.transpose(sino, (2, 0, 1))
 
     return sino

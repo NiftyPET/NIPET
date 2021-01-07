@@ -9,10 +9,9 @@ from .. import mmraux
 from ..img import mmrimg
 from . import petprj
 
-__author__      = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__   = "Copyright 2020"
+__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
+__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
-
 
 #=========================================================================
 # transaxial (one-slice) projector
@@ -22,7 +21,7 @@ log = logging.getLogger(__name__)
 def trnx_prj(scanner_params, sino=None, im=None):
 
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
-    Cnt   = scanner_params['Cnt']
+    Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
@@ -32,16 +31,16 @@ def trnx_prj(scanner_params, sino=None, im=None):
         raise ValueError('Only one input should be given: sinogram or image.')
 
     if sino is None:
-        sino = np.zeros((txLUT['Naw'], ), dtype=np.float32)
+        sino = np.zeros((txLUT['Naw'],), dtype=np.float32)
     if im is None:
         im = np.zeros((Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
 
-    tv = np.zeros(Cnt['NTV']*Cnt['Naw'], dtype=np.uint8)
-    tt = np.zeros(Cnt['NTT']*Cnt['Naw'], dtype=np.float32)
+    tv = np.zeros(Cnt['NTV'] * Cnt['Naw'], dtype=np.uint8)
+    tt = np.zeros(Cnt['NTT'] * Cnt['Naw'], dtype=np.float32)
 
     petprj.tprj(sino, im, tv, tt, txLUT, Cnt)
 
-    return {'tv':tv, 'tt':tt}
+    return {'tv': tv, 'tt': tt}
 
 
 #=========================================================================
@@ -49,7 +48,8 @@ def trnx_prj(scanner_params, sino=None, im=None):
 #-------------------------------------------------------------------------
 
 
-def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=False, attenuation=False):
+def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=False,
+             attenuation=False):
     ''' Calculate forward projection (a set of sinograms) for the provided input image.
         Arguments:
         im -- input image (can be emission or mu-map image).
@@ -65,7 +65,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
             mu-values along LOR path is taken at the end.
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
-    Cnt   = scanner_params['Cnt']
+    Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
@@ -76,34 +76,40 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     else:
         att = 0
 
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
         # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
-        if NRNG_c==64:
+        if NRNG_c == 64:
             nsinos -= 12
-    elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
-    elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
+    elif Cnt['SPN'] == 11:
+        nsinos = Cnt['NSN11']
+    elif Cnt['SPN'] == 0:
+        nsinos = Cnt['NSEG0']
 
-    if im.shape[0]==Cnt['SO_IMZ'] and im.shape[1]==Cnt['SO_IMY'] and im.shape[2]==Cnt['SO_IMX']:
+    if im.shape[0] == Cnt['SO_IMZ'] and im.shape[1] == Cnt['SO_IMY'] and im.shape[2] == Cnt[
+            'SO_IMX']:
         ims = mmrimg.convert2dev(im, Cnt)
-    elif im.shape[0]==Cnt['SZ_IMX'] and im.shape[1]==Cnt['SZ_IMY'] and im.shape[2]==Cnt['SZ_IMZ']:
+    elif im.shape[0] == Cnt['SZ_IMX'] and im.shape[1] == Cnt['SZ_IMY'] and im.shape[2] == Cnt[
+            'SZ_IMZ']:
         ims = im
-    elif im.shape[0]==Cnt['rSO_IMZ'] and im.shape[1]==Cnt['SO_IMY'] and im.shape[2]==Cnt['SO_IMX']:
+    elif im.shape[0] == Cnt['rSO_IMZ'] and im.shape[1] == Cnt['SO_IMY'] and im.shape[2] == Cnt[
+            'SO_IMX']:
         ims = mmrimg.convert2dev(im, Cnt)
-    elif im.shape[0]==Cnt['SZ_IMX'] and im.shape[1]==Cnt['SZ_IMY'] and im.shape[2]==Cnt['rSZ_IMZ']:
+    elif im.shape[0] == Cnt['SZ_IMX'] and im.shape[1] == Cnt['SZ_IMY'] and im.shape[2] == Cnt[
+            'rSZ_IMZ']:
         ims = im
     else:
         raise ValueError('wrong image size;'
-            ' it has to be one of these: (z,y,x) = (127,344,344)'
-            ' or (y,x,z) = (320,320,128)')
+                         ' it has to be one of these: (z,y,x) = (127,344,344)'
+                         ' or (y,x,z) = (320,320,128)')
 
     log.debug('number of sinos:%d' % nsinos)
 
     #predefine the sinogram.  if subsets are used then only preallocate those bins which will be used.
-    if isub[0]<0:
+    if isub[0] < 0:
         sinog = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
     else:
         sinog = np.zeros((len(isub), nsinos), dtype=np.float32)
@@ -113,8 +119,8 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     # --------------------
     # get the sinogram bins in a proper sinogram
     sino = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
-    if isub[0]>=0:    sino[isub,:] = sinog
-    else:  sino = sinog
+    if isub[0] >= 0: sino[isub, :] = sinog
+    else: sino = sinog
 
     # put the gaps back to form displayable sinogram
     if not dev_out:
@@ -139,36 +145,38 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
-    Cnt   = scanner_params['Cnt']
+    Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
         # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
-        if NRNG_c==64:
+        if NRNG_c == 64:
             nsinos -= 12
-    elif  Cnt['SPN']==11: nsinos=Cnt['NSN11']
-    elif  Cnt['SPN']==0:  nsinos=Cnt['NSEG0']
-
+    elif Cnt['SPN'] == 11:
+        nsinos = Cnt['NSN11']
+    elif Cnt['SPN'] == 0:
+        nsinos = Cnt['NSEG0']
 
     #> check first the Siemens default sinogram;
     #> for this default shape only full sinograms are expected--no subsets.
-    if len(sino.shape)==3:
-        if sino.shape[0]!=nsinos or sino.shape[1]!=Cnt['NSANGLES'] or sino.shape[2]!=Cnt['NSBINS']:
+    if len(sino.shape) == 3:
+        if sino.shape[0] != nsinos or sino.shape[1] != Cnt['NSANGLES'] or sino.shape[2] != Cnt[
+                'NSBINS']:
             raise ValueError('Unexpected sinogram array dimensions/shape for Siemens defaults.')
         sinog = mmraux.remgaps(sino, txLUT, Cnt)
 
-    elif len(sino.shape)==2:
-        if isub[0]<0 and sino.shape[0]!=txLUT["Naw"]:
+    elif len(sino.shape) == 2:
+        if isub[0] < 0 and sino.shape[0] != txLUT["Naw"]:
             raise ValueError('Unexpected number of transaxial elements in the full sinogram.')
-        elif isub[0]>=0 and sino.shape[0]!=len(isub):
+        elif isub[0] >= 0 and sino.shape[0] != len(isub):
             raise ValueError('Unexpected number of transaxial elements in the subset sinogram.')
         #> check if the number of sinograms is correct
-        if sino.shape[1]!=nsinos:
+        if sino.shape[1] != nsinos:
             raise ValueError('Inconsistent number of sinograms in the array.')
         #> when found the dimensions/shape are fine:
         sinog = sino
@@ -176,7 +184,7 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
         raise ValueError('Unexpected shape of the input sinogram.')
 
     #predefine the output image depending on the number of rings used
-    if Cnt['SPN']==1 and 'rSZ_IMZ' in Cnt:
+    if Cnt['SPN'] == 1 and 'rSZ_IMZ' in Cnt:
         nvz = Cnt['rSZ_IMZ']
     else:
         nvz = Cnt['SZ_IMZ']
