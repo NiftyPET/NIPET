@@ -1,13 +1,11 @@
 """module for pipelined image reconstruction and analysis"""
 import logging
 import os
-import sys
 from numbers import Integral
 from subprocess import call
 from textwrap import dedent
 
 import numpy as np
-import scipy.ndimage as ndi
 
 from niftypet import nimpa
 
@@ -109,17 +107,17 @@ def mmrchain(
 
         # 2D starting with entry 'fluid' or 'timings'
         if (isinstance(frames[0], str) and frames[0] in ('fluid', 'timings')
-                and all([isinstance(t, list) and len(t) == 2 for t in frames[1:]])):
+                and all(isinstance(t, list) and len(t) == 2 for t in frames[1:])):
             t_frms = frames[1:]
         # if 2D definitions, starting with entry 'def':
         elif (isinstance(frames[0], str) and frames[0] == 'def'
-              and all([isinstance(t, list) and len(t) == 2 for t in frames[1:]])):
+              and all(isinstance(t, list) and len(t) == 2 for t in frames[1:])):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
             t_frms = dfrms[1:]
 
         # if 1D:
-        elif all([isinstance(t, Integral) for t in frames]):
+        elif all(isinstance(t, Integral) for t in frames):
             # get total time and list of all time frames
             dfrms = dynamic_timings(frames)
             t_frms = dfrms[1:]
@@ -199,34 +197,31 @@ def mmrchain(
     output['frames'] = t_frms
     output['#frames'] = nfrm
 
-    # if affine transformation is given the baseline mu-map in NIfTI file or dictionary has to be given
+    # if affine transformation is given
+    # the baseline mu-map in NIfTI file or dictionary has to be given
     if tAffine is None:
         log.info('using the provided mu-map the same way for all frames.')
     else:
         if len(tAffine) != nfrm:
-            log.error('the number of affine transformations in the list\
-                has to be the same as the number of dynamic frames!')
-            raise ValueError('Inconsistent number of frames.')
+            raise ValueError("the number of affine transformations in the list"
+                             " has to be the same as the number of dynamic frames")
         elif not isinstance(tAffine, list):
-            log.error('tAffine has to be a list of either 4x4 numpy arrays\
-                of affine transformations or a list of file path strings!')
-            raise ValueError('Expecting a list.')
+            raise ValueError("tAffine has to be a list of either 4x4 numpy arrays"
+                             " of affine transformations or a list of file path strings")
         elif 'fim' not in muod:
-            log.error('when tAffine is given, the object mu-map has to be\
-                provided either as a dictionary or NIfTI file!')
-            raise NameError('No path to object mu-map.')
+            raise NameError("when tAffine is given, the object mu-map has to be"
+                            " provided either as a dictionary or NIfTI file")
 
         # check if all are file path strings to the existing files
-        if all([isinstance(t, str) for t in tAffine]):
-            if all([os.path.isfile(t) for t in tAffine]):
+        if all(isinstance(t, str) for t in tAffine):
+            if all(os.path.isfile(t) for t in tAffine):
                 # the internal list of affine transformations
                 faff_frms = tAffine
                 log.info('using provided paths to affine transformations for each dynamic frame.')
             else:
-                log.error('not all provided paths are valid!')
-                raise IOError('Wrong paths.')
+                raise IOError('not all provided paths are valid!')
         # check if all are numpy arrays
-        elif all([isinstance(t, (np.ndarray, np.generic)) for t in tAffine]):
+        elif all(isinstance(t, (np.ndarray, np.generic)) for t in tAffine):
             # create the folder for dynamic affine transformations
             nimpa.create_dir(petaff)
             faff_frms = []
@@ -262,8 +257,9 @@ def mmrchain(
         output['fmuref'] = fmuref
         output['faffine'] = faff_frms
 
-    # output list of intermediate file names for mu-maps and PET images (useful for dynamic imaging)
-    if not tAffine is None: output['fmureg'] = []
+    # output list of intermediate file names for mu-maps and PET images
+    # (useful for dynamic imaging)
+    if tAffine is not None: output['fmureg'] = []
 
     if store_img_intrmd:
         output['fpeti'] = []
@@ -415,9 +411,10 @@ def mmrchain(
             if not pvcpsf:
                 pvcpsf = nimpa.psf_measured(scanner='mmr', scale=trim_scale)
             else:
-                if isinstance(
-                        pvcpsf,
-                    (np.ndarray, np.generic)) and pvcpsf.shape != (3, 2 * Cnt['RSZ_PSF_KRNL'] + 1):
+                if (
+                    isinstance(pvcpsf, (np.ndarray, np.generic)) and
+                    pvcpsf.shape != (3, 2 * Cnt['RSZ_PSF_KRNL'] + 1)
+                ):  # yapf: disable
                     raise ValueError(
                         'the PSF kernel has to be an numpy array with the shape of ({},{})'.format(
                             3, 2 * Cnt['RSZ_PSF_KRNL'] + 1))
@@ -443,13 +440,13 @@ def mmrchain(
                 fcomment_pvc = '_frm' + str(i) + fcomment
             else:
                 fcomment_pvc = fcomment
-            #============================
+            # ===========================
             # perform PVC
             petpvc_dic = nimpa.pvc_iyang(petu['fimi'][i], datain, Cnt, pvcroi, pvcpsf,
                                          tool=pvcreg_tool, itr=pvcitr, faff=faffpvc,
                                          fcomment=fcomment_pvc, outpath=pvcdir,
                                          store_rois=store_rois, store_img=store_img_intrmd)
-            #============================
+            # ===========================
             if nfrm > 1:
                 dynpvc[i, :, :, :] = petpvc_dic['im']
             else:
@@ -471,15 +468,15 @@ def mmrchain(
         # description for saving NIFTI image
         # attenuation number: if only bed present then it is 0.5
         attnum = (1 * muhd['exists'] + 1 * muod['exists']) / 2.
-        descrip =    'alg=osem'                     \
-                    +';att='+str(attnum*(recmod>0)) \
-                    +';sct='+str(1*(recmod>1))      \
-                    +';spn='+str(Cnt['SPN'])        \
-                    +';sub=14'                      \
-                    +';itr='+str(itr)               \
-                    +';fwhm='+str(fwhm)             \
-                    +';psf='+str(psf)       \
-                    +';nfrm='+str(nfrm)
+        descrip = (f"alg=osem"
+                   f";att={attnum*(recmod>0)}"
+                   f";sct={1*(recmod>1)}"
+                   f";spn={Cnt['SPN']}"
+                   f";sub=14"
+                   f";itr={itr}"
+                   f";fwhm={fwhm}"
+                   f";psf={psf}"
+                   f";nfrm={nfrm}")
 
         # squeeze the not needed dimensions
         dynim = np.squeeze(dynim)
@@ -493,20 +490,14 @@ def mmrchain(
             if t1 == t0:
                 t0 = 0
                 t1 = hst['dur']
-            fpet = os.path.join(
-                    petimg,
-                    os.path.basename(recimg.fpet)[:8] \
-                    +'_t-'+str(t0)+'-'+str(t1)+'sec' \
-                    +'_itr-'+str(itr) )
-            fpeto = fpet + fcomment + '.nii.gz'
+            fpet = os.path.join(petimg,
+                                os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}')
+            fpeto = f"{fpet}{fcomment}.nii.gz"
             nimpa.prc.array2nii(dynim[::-1, ::-1, :], recimg.affine, fpeto, descrip=descrip)
         else:
-            fpet = os.path.join(
-                    petimg,
-                    os.path.basename(recimg.fpet)[:8]\
-                    +'_nfrm-'+str(nfrm)+'_itr-'+str(itr)
-                )
-            fpeto = fpet + fcomment + '.nii.gz'
+            fpet = os.path.join(petimg,
+                                os.path.basename(recimg.fpet)[:8] + f'_nfrm-{nfrm}_itr-{itr}')
+            fpeto = f"{fpet}{fcomment}.nii.gz"
             nimpa.prc.array2nii(dynim[:, ::-1, ::-1, :], recimg.affine, fpeto, descrip=descrip)
 
         # get output file names for trimmed/PVC images
@@ -516,21 +507,20 @@ def mmrchain(
             # make folder
             nimpa.create_dir(pettrim)
             # trimming scale added to NIfTI descritoption
-            descrip_trim = descrip + ';trim_scale=' + str(trim_scale)
+            descrip_trim = f'{descrip};trim_scale={trim_scale}'
             # file name for saving the trimmed image
-            fpetu = os.path.join(
-                pettrim,
-                os.path.basename(fpet) + '_trimmed-upsampled-scale-' + str(trim_scale))
+            fpetu = os.path.join(pettrim,
+                                 os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
             # in case of PVC
             if pvcroi:
                 # itertive Yang (iY) added to NIfTI descritoption
-                descrip_pvc = descrip_trim + ';pvc=iY'
+                descrip_pvc = f'{descrip_trim};pvc=iY'
                 # file name for saving the PVC NIfTI image
-                fpvc = fpetu + '_PVC' + fcomment + '.nii.gz'
+                fpvc = f"{fpetu}_PVC{fcomment}.nii.gz"
                 output['trimmed']['fpvc'] = fpvc
 
             # update the trimmed image file name
-            fpetu += fcomment + '.nii.gz'
+            fpetu += f'{fcomment}.nii.gz'
             # store the file name in the output dictionary
             output['trimmed']['fpet'] = fpetu
 

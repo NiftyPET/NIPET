@@ -14,4 +14,4 @@ from .mmrhist import (
     split_frames,
 )
 
-#from .pviews import video_frm, video_dyn
+# from .pviews import video_frm, video_dyn

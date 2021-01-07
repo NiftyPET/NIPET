@@ -1,13 +1,9 @@
 #!/usr/bin/python
 import os
-import sys
 
-import matplotlib
-import matplotlib.animation as manimation
-
-# matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib import animation as manimation
 
 
 def mvavg(interval, window_size):
@@ -18,9 +14,9 @@ def mvavg(interval, window_size):
 def video_frm(hst, outpth):
     plt.close('all')
 
-    #=============== CONSTANTS ==================
+    # ============== CONSTANTS ==================
     VTIME = 4
-    #============================================
+    # ===========================================
 
     i = np.argmax(hst['phc'])
     ymin = np.floor(min(hst['cmass'][i:i + 300]))
@@ -30,7 +26,7 @@ def video_frm(hst, outpth):
 
     # --for movie
     FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title='GPU Sino Views', artist='Pawel', comment=':)')
+    metadata = {'title': 'GPU Sino Views', 'artist': 'Pawel', 'comment': ':)'}
     writer = FFMpegWriter(fps=25, bitrate=30000, metadata=metadata)
     # --
 
@@ -47,10 +43,10 @@ def video_frm(hst, outpth):
     plt.title('Sagittal View')
     plt.setp(ax2.get_xticklabels(), visible=False)
     plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off')
-    l = plt.imshow(hst['pvs_sgtl'][100, :, :] / np.mean(hst['pvs_sgtl'][100, :, :]), cmap='jet',
-                   interpolation='nearest')
+    l0 = plt.imshow(hst['pvs_sgtl'][100, :, :] / np.mean(hst['pvs_sgtl'][100, :, :]), cmap='jet',
+                    interpolation='nearest')
 
-    ax3 = plt.subplot(313)
+    plt.subplot(313)
     plt.title('Axial Centre of Mass')
     t = np.arange(0., hst['dur'], 1.)
     # plt.plot(t, rprmt, 'k', t, rdlyd, 'r')
@@ -72,7 +68,7 @@ def video_frm(hst, outpth):
             tmp2 = np.sum(hst['pvs_crnl'][mf * i:mf * (i+1), :, :], axis=0)
             tmp = tmp / np.mean(tmp)
             tmp2 = tmp2 / np.mean(tmp2)
-            l.set_data(tmp)
+            l0.set_data(tmp)
             l1.set_data(tmp2)
             # l2.set_data(VTIME*mf*i*np.ones(2), np.array([0, np.max(hst['phc'])]))
             l2.set_data(VTIME * mf * i * np.ones(2), np.array([0, ymax]))
@@ -90,7 +86,7 @@ def video_frm(hst, outpth):
 def video_dyn(hst, frms, outpth, axLUT, Cnt):
     plt.close('all')
 
-    #=============== CONSTANTS ==================
+    # ============== CONSTANTS ==================
     VTIME = 4
     NRINGS = Cnt['NRNG']
     NSN11 = Cnt['NSN11']
@@ -100,7 +96,7 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
 
     voxz = Cnt['SO_VXZ']
     nsinos = NSN11
-    #============================================
+    # ===========================================
 
     # for scaling of the mass centre
     i = np.argmax(hst['phc'])
@@ -136,7 +132,7 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
 
     # --for movie
     FFMpegWriter = manimation.writers['ffmpeg']
-    metadata = dict(title='Axial View', artist='Pawel', comment='--')
+    metadata = {'title': 'Axial View', 'artist': 'Pawel', 'comment': '--'}
     writer = FFMpegWriter(fps=10, bitrate=30000, metadata=metadata)
     # --
 
@@ -158,7 +154,7 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
                     interpolation='nearest')
     # plt.clim([0, 70])
 
-    ax3 = plt.subplot(313)
+    plt.subplot(313)
     plt.title('Axial Centre of Mass')
     plt.plot(range(hst['dur']), voxz * mvavg(hst['cmass'][:], 5), 'k')
     plt.ylim([voxz * ymin, voxz * ymax])

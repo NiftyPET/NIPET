@@ -1,6 +1,6 @@
 """mmraux.py: auxilary functions for PET list-mode data processing."""
+import logging
 import re
-import sys
 from os import fspath, path
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from pkg_resources import resource_filename
 
 from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
 
+log = logging.getLogger(__name__)
 # ================================================================================================
 # GET NORM COMPONENTS
 # ================================================================================================
@@ -53,10 +54,12 @@ def get_components(datain, Cnt):
     auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
     # axial effects for span-1
     ax_f1 = np.load(fspath(auxdata / "AxialFactorForSpan1.npy"))
-    # relative scale factors for axial scatter deriving span-11 scale factors from SSR scale factors
+    # relative scale factors for axial scatter
+    # deriving span-11 scale factors from SSR scale factors
     sax_f11 = np.fromfile(fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan11.f32"),
                           np.float32, Cnt['NSN11'])
-    # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
+    # relative scale factors for axial scatter
+    # deriving span-1 scale factors from SSR scale factors
     sax_f1 = np.fromfile(fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
                          np.float32, Cnt['NSN1'])
     # -------------------------------------------------
@@ -80,9 +83,8 @@ def get_components(datain, Cnt):
             except Exception:
                 continue
             if '!INTERFILE' in nhdr and 'scanner quantification factor' in nhdr:
-                if Cnt['VERBOSE']:
-                    print('i> got the normalisation interfile header from [', hex(loc[0]), ',',
-                          hex(loc[1]), ']')
+                log.debug('got the normalisation interfile header from [0x%x, 0x%x]', loc[0],
+                          loc[1])
                 found_nhdr = True
                 break
     if not found_nhdr:

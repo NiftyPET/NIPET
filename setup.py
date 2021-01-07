@@ -4,8 +4,6 @@ Compile CUDA source code and setup Python 3 package 'nipet'
 for namespace 'niftypet'.
 """
 import logging
-import os
-import platform
 import re
 import sys
 from pathlib import Path
@@ -87,22 +85,8 @@ def chck_sct_h(Cnt):
     scth = sct_h[i0:i1]
     # list of constants which will be kept in sych from Python
     cnt_list = [
-        "SS_IMX",
-        "SS_IMY",
-        "SS_IMZ",
-        "SSE_IMX",
-        "SSE_IMY",
-        "SSE_IMZ",
-        "NCOS",
-        "SS_VXY",
-        "SS_VXZ",
-        "IS_VXZ",
-        "SSE_VXY",
-        "SSE_VXZ",
-        "R_RING",
-        "R_2",
-        "IR_RING",
-        "SRFCRS",]
+        "SS_IMX", "SS_IMY", "SS_IMZ", "SSE_IMX", "SSE_IMY", "SSE_IMZ", "NCOS", "SS_VXY", "SS_VXZ",
+        "IS_VXZ", "SSE_VXY", "SSE_VXZ", "R_RING", "R_2", "IR_RING", "SRFCRS"]
     flg = False
     for i, s in enumerate(cnt_list):
         m = re.search("(?<=#define " + s + r")\s*\d*\.*\d*", scth)
@@ -125,7 +109,7 @@ def chck_sct_h(Cnt):
             // SCATTER IMAGE SIZE AND PROPERTIES
             // SS_* are used for the mu-map in scatter calculations
             // SSE_* are used for the emission image in scatter calculations
-            // R_RING, R_2, IR_RING are ring radius, squared radius and inverse of the radius, respectively.
+            // R_RING, R_2, IR_RING: ring radius, squared radius, inverse radius
             // NCOS is the number of samples for scatter angular sampling
             """)
 
@@ -168,10 +152,11 @@ def check_constants():
 
 
 cs.resources_setup(gpu=False) # install resources.py
-                              # check and update the constants in C headers according to resources.py
+
+# check and update the constants in C headers according to resources.py
 check_constants()
 try:
-    gpuarch = cs.dev_setup()  # update resources.py with a supported GPU device
+    gpuarch = cs.dev_setup() # update resources.py with a supported GPU device
 except Exception as exc:
     log.error("could not set up CUDA:\n%s", exc)
 

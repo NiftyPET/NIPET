@@ -1,7 +1,5 @@
 """Forward and back projector for PET data reconstruction"""
 import logging
-import os
-import sys
 
 import numpy as np
 
@@ -18,8 +16,6 @@ ISUB_DEFAULT = np.array([-1], dtype=np.int32)
 
 
 def trnx_prj(scanner_params, sino=None, im=None):
-
-    # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
@@ -76,11 +72,13 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
         att = 0
 
     if Cnt['SPN'] == 1:
-        # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
+        # number of rings calculated for the given ring range
+        # (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
+        # correct for the max. ring difference in the full axial extent
+        # (don't use ring range (1,63) as for this case no correction)
         if NRNG_c == 64:
             nsinos -= 12
     elif Cnt['SPN'] == 11:
@@ -107,7 +105,8 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 
     log.debug('number of sinos:%d' % nsinos)
 
-    # predefine the sinogram.  if subsets are used then only preallocate those bins which will be used.
+    # predefine the sinogram.
+    # if subsets are used then only preallocate those bins which will be used.
     if isub[0] < 0:
         sinog = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
     else:
@@ -149,11 +148,13 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT):
     axLUT = scanner_params['axLUT']
 
     if Cnt['SPN'] == 1:
-        # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
+        # number of rings calculated for the given ring range
+        # (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
+        # correct for the max. ring difference in the full axial extent
+        # (don't use ring range (1,63) as for this case no correction)
         if NRNG_c == 64:
             nsinos -= 12
     elif Cnt['SPN'] == 11:

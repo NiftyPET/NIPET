@@ -3,17 +3,15 @@ import glob
 import logging
 import os
 import re
-import sys
+from collections.abc import Collection
 from math import pi
+from numbers import Integral
 from os import fspath
-from os.path import join as pjoin
 from pathlib import Path
 from textwrap import dedent
 
-import nibabel as nib
 import numpy as np
 import pydicom as dcm
-import scipy.ndimage as ndi
 from miutil.fdio import hasext
 
 from niftypet import nimpa
@@ -65,15 +63,12 @@ def lm_pos(datain, Cnt):
     else:
         raise ValueError('unknown scanner software version!')
 
-    fi = re.search(b'GantryOffset(?!_)', csainfo).start() # csainfo.find('GantryOffset')
-                                                          # regular expression for the needed three numbers
-    p = re.compile(b'-?\\d.\\d{4,10}')
-    xyz = p.findall(csainfo[fi:fi + 200])
-                                                          # offset in cm
-                                                          # xoff = float(xyz[0])/10
-                                                          # yoff = float(xyz[1])/10
-                                                          # zoff = float(xyz[2])/10
-                                                          # > hack to avoid other numbers (counting from the back)
+    # csainfo.find('GantryOffset')
+    fi = re.search(b'GantryOffset(?!_)', csainfo).start()
+    # regular expression for the needed three numbers
+    xyz = re.findall(b'-?\\d.\\d{4,10}', csainfo[fi:fi + 200])
+    # offset in cm
+    # > hack to avoid other numbers (counting from the back)
     xoff = float(xyz[-3]) / 10
     yoff = float(xyz[-2]) / 10
     zoff = float(xyz[-1]) / 10
@@ -160,14 +155,12 @@ def vh_bedpos(datain, Cnt):
     ihdr, csainfo = hdr_lm(datain, Cnt)
 
     # start horizontal bed position
-    p = re.compile(r'start horizontal bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
+    m = re.search(r'start horizontal bed position.*\d{1,3}\.*\d*', ihdr)
     fi = ihdr[m.start():m.end()].find('=')
     hbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
 
     # start vertical bed position
-    p = re.compile(r'start vertical bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
+    m = re.search(r'start vertical bed position.*\d{1,3}\.*\d*', ihdr)
     fi = ihdr[m.start():m.end()].find('=')
     vbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
 
@@ -192,7 +185,7 @@ def hmu_resample0(hmupos, parts, Cnt):
         dtype=np.float32)
 
     imr = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
-    #===== Go through the hardware mu-map parts =====
+    # ===== Go through the hardware mu-map parts =====
     for i in parts:
         Cim['VXSOx'] = hmupos[i]['ivs'][2]
         Cim['VXSOy'] = hmupos[i]['ivs'][1]
@@ -211,17 +204,18 @@ def hmu_resample0(hmupos, parts, Cnt):
             offresZ = (-.5 * Cnt['SO_IMZ'] * Cnt['SO_VXZ'] - hmupos[0]['HBedPos'])
             # excess of the hrdwr mu-map axially
             excemuZ = offresZ - (-hmupos[4]['vpos'][0])
-            excevox = int(excemuZ / hmupos[4]['ivs'][0]) - 5                   # with extra margin of 5
+            # with extra margin of 5
+            excevox = int(excemuZ / hmupos[4]['ivs'][0]) - 5
             newoffZ = -hmupos[4]['vpos'][0] + excevox * hmupos[4]['ivs'][0]
-                                                                               # number of voxels included axially
-            inclvox = Cnt['SO_IMZ'] * Cnt['SO_VXZ'] / hmupos[4]['ivs'][0] + 10 # with extra margin...
-                                                                               # truncate the image
+            # number of voxels included axially
+            # with extra margin...
+            inclvox = Cnt['SO_IMZ'] * Cnt['SO_VXZ'] / hmupos[4]['ivs'][0] + 10
+            # truncate the image
             im = hmupos[i]['img'][excevox:excevox + inclvox, :, :]
-                                                                               # update dictionary Cim
+            # update dictionary Cim
             Cim['OFFOz'] = newoffZ
             Cim['VXNOz'] = im.shape[0]
             imr += nimpa.prc.improc.resample(im, A, Cim)
-
         else:
             imr += nimpa.prc.improc.resample(hmupos[i]['img'], A, Cim)
 
@@ -230,31 +224,31 @@ def hmu_resample0(hmupos, parts, Cnt):
 
 def time_diff_norm_acq(datain):
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
-        l = dcm.read_file(datain['lm_dcm'])
+        dcm_lm = dcm.read_file(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
-        l = dcm.read_file(datain['lm_ima'])
+        dcm_lm = dcm.read_file(datain['lm_ima'])
     else:
         log.error('dicom header of list-mode data does not exist.')
         return None
 
     # acq date
-    s = l[0x08, 0x21].value
+    s = dcm_lm[0x08, 0x21].value
     y = int(s[:4])
     m = int(s[4:6])
     d = int(s[6:8])
     # acq time
-    s = l[0x08, 0x32].value
+    s = dcm_lm[0x08, 0x32].value
     hrs = int(s[:2])
     mns = int(s[2:4])
     sec = int(s[4:6])
 
     # calib date
-    s = l[0x18, 0x1200].value
+    s = dcm_lm[0x18, 0x1200].value
     cy = int(s[:4])
     cm = int(s[4:6])
     cd = int(s[6:8])
     # calib time
-    s = l[0x18, 0x1201].value
+    s = dcm_lm[0x18, 0x1201].value
     chrs = int(s[:2])
     cmns = int(s[2:4])
     csec = int(s[4:6])
@@ -276,22 +270,23 @@ def time_diff_norm_acq(datain):
 
 
 def timings_from_list(flist, offset=0):
-    '''
+    """
     Get start and end frame timings from a list of dynamic PET frame definitions.
-    flist can be 1D list of time duration for each dynamic frame, e.g.: flist = [15, 15, 15, 15, 30, 30, 30, ...]
-    or a 2D list of lists having 2 entries: first for the number of repetitions and the other for the frame duration,
-    e.g.: flist = [[4,15], [3,15], ...].
-    offset adjusts for the start time (usually when prompts are strong enough over randoms)
-    The output is a dictionary:
-    out['timings'] = [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
-    out['total'] = total time
-    out['frames'] = array([ 15,  15,  15,  15,  30,  30,  30,  30, ...])
-    '''
-    if not isinstance(flist, list):
+    Args:
+      flist: can be 1D list of time duration for each dynamic frame, e.g.:
+            flist = [15, 15, 15, 15, 30, 30, 30, ...]
+        or a 2D list of lists having 2 entries:
+        first for the number of repetitions and the other for the frame duration, e.g.:
+            flist = [[4,15], [3,15], ...].
+      offset: adjusts for the start time (usually when prompts are strong enough over randoms)
+    Returns (dict):
+      'timings': [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
+      'total': total time
+      'frames': array([ 15,  15,  15,  15,  30,  30,  30,  30, ...])
+    """
+    if not isinstance(flist, Collection) or isinstance(flist, str):
         raise TypeError('Wrong type of frame data input')
-    if all([
-            isinstance(t, (int, np.int32, np.int16, np.int8, np.uint8, np.uint16, np.uint32))
-            for t in flist]):
+    if all(isinstance(t, Integral) for t in flist):
         tsum = offset
         # list of frame timings
         if offset > 0:
@@ -307,7 +302,7 @@ def timings_from_list(flist, offset=0):
             # append the timings to the list
             t_frames.append([t0, t1])
         frms = np.uint16(flist)
-    elif all([isinstance(t, list) and len(t) == 2 for t in flist]):
+    elif all(isinstance(t, Collection) and len(t) == 2 for t in flist):
         if offset > 0:
             flist.insert(0, [1, offset])
             farray = np.asarray(flist, dtype=np.uint16)
@@ -324,7 +319,7 @@ def timings_from_list(flist, offset=0):
         # list of frame timings
         t_frames = []
         for i in range(0, farray.shape[0]):
-            for t in range(0, farray[i, 0]):
+            for _ in range(0, farray[i, 0]):
                 # frame start time
                 t0 = tsum
                 tsum += farray[i, 1]
@@ -336,9 +331,7 @@ def timings_from_list(flist, offset=0):
                 fi += 1
     else:
         raise TypeError('Unrecognised data input.')
-    # prepare the output dictionary
-    out = {'total': tsum, 'frames': frms, 'timings': t_frames}
-    return out
+    return {'total': tsum, 'frames': frms, 'timings': t_frames}
 
 
 def axial_lut(Cnt):
@@ -348,11 +341,13 @@ def axial_lut(Cnt):
     NRNG = Cnt['NRNG']
 
     if Cnt['SPN'] == 1:
-        # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
+        # number of rings calculated for the given ring range
+        # (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         NSN1_c = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
+        # correct for the max. ring difference in the full axial extent
+        # (don't use ring range (1,63) as for this case no correction)
         if NRNG_c == 64:
             NSN1_c -= 12
         SEG0_c = 2*NRNG_c - 1
@@ -375,10 +370,7 @@ def axial_lut(Cnt):
     # ring difference range
     rd = list(range(-Cnt['MRD'], Cnt['MRD'] + 1))
     # ring difference to segment
-    rd2sg = -1 * np.ones((
-        len(rd),
-        2,
-    ), dtype=np.int32)
+    rd2sg = -1 * np.ones((len(rd), 2), dtype=np.int32)
     for i in range(len(rd)):
         for iseg in range(len(Cnt['MNRD'])):
             if (rd[i] >= Cnt['MNRD'][iseg]) and (rd[i] <= Cnt['MXRD'][iseg]):
@@ -419,7 +411,7 @@ def axial_lut(Cnt):
     # np.savetxt("Mnos.csv", Mnos, delimiter=",", fmt='%d')
     # np.savetxt("Msn.csv", Msn, delimiter=",", fmt='%d')
 
-    #====full LUT
+    # ===full LUT
     sn1_rno = np.zeros((NSN1_c, 2), dtype=np.int16)
     sn1_ssrb = np.zeros((NSN1_c), dtype=np.int16)
     sn1_sn11 = np.zeros((NSN1_c), dtype=np.int16)
@@ -435,17 +427,19 @@ def axial_lut(Cnt):
             strt = NRNG * (ro + Cnt['RNG_STRT']) + Cnt['RNG_STRT']
             stop = (Cnt['RNG_STRT'] + NRNG_c) * NRNG
             step = NRNG + 1
-            for li in range(strt, stop,
-                            step):                    # goes along a diagonal started in the first row at r1
-                                                      # linear indecies of michelogram --> subscript indecies for positive and negative RDs
+
+            # goes along a diagonal started in the first row at r1
+            for li in range(strt, stop, step):
+                # linear indicies of michelogram
+                # --> subscript indecies for positive and negative RDs
+
                 if m == 0:
                     r1 = int(li / NRNG)
                     r0 = int(li - r1*NRNG)
-                else:                                 # for positive now (? or vice versa)
+                else:               # for positive now (? or vice versa)
                     r0 = int(li / NRNG)
                     r1 = int(li - r0*NRNG)
-                                                      # avoid case when RD>MRD
-                if (Msn[r1, r0]) < 0:
+                if Msn[r1, r0] < 0: # avoid case when RD>MRD
                     continue
 
                 sn1_rno[sni, 0] = r0
@@ -489,7 +483,7 @@ def axial_lut(Cnt):
     li2sn = np.zeros((NLI2R_c, 2), dtype=np.int16)
     li2sn1 = np.zeros((NLI2R_c, 2), dtype=np.int16)
     li2rng = np.zeros((NLI2R_c, 2), dtype=np.float32)
-    #...to number of sinos (nos)
+    # ...to number of sinos (nos)
     li2nos = np.zeros((NLI2R_c), dtype=np.int8)
 
     dli = 0
@@ -499,21 +493,23 @@ def axial_lut(Cnt):
         stop = (Cnt['RNG_STRT'] + NRNG_c) * NRNG
         step = NRNG + 1
 
-        for li in range(strt, stop, step): # goes along a diagonal started in the first row at r2o
-                                           # from the linear indexes of Michelogram get the subscript indexes
+        # goes along a diagonal started in the first row at r2o
+        for li in range(strt, stop, step):
+            # from the linear indexes of Michelogram get the subscript indexes
             r1 = int(li / NRNG)
             r0 = int(li - r1*NRNG)
-                                           # avoid case when RD>MRD
-            if (Msn[r1, r0]) < 0:
+            if Msn[r1, r0] < 0:
+                # avoid case when RD>MRD
                 continue
-                                           # li2r[0, dli] = r0
-                                           # li2r[1, dli] = r1
-                                           # # --
-                                           # li2rng[0, dli] = rng[r0,0];
-                                           # li2rng[1, dli] = rng[r1,0];
-                                           # # --
-                                           # li2sn[0, dli] = Msn[r0,r1]
-                                           # li2sn[1, dli] = Msn[r1,r0]
+
+            # li2r[0, dli] = r0
+            # li2r[1, dli] = r1
+            # # --
+            # li2rng[0, dli] = rng[r0,0];
+            # li2rng[1, dli] = rng[r1,0];
+            # # --
+            # li2sn[0, dli] = Msn[r0,r1]
+            # li2sn[1, dli] = Msn[r1,r0]
 
             li2r[dli, 0] = r0
             li2r[dli, 1] = r1
@@ -576,7 +572,6 @@ def reduce_rings(pars, rs=0, re=64):
         rs -- start ring
         re -- end ring (not included in the resulting reduced rings)
     '''
-
     Cnt = pars['Cnt']
     axLUT = pars['axLUT']
 
@@ -629,7 +624,6 @@ def transaxial_lut(Cnt, visualisation=False):
         p = 8      # pixel density of the visualisation
         VISXY = Cnt['SO_IMX'] * p
         T = np.zeros((VISXY, VISXY), dtype=np.float32)
-                   # ---
 
     # --- crystal coordinates transaxially
     # > block width
@@ -682,7 +676,7 @@ def transaxial_lut(Cnt, visualisation=False):
                 v = int(.5*VISXY - np.ceil(ycp / (Cnt['SO_VXY'] / p)))
                 T[v, u] = 2.5
 
-    out = dict(crs=crs)
+    out = {'crs': crs}
 
     if visualisation:
         out['visual'] = T
@@ -795,7 +789,8 @@ def transaxial_lut(Cnt, visualisation=False):
 
     # # cij    - a square matrix of crystals in coincidence (transaxially)
     # # crsri  - indexes of crystals with the gap crystals taken out (therefore reduced)
-    # # aw2sn  - LUT array [AW x 2] translating linear index into a 2D sinogram with dead LOR (gaps)
+    # # aw2sn  - LUT array [AW x 2] translating linear index into
+    # #          a 2D sinogram with dead LOR (gaps)
     # # aw2ali - LUT from linear index of 2D full sinogram with gaps and bin-driven to
     # #          linear index without gaps and angle driven
     # # msino  - 2D sinogram with gaps marked (0). like a mask.
@@ -1016,9 +1011,8 @@ def get_dicoms(dfile, datain, Cnt):
         if f0 >= 0:
             f1 = f0 + lmhdr[f0:].find('\n')
             # regular expression for the isotope symbol
-            p = re.compile(r'(?<=:=)\s*\S*')
             # the name of isotope:
-            istp = p.findall(lmhdr[f0:f1])[0]
+            istp = re.findall(r'(?<=:=)\s*\S*', lmhdr[f0:f1])[0]
             istp = istp.replace('-', '')
             Cnt['ISOTOPE'] = istp.strip()
 
@@ -1126,11 +1120,13 @@ def putgaps(s, txLUT, Cnt, sino_no=0):
 
     # number of sino planes (2D sinos) depends on the span used
     if Cnt['SPN'] == 1:
-        # number of rings calculated for the given ring range (optionally we can use only part of the axial FOV)
+        # number of rings calculated for the given ring range
+        # (optionally we can use only part of the axial FOV)
         NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
         nsinos = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
+        # correct for the max. ring difference in the full axial extent
+        # (don't use ring range (1,63) as for this case no correction)
         if NRNG_c == 64:
             nsinos -= 12
 
@@ -1175,8 +1171,6 @@ def mmrinit():
 
 
 def mMR_params():
-    '''
-    get all scanner parameters in one dictionary
-    '''
+    """get all scanner parameters in one dictionary"""
     Cnt, txLUT, axLUT = mmrinit()
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}

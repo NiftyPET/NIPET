@@ -92,7 +92,8 @@ def simulate_sino(
     else:
         # > 2D case with reduced rings
         # --------------------
-        # > create a number of slices of the same chosen image slice for reduced (fast) 3D simulation
+        # > create a number of slices of the same chosen image slice
+        # for reduced (fast) 3D simulation
         rmu = mui[slice_idx, :, :]
         rmu.shape = (1,) + rmu.shape
         rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
@@ -195,7 +196,8 @@ def simulate_recon(
         nsinos = Cnt['NSN11']
     else:
         # --------------------
-        # > create a number of slides of the same chosen image slice for reduced (fast) 3D simulation
+        # > create a number of slides of the same chosen image slice
+        # for reduced (fast) 3D simulation
         rmu = mui[slice_idx, :, :]
         rmu.shape = (1,) + rmu.shape
         rmu = np.repeat(rmu, Cnt['rSZ_IMZ'], axis=0)
@@ -238,7 +240,8 @@ def simulate_recon(
 
         # ------------------------------------
         Sn = 14    # number of subsets
-                   # -get one subset to get number of projection bins in a subset
+
+        # -get one subset to get number of projection bins in a subset
         Sprj, s = mmrrec.get_subsets14(0, scanner_params)
         Nprj = len(Sprj)
 
@@ -249,14 +252,16 @@ def simulate_recon(
         sim = np.zeros((Sn, Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
 
         for n in trange(Sn, desc="sensitivity", leave=log.getEffectiveLevel() < logging.INFO):
-            sinoTIdx[n, 0] = Nprj                                                   # first number of projection for the given subset
+            # first number of projection for the given subset
+            sinoTIdx[n, 0] = Nprj
             sinoTIdx[n, 1:], s = mmrrec.get_subsets14(n, scanner_params)
-                                                                                    # > sensitivity image
+
+            # > sensitivity image
             petprj.bprj(sim[n, :, :, :], attsino[sinoTIdx[n, 1:], :], txLUT, axLUT,
                         sinoTIdx[n, 1:], Cnt)
-                                                                                    # -------------------------------------
+            # -------------------------------------
 
-        for k in trange(nitr, desc="OSEM", disable=log.getEffectiveLevel() > logging.INFO,
+        for _ in trange(nitr, desc="OSEM", disable=log.getEffectiveLevel() > logging.INFO,
                         leave=log.getEffectiveLevel() < logging.INFO):
             petprj.osem(eimg, psng, rsng, ssng, nrmsino, attsino, sinoTIdx, sim, msk, psfkernel,
                         txLUT, axLUT, Cnt)
@@ -280,13 +285,14 @@ def simulate_recon(
         sim_inv[~msk] = 0
 
         rndsct = rsng + ssng
-        for i in trange(nitr, desc="MLEM", disable=log.getEffectiveLevel() > logging.INFO,
+        for _ in trange(nitr, desc="MLEM", disable=log.getEffectiveLevel() > logging.INFO,
                         leave=log.getEffectiveLevel() < logging.INFO):
             # > remove gaps from the measured sinogram
             # > then forward project the estimated image
-            # > after which divide the measured sinogram by the estimated sinogram (forward projected)
-            crrsino = mmraux.remgaps(measured_sino, txLUT, Cnt) / \
-                        (mmrprj.frwd_prj(psf(eim), scanner_params, dev_out=True) + rndsct)
+            # > after which divide the measured sinogram
+            # by the estimated sinogram (forward projected)
+            crrsino = (mmraux.remgaps(measured_sino, txLUT, Cnt) /
+                       (mmrprj.frwd_prj(psf(eim), scanner_params, dev_out=True) + rndsct))
 
             # > back project the correction factors sinogram
             bim = mmrprj.back_prj(crrsino, scanner_params)

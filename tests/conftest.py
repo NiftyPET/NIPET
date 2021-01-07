@@ -1,4 +1,4 @@
-from os import getenv, path
+from os import getenv
 from pathlib import Path
 
 import pytest
