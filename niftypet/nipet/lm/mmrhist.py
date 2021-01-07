@@ -14,8 +14,6 @@ from niftypet import nimpa
 from .. import mmraux
 from . import mmr_lmproc  # CUDA extension module
 
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 #================================================================================

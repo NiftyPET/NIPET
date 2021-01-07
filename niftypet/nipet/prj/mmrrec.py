@@ -23,8 +23,6 @@ from ..lm.mmrhist import randoms
 from ..sct import vsm
 from . import petprj
 
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 #reconstruction mode:

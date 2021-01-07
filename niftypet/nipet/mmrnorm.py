@@ -10,9 +10,6 @@ from pkg_resources import resource_filename
 
 from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
 
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
-
 #=================================================================================================
 # GET NORM COMPONENTS
 #=================================================================================================

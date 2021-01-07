@@ -1,7 +1,4 @@
 """auxilary imaging functions for PET image reconstruction and analysis."""
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
-
 import logging
 import os
 

@@ -23,8 +23,6 @@ from niftypet import nimpa
 from .. import mmraux
 from .. import resources as rs
 
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 ct_nans = -1024

@@ -18,10 +18,6 @@ from skbuild import setup
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import dinf
 from niftypet.ninst import install_tools as tls
-
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
-__licence__ = __license__ = "Apache 2.0"
 __version__ = get_version(root=".", relative_to=__file__)
 
 logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)

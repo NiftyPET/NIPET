@@ -20,8 +20,6 @@ from ..img import mmrimg
 from ..prj import mmrprj, mmrrec, petprj
 from . import nifty_scatter
 
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
 log = logging.getLogger(__name__)
 
 

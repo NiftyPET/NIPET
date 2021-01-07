@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """initialise the NiftyPET NIPET package"""
-__author__ = ("Pawel J. Markiewicz", "Casper O. da Costa-Luis")
-__copyright__ = "Copyright 2020"
+__author__ = "Pawel J. Markiewicz", "Casper O. da Costa-Luis"
+__copyright__ = "Copyright 2021"
 # version detector. Precedence: installed dist, git, 'UNKNOWN'
 try:
     from ._dist_ver import __version__
@@ -12,16 +12,25 @@ except ImportError:
         __version__ = get_version(root="../..", relative_to=__file__)
     except (ImportError, LookupError):
         __version__ = "UNKNOWN"
-
-import logging
-import os
-import platform
-import re
-import sys
-from textwrap import dedent
-
+__all__ = [
+    # GPU utils
+    'resource_filename', 'cs', 'dev_info', 'gpuinfo',
+    # utils
+    'LOG_FORMAT', 'LogHandler', 'path_resources', 'resources'
+    # package
+    'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj'
+    # img
+    'align_mumap', 'im_e72dev', 'im_dev2e7', 'hdw_mumap', 'obj_mumap',
+    'pct_mumap', 'mmrchain',
+    # lm
+    'dynamic_timings', 'mmrhist', 'randoms',
+    # mmraux
+    'classify_input', 'get_mmrparams',
+    # prj
+    'back_prj', 'frwd_prj', 'simulate_recon', 'simulate_sino',
+    # sct
+    'vsm']  # yapf: disable
 from pkg_resources import resource_filename
-from tqdm.auto import tqdm
 
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst.dinf import dev_info, gpuinfo

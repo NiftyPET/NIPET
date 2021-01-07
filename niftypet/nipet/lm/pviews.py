@@ -1,6 +1,4 @@
 #!/usr/bin/python
-__author__ = 'pawel'
-
 import os
 import sys
 
