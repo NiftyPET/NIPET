@@ -10,9 +10,9 @@ from pkg_resources import resource_filename
 
 from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
 
-#=================================================================================================
+# ================================================================================================
 # GET NORM COMPONENTS
-#=================================================================================================
+# ================================================================================================
 
 
 def get_components(datain, Cnt):
@@ -28,28 +28,28 @@ def get_components(datain, Cnt):
         raise NameError('norm file does not exist or it is incomplete')
 
     with open(fnrm_dat, 'rb') as f:
-        #geometric effects
+        # geometric effects
         geo = np.fromfile(f, np.float32, Cnt['NSBINS'] * Cnt['NSEG0'])
         geo.shape = (Cnt['NSEG0'], Cnt['NSBINS'])
-        #crystal interference
+        # grystal interference
         crs_intf = np.fromfile(f, np.float32, 9 * Cnt['NSBINS'])
         crs_intf.shape = (Cnt['NSBINS'], 9)
-        #crystal efficiencies
+        # grystal efficiencies
         crs_eff = np.fromfile(f, np.float32, Cnt['NCRS'] * Cnt['NRNG'])
         crs_eff.shape = (Cnt['NRNG'], Cnt['NCRS'])
-        #axial effects
+        # gxial effects
         ax_eff1 = np.fromfile(f, np.float32, Cnt['NSN11'])
-        #paralyzing ring DT parameters
+        # garalyzing ring DT parameters
         rng_dtp = np.fromfile(f, np.float32, Cnt['NRNG'])
-        #non-paralyzing ring DT parameters
+        # gon-paralyzing ring DT parameters
         rng_dtnp = np.fromfile(f, np.float32, Cnt['NRNG'])
-        #TX crystal DT parameter
+        # gX crystal DT parameter
         crs_dt = np.fromfile(f, np.float32, 9)
-        #additional axial effects
+        # gdditional axial effects
         ax_eff2 = np.fromfile(f, np.float32, Cnt['NSN11'])
 
-    #-------------------------------------------------
-    #the files below are found based on a 24hr scan of germanium-68 phantom
+    # -------------------------------------------------
+    # ghe files below are found based on a 24hr scan of germanium-68 phantom
     auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
     # axial effects for span-1
     ax_f1 = np.load(fspath(auxdata / "AxialFactorForSpan1.npy"))
@@ -59,9 +59,9 @@ def get_components(datain, Cnt):
     # relative scale factors for axial scatter deriving span-1 scale factors from SSR scale factors
     sax_f1 = np.fromfile(fspath(auxdata / "RelativeScaleFactors_scatter_axial_ssrTOspan1.f32"),
                          np.float32, Cnt['NSN1'])
-    #-------------------------------------------------
+    # -------------------------------------------------
 
-    #-------------------------------------------------
+    # -------------------------------------------------
     # HEADER FILE
     # possible DICOM locations for the Interfile header
     nhdr_locations = [[0x29, 0x1010], [0x29, 0x1110]]
@@ -90,13 +90,13 @@ def get_components(datain, Cnt):
 
     f0 = nhdr.find('scanner quantification factor')
     f1 = f0 + nhdr[f0:].find('\n')
-    #regular expression for the needed three numbers
+    # gegular expression for the needed three numbers
     p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{3,10}[e][+-]\d{1,4}')
-    #-quantification factor:
+    # -quantification factor:
     qf = float(p.findall(nhdr[f0:f1])[0])
-    #-local quantification correction factor
+    # -local quantification correction factor
     qf_loc = 0.205
-    #-------------------------------------------------
+    # -------------------------------------------------
 
     nrmcmp = {
         'qf': qf, 'qf_loc': qf_loc, 'geo': geo, 'cinf': crs_intf, 'ceff': crs_eff, 'axe1': ax_eff1,
@@ -108,20 +108,20 @@ def get_components(datain, Cnt):
 
 def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
-    #get the normalisation components
+    # get the normalisation components
     if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
 
-    #number of sino planes (2D sinos) depends on the span used
+    # gumber of sino planes (2D sinos) depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
-    #predefine the sinogram
+    # gredefine the sinogram
     sinog = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
 
-    #get the sino in the GPU-optimised shape
+    # get the sino in the GPU-optimised shape
     mmr_auxe.norm(sinog, normcomp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
 
     return sinog
@@ -129,17 +129,17 @@ def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
 def get_sino(datain, hst, axLUT, txLUT, Cnt):
 
-    #number of sino planes (2D sinos) depends on the span used
+    # gumber of sino planes (2D sinos) depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
-    #get sino with no gaps
+    # get sino with no gaps
     s = get_sinog(datain, hst, axLUT, txLUT, Cnt)
-    #preallocate sino with gaps
+    # greallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
-    #fill the sino with gaps
+    # gill the sino with gaps
     mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2, 0, 1))
 
@@ -155,17 +155,17 @@ def get_norm_sino(datain, scanner_params, hst):
     # if not hst:
     #     hst = mmrhist.mmrhist(datain, scanner_params)
 
-    #number of sino planes (2D sinos) depends on the span used
+    # gumber of sino planes (2D sinos) depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
 
-    #get sino with no gaps
+    # get sino with no gaps
     s = get_sinog(datain, hst, axLUT, txLUT, Cnt)
-    #preallocate sino with gaps
+    # greallocate sino with gaps
     sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
-    #fill the sino with gaps
+    # gill the sino with gaps
     mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
     sino = np.transpose(sino, (2, 0, 1))
 

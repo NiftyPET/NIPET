@@ -11,9 +11,9 @@ from . import petprj
 
 log = logging.getLogger(__name__)
 
-#=========================================================================
+# ========================================================================
 # transaxial (one-slice) projector
-#-------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 
 def trnx_prj(scanner_params, sino=None, im=None):
@@ -41,9 +41,9 @@ def trnx_prj(scanner_params, sino=None, im=None):
     return {'tv': tv, 'tt': tt}
 
 
-#=========================================================================
+# ========================================================================
 # forward projector
-#-------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 
 def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=False,
@@ -67,8 +67,8 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    #>choose between attenuation forward projection (mu-map is the input)
-    #>or the default for emission image forward projection
+    # >choose between attenuation forward projection (mu-map is the input)
+    # >or the default for emission image forward projection
     if attenuation:
         att = 1
     else:
@@ -106,7 +106,7 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
 
     log.debug('number of sinos:%d' % nsinos)
 
-    #predefine the sinogram.  if subsets are used then only preallocate those bins which will be used.
+    # predefine the sinogram.  if subsets are used then only preallocate those bins which will be used.
     if isub[0] < 0:
         sinog = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
     else:
@@ -127,9 +127,9 @@ def frwd_prj(im, scanner_params, isub=np.array([-1], dtype=np.int32), dev_out=Fa
     return sino
 
 
-#=========================================================================
+# ========================================================================
 # back projector
-#-------------------------------------------------------------------------
+# ------------------------------------------------------------------------
 
 
 def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
@@ -160,8 +160,8 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
     elif Cnt['SPN'] == 0:
         nsinos = Cnt['NSEG0']
 
-    #> check first the Siemens default sinogram;
-    #> for this default shape only full sinograms are expected--no subsets.
+    # > check first the Siemens default sinogram;
+    # > for this default shape only full sinograms are expected--no subsets.
     if len(sino.shape) == 3:
         if sino.shape[0] != nsinos or sino.shape[1] != Cnt['NSANGLES'] or sino.shape[2] != Cnt[
                 'NSBINS']:
@@ -173,25 +173,25 @@ def back_prj(sino, scanner_params, isub=np.array([-1], dtype=np.int32)):
             raise ValueError('Unexpected number of transaxial elements in the full sinogram.')
         elif isub[0] >= 0 and sino.shape[0] != len(isub):
             raise ValueError('Unexpected number of transaxial elements in the subset sinogram.')
-        #> check if the number of sinograms is correct
+        # > check if the number of sinograms is correct
         if sino.shape[1] != nsinos:
             raise ValueError('Inconsistent number of sinograms in the array.')
-        #> when found the dimensions/shape are fine:
+        # > when found the dimensions/shape are fine:
         sinog = sino
     else:
         raise ValueError('Unexpected shape of the input sinogram.')
 
-    #predefine the output image depending on the number of rings used
+    # predefine the output image depending on the number of rings used
     if Cnt['SPN'] == 1 and 'rSZ_IMZ' in Cnt:
         nvz = Cnt['rSZ_IMZ']
     else:
         nvz = Cnt['SZ_IMZ']
     bimg = np.zeros((Cnt['SZ_IMX'], Cnt['SZ_IMY'], nvz), dtype=np.float32)
 
-    #> run back-projection
+    # > run back-projection
     petprj.bprj(bimg, sinog, txLUT, axLUT, isub, Cnt)
 
-    #> change from GPU optimised image dimensions to the standard Siemens shape
+    # > change from GPU optimised image dimensions to the standard Siemens shape
     bimg = mmrimg.convert2e7(bimg, Cnt)
 
     return bimg

@@ -18,6 +18,7 @@ from skbuild import setup
 from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import dinf
 from niftypet.ninst import install_tools as tls
+
 __version__ = get_version(root=".", relative_to=__file__)
 
 logging.basicConfig(level=logging.INFO, format=tls.LOG_FORMAT)

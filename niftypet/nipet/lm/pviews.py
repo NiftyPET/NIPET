@@ -28,11 +28,11 @@ def video_frm(hst, outpth):
 
     mfrm = hst['pvs_sgtl'].shape[0]
 
-    #--for movie
+    # --for movie
     FFMpegWriter = manimation.writers['ffmpeg']
     metadata = dict(title='GPU Sino Views', artist='Pawel', comment=':)')
     writer = FFMpegWriter(fps=25, bitrate=30000, metadata=metadata)
-    #--
+    # --
 
     fig3 = plt.figure()
 
@@ -53,13 +53,13 @@ def video_frm(hst, outpth):
     ax3 = plt.subplot(313)
     plt.title('Axial Centre of Mass')
     t = np.arange(0., hst['dur'], 1.)
-    #plt.plot(t, rprmt, 'k', t, rdlyd, 'r')
+    # plt.plot(t, rprmt, 'k', t, rdlyd, 'r')
     plt.plot(t, mvavg(hst['cmass'][:], 5), 'k')
     plt.ylim([ymin, ymax])
     plt.xlabel('Time [s]')
     l2, = plt.plot(np.array([1000, 1000]), np.array([0, ymax]), 'b')
 
-    #how many gpu frames per movie (controls the time resolution)
+    # how many gpu frames per movie (controls the time resolution)
     mf = 6
     mmfrm = mfrm / mf
 
@@ -82,9 +82,9 @@ def video_frm(hst, outpth):
     return fnm
 
 
-#===================================================================================
+# ==================================================================================
 # Dynamic Frames to Projection Views
-#-----------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------
 
 
 def video_dyn(hst, frms, outpth, axLUT, Cnt):
@@ -126,19 +126,19 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
         print('-----------')
     print('GPUtot =', gpu_totsum)
 
-    #---additional constants
+    # ---additional constants
     saggital_angle = 127
     coronal_angle = 0
     i_mxfrm = gsum.argmax()
     frmrep = 5
     mfrm = frmrep * nfrm
-    #---
+    # ---
 
-    #--for movie
+    # --for movie
     FFMpegWriter = manimation.writers['ffmpeg']
     metadata = dict(title='Axial View', artist='Pawel', comment='--')
     writer = FFMpegWriter(fps=10, bitrate=30000, metadata=metadata)
-    #--
+    # --
 
     fig1 = plt.figure()
 
@@ -148,7 +148,7 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
     plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off')
     l1 = plt.imshow(np.array(ddsino[i_mxfrm, :, coronal_angle, :], dtype=np.float64), cmap='jet',
                     interpolation='nearest')
-    #plt.clim([0, 70])
+    # plt.clim([0, 70])
 
     ax2 = plt.subplot(312)
     plt.title('Sagittal View')
@@ -156,7 +156,7 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
     plt.tick_params(axis='both', which='both', bottom='off', top='off', labelbottom='off')
     l2 = plt.imshow(np.array(ddsino[i_mxfrm, :, saggital_angle, :], dtype=np.float64), cmap='jet',
                     interpolation='nearest')
-    #plt.clim([0, 70])
+    # plt.clim([0, 70])
 
     ax3 = plt.subplot(313)
     plt.title('Axial Centre of Mass')

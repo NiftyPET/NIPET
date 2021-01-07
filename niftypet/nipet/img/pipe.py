@@ -178,7 +178,7 @@ def mmrchain(
                 'no mu-map provided: scatter and attenuation corrections are switched off.')
     # -------------------------------------------------------------------------
 
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
     # output dictionary
     output = {}
@@ -259,14 +259,14 @@ def mmrchain(
 
     # dynamic images in one numpy array
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
-    #if asked, output only scatter+randoms sinogram for each frame
+    # if asked, output only scatter+randoms sinogram for each frame
     if ret_sinos and itr > 1 and recmod > 2:
         dynmsk = np.zeros((nfrm, Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
         dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
-    #> returning dictionary of histograms if requested
+    # > returning dictionary of histograms if requested
     if ret_histo:
         hsts = {}
 
@@ -330,7 +330,7 @@ def mmrchain(
             output['fmureg'].append(fmu)
         else:
             muo = muod['im']
-        #---------------------
+        # ---------------------
 
         # output image file name
         if nfrm > 1:
@@ -393,7 +393,7 @@ def mmrchain(
     # ----------------------------------------------------------------------
 
     # ----------------------------------------------------------------------
-    #run PVC if requested and required input given
+    # run PVC if requested and required input given
     if pvcroi:
         if not os.path.isfile(datain['T1lbl']):
             raise Exception('No labels and/or ROIs image definitions found!')
@@ -409,11 +409,11 @@ def mmrchain(
                         'the PSF kernel has to be an numpy array with the shape of ({},{})'.format(
                             3, 2 * Cnt['RSZ_PSF_KRNL'] + 1))
 
-        #> file names for NIfTI images of PVC ROIs and PVC corrected PET
+        # > file names for NIfTI images of PVC ROIs and PVC corrected PET
         froi = []
         fpvc = []
 
-        #> perform PVC for each time frame
+        # > perform PVC for each time frame
         dynpvc = np.zeros(petu['im'].shape, dtype=np.float32)
         for i in range(ifrmP, nfrm):
             # transform the parcellations (ROIs) if given the affine transformation for each frame
@@ -421,7 +421,7 @@ def mmrchain(
                 log.warning(
                     'affine transformation are not provided: will generate for the time frame.')
                 faffpvc = None
-                #raise StandardError('No affine transformation')
+                # raise StandardError('No affine transformation')
             else:
                 faffpvc = faff_frms[i]
 
@@ -445,7 +445,7 @@ def mmrchain(
 
             if store_rois: froi.append(petpvc_dic['froi'])
 
-        #> update output dictionary
+        # > update output dictionary
         output.update({'impvc': dynpvc})
         output['fprc'] = petpvc_dic['fprc']
         output['imprc'] = petpvc_dic['imprc']

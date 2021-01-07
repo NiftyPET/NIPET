@@ -15,8 +15,8 @@ def obtain_image(img, Cnt=None, imtype=''):
     numpy array, dictionary or empty list (assuming blank then).
     The image has to have the dimensions of the PET image used as in Cnt['SO_IM[X-Z]'].
     '''
-    #> establishing what and if the image object has been provided
-    #> all findings go to the output dictionary
+    # > establishing what and if the image object has been provided
+    # > all findings go to the output dictionary
     output = {}
     if isinstance(img, dict):
         if Cnt is not None and img['im'].shape != (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
@@ -64,7 +64,7 @@ def obtain_image(img, Cnt=None, imtype=''):
         log.info(imtype + ' has not been provided -> using blank.')
         output['fim'] = ''
         output['exists'] = False
-    #------------------------------------------------------------------------
+    # ------------------------------------------------------------------------
     return output
 
 
@@ -111,9 +111,9 @@ def dynamic_timings(flist, offset=0):
         nfrm = np.sum(farray[:, 0])
         # list of frame duration
         frms = np.zeros(nfrm, dtype=np.uint16)
-        #frame iterator
+        # frame iterator
         fi = 0
-        #time sum of frames
+        # time sum of frames
         tsum = 0
         # list of frame timings
         t_frames = []

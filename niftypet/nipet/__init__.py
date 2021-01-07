@@ -37,7 +37,7 @@ from niftypet.ninst.dinf import dev_info, gpuinfo
 from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resources
 
 # shared CUDA C library for extended auxiliary functions for the mMR
-#> Siemens Biograph mMR
+# > Siemens Biograph mMR
 from . import img, lm, mmr_auxe, mmraux, mmrnorm, prj
 from .img.mmrimg import align_mumap
 from .img.mmrimg import convert2dev as im_e72dev
@@ -62,11 +62,11 @@ if resources.ENBLAGG:
 if resources.ENBLXNAT:
     from xnat import xnat
 
-#> GE Signa
-#from . import aux_sig
+# > GE Signa
+# from . import aux_sig
 
-#from . import lm_sig
-#from .lm_sig.hst_sig import lminfo_sig
+# from . import lm_sig
+# from .lm_sig.hst_sig import lminfo_sig
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`
 cmake_prefix = resource_filename(__name__, "cmake")

@@ -16,9 +16,9 @@ from . import mmr_lmproc  # CUDA extension module
 
 log = logging.getLogger(__name__)
 
-#================================================================================
+# ===============================================================================
 # HISTOGRAM THE LIST-MODE DATA
-#--------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 
 def mmrhist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=False,
@@ -83,7 +83,7 @@ def hist(
         # ---------------------------------------
         # preallocate all the output arrays
         VTIME = 2
-        MXNITAG = 5400 #limit to 1hr and 30mins
+        MXNITAG = 5400 # limit to 1hr and 30mins
         if (nitag > MXNITAG):
             tn = int(MXNITAG / (1 << VTIME))
         else:
@@ -97,11 +97,11 @@ def hist(
         bck = np.zeros((2, nitag, Cnt['NBCKT']), dtype=np.uint32)
         fan = np.zeros((Cnt['NRNG'], Cnt['NCRS']), dtype=np.uint32)
 
-        #> prompt and delayed sinograms
+        # > prompt and delayed sinograms
         psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
         dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
 
-        #> single slice rebinned prompots
+        # > single slice rebinned prompots
         ssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
 
         hstout = {
@@ -134,7 +134,7 @@ def hist(
         log.error('input list-mode data is not defined.')
         return
 
-    #short (interval) projection views
+    # short (interval) projection views
     pvs_sgtl = np.right_shift(hstout['pvs'], 8).astype(np.float32)
     pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
@@ -144,22 +144,22 @@ def hist(
         .format(cmass_sig))
 
     #========================== BUCKET SINGLES =========================
-    #> number of single rates reported for the given second
-    #> the last two bits are used for the number of reports
+    # > number of single rates reported for the given second
+    # > the last two bits are used for the number of reports
     nsr = (hstout['bck'][1, :, :] >> 30)
 
-    #> average in a second period
+    # > average in a second period
     hstout['bck'][0, nsr > 0] = hstout['bck'][0, nsr > 0] / nsr[nsr > 0]
 
-    #> time indeces when single rates given
+    # > time indeces when single rates given
     tmsk = np.sum(nsr, axis=1) > 0
     single_rate = np.copy(hstout['bck'][0, tmsk, :])
 
-    #> time
+    # > time
     t = np.arange(nitag)
     t = t[tmsk]
 
-    #> get the average bucket singles:
+    # > get the average bucket singles:
     buckets = np.int32(np.sum(single_rate, axis=0) / single_rate.shape[0])
     log.debug('dynamic and static buckets single rates:  COMPLETED.')
     #===================================================================
@@ -170,28 +170,28 @@ def hist(
     pdata = {
         't0': t0,
         't1': t1,
-        'dur': t1 - t0,                           #duration
-        'phc': hstout['phc'],                     #prompts head curve
-        'dhc': hstout['dhc'],                     #delayeds head curve
-        'cmass': cmass,                           #centre of mass of the radiodistribution in axial direction
-        'pvs_sgtl': pvs_sgtl,                     #sagittal projection views in short intervals
-        'pvs_crnl': pvs_crnl,                     #coronal projection views in short intervals
+        'dur': t1 - t0,                           # duration
+        'phc': hstout['phc'],                     # prompts head curve
+        'dhc': hstout['dhc'],                     # delayeds head curve
+        'cmass': cmass,                           # centre of mass of the radiodistribution in axial direction
+        'pvs_sgtl': pvs_sgtl,                     # sagittal projection views in short intervals
+        'pvs_crnl': pvs_crnl,                     # coronal projection views in short intervals
         'fansums': hstout[
-            'fan'],                               #fan sums of delayeds for variance reduction of random event sinograms
-        'sngl_rate': single_rate,                 #bucket singles over time
-        'tsngl': t,                               #time points of singles measurements in list-mode data
-        'buckets': buckets,                       #average bucket singles
-        'psino': hstout['psn'].astype(np.uint16), #prompt sinogram
-        'dsino': hstout['dsn'].astype(np.uint16), #delayeds sinogram
-        'pssr': hstout['ssr']                     #single-slice rebinned sinogram of prompts
+            'fan'],                               # fan sums of delayeds for variance reduction of random event sinograms
+        'sngl_rate': single_rate,                 # bucket singles over time
+        'tsngl': t,                               # time points of singles measurements in list-mode data
+        'buckets': buckets,                       # average bucket singles
+        'psino': hstout['psn'].astype(np.uint16), # prompt sinogram
+        'dsino': hstout['dsn'].astype(np.uint16), # delayeds sinogram
+        'pssr': hstout['ssr']                     # single-slice rebinned sinogram of prompts
     }
 
     return pdata
 
 
-#===============================================================================
+# ==============================================================================
 # GET REDUCED VARIANCE RANDOMS
-#-------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 def randoms(hst, scanner_params, gpu_dim=False):
@@ -220,7 +220,7 @@ def rand(fansums, txLUT, axLUT, Cnt):
     elif Cnt['SPN'] == 11: nsinos = Cnt['NSN11']
     elif Cnt['SPN'] == 0: nsinos = Cnt['NSEG0']
 
-    #random sino and estimated crystal map of singles put into a dictionary
+    # random sino and estimated crystal map of singles put into a dictionary
     rsn = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     cmap = np.zeros((Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
     rndout = {
@@ -232,9 +232,9 @@ def rand(fansums, txLUT, axLUT, Cnt):
     return rndout['rsn'], rndout['cmap']
 
 
-#================================================================================
+# ===============================================================================
 # NEW!! GET REDUCED VARIANCE RANDOMS (BASED ON PROMPTS)
-#--------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 
 
 def prand(fansums, pmsk, txLUT, axLUT, Cnt):
@@ -242,18 +242,18 @@ def prand(fansums, pmsk, txLUT, axLUT, Cnt):
     elif Cnt['SPN'] == 11: nsinos = Cnt['NSN11']
     elif Cnt['SPN'] == 0: nsinos = Cnt['NSEG0']
 
-    #number of frames
+    # number of frames
     nfrm = fansums.shape[0]
     log.debug('# of dynamic frames: {}.'.format(nfrm))
 
-    #random sino and estimated crystal map of singles put into a dictionary
+    # random sino and estimated crystal map of singles put into a dictionary
     rsn = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     cmap = np.zeros((Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
     rndout = {
         'rsn': rsn,
         'cmap': cmap,}
 
-    #save results for each frame
+    # save results for each frame
 
     rsino = np.zeros((nfrm, nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
     crmap = np.zeros((nfrm, Cnt['NCRS'], Cnt['NRNG']), dtype=np.float32)
@@ -274,16 +274,16 @@ def prand(fansums, pmsk, txLUT, axLUT, Cnt):
 
 def sino2nii(sino, Cnt, fpth):
     '''save sinogram in span-11 into NIfTI file'''
-    #number of segments
+    # number of segments
     segn = len(Cnt['SEG'])
     cumseg = np.cumsum(Cnt['SEG'])
     cumseg = np.append([0], cumseg)
 
-    #plane offset (relative to 127 planes of seg 0) for each segment
+    # plane offset (relative to 127 planes of seg 0) for each segment
     OFF = np.min(abs(np.append([Cnt['MNRD']], [Cnt['MXRD']], axis=0)), axis=0)
     niisn = np.zeros((Cnt['SEG'][0], Cnt['NSANGLES'], Cnt['NSBINS'], segn), dtype=sino.dtype)
 
-    #first segment (with direct planes)
+    # first segment (with direct planes)
     # tmp =
     niisn[:, :, :, 0] = sino[Cnt['SEG'][0] - 1::-1, ::-1, ::-1]
 
@@ -297,24 +297,24 @@ def sino2nii(sino, Cnt, fpth):
     nib.save(nim, fpth)
 
 
-#=================================================================================
+# ================================================================================
 # create michelogram map for emission data, only when the input sino in in span-1
 def get_michem(sino, axLUT, Cnt):
     # span:
     spn = -1
 
     if Cnt['SPN'] == 1:
-        slut = np.arange(Cnt['NSN1']) #for span 1, one-to-one mapping
+        slut = np.arange(Cnt['NSN1']) # for span 1, one-to-one mapping
     elif Cnt['SPN'] == 11:
         slut = axLUT['sn1_sn11']
     else:
         raise ValueError('sino is neither in span-1 or span-11')
 
-    #acitivity michelogram
+    # acitivity michelogram
     Mem = np.zeros((Cnt['NRNG'], Cnt['NRNG']), dtype=np.float32)
-    #sino to ring number & sino-1 to sino-11 index:
+    # sino to ring number & sino-1 to sino-11 index:
     sn1_rno = axLUT['sn1_rno']
-    #sum all the sinograms inside
+    # sum all the sinograms inside
     ssm = np.sum(sino, axis=(1, 2))
 
     for sni in range(len(sn1_rno)):
@@ -325,9 +325,9 @@ def get_michem(sino, axLUT, Cnt):
     return Mem
 
 
-#=================================================================================
-#---------------------------------------------------------------------------------
-#=================================================================================
+# ================================================================================
+# --------------------------------------------------------------------------------
+# ================================================================================
 
 
 def draw_frames(hst, tfrms, plot_diff=True):
@@ -550,9 +550,9 @@ def dynamic_timings(flist, offset=0):
         nfrm = np.sum(farray[:, 0])
         # list of frame duration
         frms = np.zeros(nfrm, dtype=np.uint16)
-        #frame iterator
+        # frame iterator
         fi = 0
-        #time sum of frames
+        # time sum of frames
         tsum = 0
         # list of frame timings
         t_frames = ['timings']
