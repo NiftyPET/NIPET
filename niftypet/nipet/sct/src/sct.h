@@ -5,34 +5,15 @@
 float *KN_LUT(void);
 
 typedef struct {
-	float 	* sval; //bin value
-	float 	* s3d; //scatter pre-sino in span-1
-}scatOUT;
+  float *sval; // bin value
+  float *s3d;  // scatter pre-sino in span-1
+} scatOUT;
 
-scatOUT prob_scatt(
-	scatOUT sctout,
-	float *KNlut,
-	char* mumsk,
-	IMflt mu,
-	IMflt em,
-	int *sctaxR,
-	float *sctaxW,
-	short *offseg,
-	float *scrs,
-	short *isrng,
-	float *srng,
-	char  *xsxu,
-	short *sn1_rno,
-	short *sn1_sn11,
-	Cnst Cnt);
-
+scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em, int *sctaxR,
+                   float *sctaxW, short *offseg, float *scrs, short *isrng, float *srng,
+                   char *xsxu, short *sn1_rno, short *sn1_sn11, Cnst Cnt);
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-
-
-
-
-
 
 //## start ##// constants definitions in synch with Python.   DO NOT MODIFY!
 
@@ -59,39 +40,37 @@ scatOUT prob_scatt(
 #define SRFCRS 0.1695112f
 //## end ##// constants definitions in synch with Python
 
-//number of samples per scattering patch (point) length; used as the power of 2:  2**LSCT2 = patch length
+// number of samples per scattering patch (point) length; used as the power of 2:  2**LSCT2 = patch
+// length
 #define LSCT2 2
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
-
 //============ RAY PATH SAMPLING =====================
-//period of scatter crystals (needed for definition)
+// period of scatter crystals (needed for definition)
 #define SCRS_T 7
-//number of crystal rings for scatter estimation
+// number of crystal rings for scatter estimation
 #define N_SRNG 8
 
-//accumulation step for attenuation calculations
+// accumulation step for attenuation calculations
 #define ASTP SS_VXZ
 
-//scatter step
+// scatter step
 #define SSTP SS_VXZ
 
-//Warp size for reductions in scatter attenuation calculation
+// Warp size for reductions in scatter attenuation calculation
 #define SS_WRP 32
 
-//Threshold for mu-map values to be considered
+// Threshold for mu-map values to be considered
 #define THR_MU 0.02f
 
-//short dtype.  step for path sums (max 6)
+// short dtype.  step for path sums (max 6)
 #define RES_SUM 0.000091552734375f
 
-//short dtype. step for angle
+// short dtype. step for angle
 #define RES_ANG 0.0054931640625f
 //====================================================
 
-
 //## end of constants definitions ##//
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-
 
 #endif
