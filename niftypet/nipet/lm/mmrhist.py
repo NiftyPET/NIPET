@@ -11,7 +11,9 @@ import scipy.ndimage as ndi
 from niftypet import nimpa
 
 from .. import mmraux
-from . import mmr_lmproc  # CUDA extension module
+
+# CUDA extension module
+from . import mmr_lmproc
 
 log = logging.getLogger(__name__)
 

@@ -8,7 +8,8 @@ import numpy as np
 import pydicom as dcm
 from pkg_resources import resource_filename
 
-from . import mmr_auxe  # auxiliary functions through Python extensions in CUDA
+# auxiliary functions through Python extensions in CUDA
+from . import mmr_auxe
 
 log = logging.getLogger(__name__)
 # ================================================================================================

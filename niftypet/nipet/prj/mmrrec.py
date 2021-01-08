@@ -12,8 +12,8 @@ from tqdm.auto import trange
 
 from niftypet import nimpa
 
-from .. import resources  # for isotope info
-from .. import mmraux, mmrnorm
+# resources contain isotope info
+from .. import mmraux, mmrnorm, resources
 from ..img import mmrimg
 from ..lm.mmrhist import randoms
 from ..sct import vsm
@@ -177,15 +177,10 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     else:
         opth = outpath
 
-    if (store_img is True) or (store_itr is not None):
+    if store_img is True or store_itr is not None:
         mmraux.create_dir(opth)
 
-    if ret_sinos:
-        return_ssrb = True
-        return_mask = True
-    else:
-        return_ssrb = False
-        return_mask = False
+    return_ssrb, return_mask = ret_sinos, ret_sinos
 
     # ----------
 
