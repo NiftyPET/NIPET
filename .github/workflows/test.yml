@@ -48,7 +48,7 @@ jobs:
         fetch-depth: 0
     - name: Run setup-python
       run: setup-python -p3.7
-    - run: pip install -U -e .[dev]
+    - run: pip install -U --no-binary nimpa -e .[dev]
     - run: pytest
     - run: codecov
       env:
