@@ -80,8 +80,6 @@ def mmrchain(
 
     # decompose all the scanner parameters and constants
     Cnt = scanner_params['Cnt']
-    txLUT = scanner_params['txLUT']
-    axLUT = scanner_params['axLUT']
 
     # -------------------------------------------------------------------------
     # HISOTGRAM PRECEEDS FRAMES
@@ -334,7 +332,6 @@ def mmrchain(
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
             muo = muodct['im']
-            A = muodct['affine']
             muo[muo < 0] = 0
             output['fmureg'].append(fmu)
         else:

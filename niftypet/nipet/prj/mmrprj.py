@@ -18,7 +18,6 @@ ISUB_DEFAULT = np.array([-1], dtype=np.int32)
 def trnx_prj(scanner_params, sino=None, im=None):
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
-    axLUT = scanner_params['axLUT']
 
     # if sino==None and im==None:
     #     raise ValueError('Input sinogram or image has to be given.')

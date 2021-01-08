@@ -350,7 +350,6 @@ def axial_lut(Cnt):
         # (don't use ring range (1,63) as for this case no correction)
         if NRNG_c == 64:
             NSN1_c -= 12
-        SEG0_c = 2*NRNG_c - 1
     else:
         NRNG_c = NRNG
         NSN1_c = Cnt['NSN1']
@@ -563,7 +562,7 @@ def sino2ssr(sino, axLUT, Cnt):
 
 
 def reduce_rings(pars, rs=0, re=64):
-    '''
+    """
     Reduce the axial rings for faster reconstructions, particularly simulations.
     This function customises axial FOV for reduced rings in range(rs,re).
     Note it only works in span-1 and ring re is not included in the reduced rings.
@@ -571,10 +570,7 @@ def reduce_rings(pars, rs=0, re=64):
         pars -- scanner parameters: constants, LUTs
         rs -- start ring
         re -- end ring (not included in the resulting reduced rings)
-    '''
-    Cnt = pars['Cnt']
-    axLUT = pars['axLUT']
-
+    """
     pars['Cnt']['SPN'] = 1
     # select the number of sinograms for the number of rings
     # RNG_STRT is included in detection
@@ -630,7 +626,7 @@ def transaxial_lut(Cnt, visualisation=False):
     bw = 3.209
 
     # > block gap [cm]
-    dg = 0.474
+    # dg = 0.474
     NTBLK = 56
     alpha = 0.1122 # 2*pi/NTBLK
     crs = np.zeros((Cnt['NCRS'], 4), dtype=np.float32)

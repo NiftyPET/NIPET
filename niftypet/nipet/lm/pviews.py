@@ -87,8 +87,8 @@ def video_dyn(hst, frms, outpth, axLUT, Cnt):
     plt.close('all')
 
     # ============== CONSTANTS ==================
-    VTIME = 4
-    NRINGS = Cnt['NRNG']
+    # VTIME = 4
+    # NRINGS = Cnt['NRNG']
     NSN11 = Cnt['NSN11']
     NDSN = Cnt['NSEG0']
     A = Cnt['NSANGLES']

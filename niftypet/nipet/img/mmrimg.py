@@ -115,8 +115,7 @@ def image_affine(datain, Cnt, gantry_offset=False):
 
 
 def getmu_off(mu, Cnt, Offst=OFFSET_DEFAULT):
-    # pumber of voxels
-    nvx = mu.shape[0]
+
     # phange the shape to 3D
     mu.shape = (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX'])
 

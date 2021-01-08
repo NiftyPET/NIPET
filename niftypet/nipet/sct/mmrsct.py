@@ -82,7 +82,6 @@ def get_scrystals(scanner_params):
     logtxt = ''
 
     srng = np.zeros((NSRNG, 2), dtype=np.float32)
-    z = 0.5 * (-Cnt['NRNG'] * Cnt['AXR'] + Cnt['AXR'])
     for ir in range(NSRNG):
         srng[ir, 0] = float(sct_irng[ir])
         srng[ir, 1] = axLUT['rng'][sct_irng[ir], :].mean()
@@ -115,9 +114,7 @@ def get_sctlut2d(txLUT, scrs_def):
             if scrs[sc, 1] > scrs[uc, 1]:
                 xsxu[uc, sc] = 1
 
-    # TODO: was sct2aw.shape = (scrs_def['NSCRS'], scrs_def['NSCRS'])
-    sct2aw.resize((scrs_def['NSCRS'], scrs_def['NSCRS']))
-
+    sct2aw.shape = scrs_def['NSCRS'], scrs_def['NSCRS']
     return {'sct2aw': sct2aw, 'xsxu': xsxu, 'c2sFw': txLUT['c2sFw']}
 
 
@@ -186,7 +183,6 @@ def get_sctLUT(scanner_params):
     # > decompose constants, transaxial and axial LUTs are extracted
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
-    axLUT = scanner_params['axLUT']
 
     # > get the Klein-Nishina LUT:
     KN = get_knlut(Cnt)
@@ -605,7 +601,6 @@ def vsm(
     # get the mask for the object from uncorrected emission image
     if emmsk and os.path.isfile(datain['em_nocrr']):
         nim = nib.load(datain['em_nocrr'])
-        A = nim.get_sform()
         eim = nim.get_fdata(dtype=np.float32)
         eim = eim[:, ::-1, ::-1]
         eim = np.transpose(eim, (2, 1, 0))
