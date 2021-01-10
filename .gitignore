@@ -13,5 +13,5 @@ MANIFEST
 /*.egg*/
 /.eggs/
 
-/.coverage
+/.coverage*
 /coverage.xml
