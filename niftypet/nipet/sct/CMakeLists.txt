@@ -5,7 +5,7 @@ include_directories(src)
 include_directories(${Python3_INCLUDE_DIRS})
 include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
-add_library(${PROJECT_NAME} MODULE ${SRC})
+add_library(${PROJECT_NAME} ${LIB_TYPE} ${SRC})
 add_library(NiftyPET::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 target_include_directories(${PROJECT_NAME} PUBLIC
   "$<BUILD_INTERFACE:${${CMAKE_PROJECT_NAME}_INCLUDE_DIRS}>"
