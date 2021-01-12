@@ -809,9 +809,8 @@ def transaxial_lut(Cnt, visualisation=False):
 # ------------------------------------------------------------------------------------------------
 
 
-def get_npfiles(dfile, datain, v=False):
-    logger = log.info if v else log.debug
-    logger(
+def get_npfiles(dfile, datain):
+    log.debug(
         dedent('''\
         ------------------------------------------------------------------
         file: {}
@@ -821,29 +820,28 @@ def get_npfiles(dfile, datain, v=False):
     # pCT mu-map
     if os.path.basename(dfile) == 'mumap_pCT.npz':
         datain['mumapCT'] = dfile
-        logger('mu-map for the object.')
+        log.debug('mu-map for the object.')
 
     # DICOM UTE/Dixon mu-map
     if os.path.basename(dfile) == 'mumap-from-DICOM.npz':
         datain['mumapNPY'] = dfile
-        logger('mu-map for the object.')
+        log.debug('mu-map for the object.')
 
     if os.path.basename(dfile) == 'hmumap.npz':
         datain['hmumap'] = dfile
-        logger('mu-map for hardware.')
+        log.debug('mu-map for hardware.')
 
     if os.path.basename(dfile)[:8] == 'sinos_s1':
         datain['sinos'] = dfile
-        logger('prompt sinogram data.')
+        log.debug('prompt sinogram data.')
 
     # if os.path.basename(dfile)[:9]=='sinos_s11':
     #     datain['sinos11'] = dfile
-    #     logger('prompt sinogram data in span-11.')
+    #     log.debug('prompt sinogram data in span-11.')
 
 
-def get_niifiles(dfile, datain, v=False):
-    logger = log.info if v else log.debug
-    logger(
+def get_niifiles(dfile, datain):
+    log.debug(
         dedent('''\
         ------------------------------------------------------------------
         file: {}
@@ -853,18 +851,18 @@ def get_niifiles(dfile, datain, v=False):
     # > NIfTI file of converted MR-based mu-map from DICOMs
     if os.path.basename(dfile).split('.nii')[0] == 'mumap-from-DICOM':
         datain['mumapNII'] = dfile
-        logger('mu-map for the object.')
+        log.debug('mu-map for the object.')
 
     # > NIfTI file of pseudo CT
     fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*_synth.nii*'))
     if len(fpct) > 0:
         datain['pCT'] = fpct[0]
-        logger('pseudoCT of the object.')
+        log.debug('pseudoCT of the object.')
 
     fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*_p[cC][tT].nii*'))
     if len(fpct) > 0:
         datain['pCT'] = fpct[0]
-        logger('pseudoCT of the object.')
+        log.debug('pseudoCT of the object.')
 
     # MR T1
     fmri = glob.glob(os.path.join(os.path.dirname(dfile), '[tT]1*.nii*'))
@@ -872,7 +870,7 @@ def get_niifiles(dfile, datain, v=False):
         bnm = os.path.basename(fmri[0]).lower()
         if not {'giflabels', 'parcellation', 'pct', 'n4bias'}.intersection(bnm):
             datain['T1nii'] = fmri[0]
-            logger('NIfTI for T1w of the object.')
+            log.debug('NIfTI for T1w of the object.')
     elif len(fmri) > 1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
@@ -888,7 +886,7 @@ def get_niifiles(dfile, datain, v=False):
         bnm = os.path.basename(fmri[0]).lower()
         if not {'giflabels', 'parcellation', 'pct'}.intersection(bnm):
             datain['T1N4'] = fmri[0]
-            logger('NIfTI for T1w of the object.')
+            log.debug('NIfTI for T1w of the object.')
     elif len(fmri) > 1:
         for fg in fmri:
             bnm = os.path.basename(fg).lower()
@@ -902,37 +900,36 @@ def get_niifiles(dfile, datain, v=False):
     fbc = glob.glob(os.path.join(os.path.dirname(dfile), '*gifbc.nii*'))
     if len(fbc) == 1:
         datain['T1bc'] = fbc[0]
-        logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
+        log.debug('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
     fbc = glob.glob(os.path.join(os.path.dirname(dfile), '*[tT]1*BiasCorrected.nii*'))
     if len(fbc) == 1:
         datain['T1bc'] = fbc[0]
-        logger('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
+        log.debug('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
 
     # T1-based labels after parcellation
     flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*giflabels.nii*'))
     if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
-        logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
+        log.debug('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
     flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*[tT]1*[Pp]arcellation.nii*'))
     if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
-        logger('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
+        log.debug('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
 
     # reconstructed emission data without corrections, minimum 2 osem iter
     fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*__ACbed.nii*'))
     if len(fpct) > 0:
         datain['em_nocrr'] = fpct[0]
-        logger('pseudoCT of the object.')
+        log.debug('pseudoCT of the object.')
 
     # reconstructed emission data with corrections, minimum 3 osem iter
     fpct = glob.glob(os.path.join(os.path.dirname(dfile), '*QNT*.nii*'))
     if len(fpct) > 0:
         datain['em_crr'] = fpct[0]
-        logger('pseudoCT of the object.')
+        log.debug('pseudoCT of the object.')
 
 
 def get_dicoms(dfile, datain, Cnt):
-    # v = Cnt['VERBOSE']
     log.debug(
         dedent('''\
         ------------------------------------------------------------------
@@ -941,7 +938,7 @@ def get_dicoms(dfile, datain, Cnt):
         ''').format(dfile))
 
     d = dcm.dcmread(dfile)
-    dcmtype = nimpa.dcminfo(d, verbose=Cnt['VERBOSE'])
+    dcmtype = nimpa.dcminfo(d)
 
     # > check if it is norm file
     if 'mmr' in dcmtype and 'norm' in dcmtype:
@@ -1067,8 +1064,6 @@ def get_dicoms(dfile, datain, Cnt):
         else:
             datain['#UTE1'] += 1
 
-    if Cnt['VERBOSE']: print('')
-
 
 def explore_input(fldr, params, print_paths=False, recurse=1):
     """
@@ -1094,9 +1089,9 @@ def explore_input(fldr, params, print_paths=False, recurse=1):
             # elif hasext(f, "bf"):
             #     get_bf(f, datain, Cnt)
             elif hasext(f, ("npy", "npz", "dic")):
-                get_npfiles(fspath(f), datain, Cnt['VERBOSE'])
+                get_npfiles(fspath(f), datain)
             elif hasext(f, ("nii", "nii.gz")):
-                get_niifiles(fspath(f), datain, Cnt['VERBOSE'])
+                get_niifiles(fspath(f), datain)
         elif f.is_dir() and recurse:
             # go one level into subfolder
             extra = explore_input(f, params, recurse=recurse - 1)
