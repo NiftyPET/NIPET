@@ -39,7 +39,7 @@ jobs:
     - run: pre-commit run -a --show-diff-on-failure
   test:
     if: github.event_name != 'pull_request' || github.head_ref != 'devel'
-    runs-on: [self-hosted, cuda, python]
+    runs-on: [self-hosted, python, cuda, matlab]
     name: Test
     steps:
     - uses: actions/checkout@v2
