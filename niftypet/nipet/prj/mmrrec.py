@@ -192,11 +192,6 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     # get the GPU version of the image dims
     mus = mmrimg.convert2dev(muo + muh, Cnt)
 
-    if Cnt['SPN'] == 1:
-        snno = Cnt['NSN1']
-    elif Cnt['SPN'] == 11:
-        snno = Cnt['NSN11']
-
     # remove gaps from the prompt sino
     psng = mmraux.remgaps(hst['psino'], txLUT, Cnt)
 
