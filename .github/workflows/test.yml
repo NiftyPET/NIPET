@@ -2,6 +2,7 @@ name: Test
 on: [push, pull_request]
 jobs:
   check:
+    if: github.event_name != 'push' || github.ref != 'refs/heads/devel'
     runs-on: ubuntu-latest
     strategy:
       matrix:
