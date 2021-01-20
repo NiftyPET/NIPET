@@ -48,4 +48,4 @@ repos:
   hooks:
   - id: clang-format
     files: \.(cc?|cuh?|cxx|cpp|h|hpp|hxx|java|js)$
-    args: ['-fallback-style=none', '-style={BasedOnStyle: LLVM, ColumnLimit: 99}']
+    args: ['-fallback-style=none', '-style={BasedOnStyle: LLVM, ColumnLimit: 99, AllowShortBlocksOnASingleLine: true, AllowShortIfStatementsOnASingleLine: true, AllowShortLoopsOnASingleLine: true}']
