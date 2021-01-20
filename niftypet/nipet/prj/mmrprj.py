@@ -42,7 +42,7 @@ def trnx_prj(scanner_params, sino=None, im=None):
 # ------------------------------------------------------------------------
 
 
-def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False):
+def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False, fullsino_out=True):
     """
     Calculate forward projection (a set of sinograms) for the provided input image.
     Arguments:
@@ -114,13 +114,20 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
     # --------------------
     petprj.fprj(sinog, ims, txLUT, axLUT, isub, Cnt, att)
     # --------------------
-    # get the sinogram bins in a proper sinogram
-    sino = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
-    if isub[0] >= 0: sino[isub, :] = sinog
-    else: sino = sinog
+
+
+    # get the sinogram bins in a full sinogram if requested
+    if fullsino_out:
+        sino = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
+        if isub[0] >= 0: 
+            sino[isub, :] = sinog
+        else: 
+            sino = sinog
+    else:
+        sino = sinog
 
     # put the gaps back to form displayable sinogram
-    if not dev_out:
+    if not dev_out and fullsino_out:
         sino = mmraux.putgaps(sino, txLUT, Cnt)
 
     return sino
@@ -131,7 +138,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=ISUB_DEFAULT):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
@@ -192,7 +199,8 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT):
     # > run back-projection
     petprj.bprj(bimg, sinog, txLUT, axLUT, isub, Cnt)
 
-    # > change from GPU optimised image dimensions to the standard Siemens shape
-    bimg = mmrimg.convert2e7(bimg, Cnt)
+    if not dev_out:
+        # > change from GPU optimised image dimensions to the standard Siemens shape
+        bimg = mmrimg.convert2e7(bimg, Cnt)
 
     return bimg

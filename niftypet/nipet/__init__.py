@@ -42,6 +42,7 @@ from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resourc
 # > Siemens Biograph mMR
 from . import img, lm, mmr_auxe, mmraux, mmrnorm, prj
 from .img.mmrimg import align_mumap
+from .img.mmrimg import get_cylinder
 from .img.mmrimg import convert2dev as im_e72dev
 from .img.mmrimg import convert2e7 as im_dev2e7
 from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap
