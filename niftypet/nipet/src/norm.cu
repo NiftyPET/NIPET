@@ -63,8 +63,7 @@ void norm_from_components(float *sino,    // output norm sino
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   int snno = -1;
   if (Cnt.SPN == 1)
@@ -184,8 +183,7 @@ void norm_from_components(float *sino,    // output norm sino
   // CUDA grid size (in blocks)
   int blcks = ceil(AW / (float)NTHREADS);
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> calculating normalisation sino from norm components...");
+  if (Cnt.LOG <= LOGINFO) printf("i> calculating normalisation sino from norm components...");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -204,8 +202,7 @@ void norm_from_components(float *sino,    // output norm sino
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf(" DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001 * elapsedTime);
   //=====================================
 
   // copy the GPU norm array to the output normalisation sinogram

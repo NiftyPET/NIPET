@@ -9,14 +9,12 @@ Copyrights: 2018
 #include "sct.h"
 
 __inline__ __device__ float warpsum(float uval) {
-  for (int off = 16; off > 0; off /= 2)
-    uval += __shfl_down_sync(0xffffffff, uval, off);
+  for (int off = 16; off > 0; off /= 2) uval += __shfl_down_sync(0xffffffff, uval, off);
   return uval;
 }
 
 __inline__ __device__ float warpsum_xor(float val) {
-  for (int mask = 16; mask > 0; mask /= 2)
-    val += __shfl_xor_sync(0xffffffff, val, mask);
+  for (int mask = 16; mask > 0; mask /= 2) val += __shfl_xor_sync(0xffffffff, val, mask);
   return val;
 }
 
@@ -94,8 +92,7 @@ __global__ void satt(short *output, cudaTextureObject_t texo, const int *i2v,
     //<><><><><><><><><><><><><><><><><><><><><>
     uval = warpsum(uval);
 
-    if (idx == 0)
-      ray_sum += uval;
+    if (idx == 0) ray_sum += uval;
   }
 
   if (idx == 0)
@@ -114,8 +111,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   // Allocate result of transformation in device memory
   short *d_LUTout;
@@ -130,8 +126,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
 
   // return d_LUTout;
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> precalculating attenuation paths into LUT...");
+  if (Cnt.LOG <= LOGINFO) printf("i> precalculating attenuation paths into LUT...");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -150,8 +145,7 @@ short *raysLUT(cudaTextureObject_t texo_mu3d, iMSK d_mu_msk, scrsDEF d_scrsdef, 
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
   cudaDeviceSynchronize();
 

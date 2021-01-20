@@ -22,15 +22,13 @@ __device__ char sgn(float x) { return x > 0 ? 1 : (x < 0 ? -1 : 0); }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 __inline__ __device__ float warpsum(float val) {
-  for (int off = 16; off > 0; off /= 2)
-    val += __shfl_down_sync(0xffffffff, val, off);
+  for (int off = 16; off > 0; off /= 2) val += __shfl_down_sync(0xffffffff, val, off);
   return val;
 }
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 __inline__ __device__ float warpsum_xor(float val) {
-  for (int mask = SS_WRP / 2; mask > 0; mask /= 2)
-    val += __shfl_xor_sync(0xffffffff, val, mask);
+  for (int mask = SS_WRP / 2; mask > 0; mask /= 2) val += __shfl_xor_sync(0xffffffff, val, mask);
   return val;
 }
 
@@ -83,8 +81,7 @@ __global__ void Psct(float *rslt, cudaTextureObject_t texo, const short *rays,
   // size)
   int mvxi = mu_msk.v2i[(int)(u + SS_IMX * v + SS_IMX * SS_IMY * w)];
 
-  if (mvxi < 0)
-    return;
+  if (mvxi < 0) return;
   // if ((mvxi>393674)||(mvxi<0)) printf(">>>>DISASTER: mvxi=%d, u=%d,v=%d,w=%d\n", mvxi, u, v, w
   // );
 
@@ -206,8 +203,7 @@ __global__ void Psct(float *rslt, cudaTextureObject_t texo, const short *rays,
     float uval = tex3D<float>(texo, u, v, w);
 
     uval = warpsum_xor(uval);
-    if (uval > 0)
-      Nw = k;
+    if (uval > 0) Nw = k;
   }
   //---
 
@@ -417,8 +413,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   getMemUse(Cnt);
 
@@ -437,8 +432,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
 
   if (Cnt.LOG <= LOGINFO) {
     printf("i> time of flight properties for scatter estimation:\n");
-    for (int i = 0; i < 4; i++)
-      printf("   tofbin[%d]=%f\n", i, tofbin[i]);
+    for (int i = 0; i < 4; i++) printf("   tofbin[%d]=%f\n", i, tofbin[i]);
   }
 
   //--------------- K-N LUTs ---------------------------
@@ -530,8 +524,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   cudaTextureObject_t texo_mu3d = 0;
   cudaCreateTextureObject(&texo_mu3d, &resDesc, &texDesc, NULL);
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
+  if (Cnt.LOG <= LOGINFO) printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
   //====================================================================
 
   //============================================================
@@ -571,8 +564,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    if (Cnt.LOG <= LOGINFO)
-      printf("DONE in %fs.\n\n", 0.001 * elapsedTime);
+    if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n\n", 0.001 * elapsedTime);
     cudaFree(d_rays);
     cudaDeviceSynchronize();
     HANDLE_ERROR(cudaGetLastError());
@@ -585,9 +577,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   } else if (Cnt.SPN == 11) {
     tbins = Cnt.NSN11 * d_scrsdef.nscrs * d_scrsdef.nscrs;
   } else {
-    if (Cnt.LOG <= LOGWARNING) {
-      printf("e> Unrecognised span definition.\n");
-    }
+    if (Cnt.LOG <= LOGWARNING) { printf("e> Unrecognised span definition.\n"); }
   }
 
   // 3D scatter pre-sino out
@@ -626,8 +616,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
 
   end = clock();
   time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  if (Cnt.LOG <= LOGINFO)
-    printf("\ni> TOTAL SCATTER TIME: %f\n", time_spent);
+  if (Cnt.LOG <= LOGINFO) printf("\ni> TOTAL SCATTER TIME: %f\n", time_spent);
 
   return sctout;
 }

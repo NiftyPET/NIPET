@@ -18,8 +18,7 @@ execution.
 {
 
   // list mode data file (binary)
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> the list-mode file: %s\n", flm);
+  if (Cnt.LOG <= LOGINFO) printf("i> the list-mode file: %s\n", flm);
 
     //------------ file and path names
 #ifdef WIN32
@@ -125,14 +124,10 @@ execution.
   //> list mode data offset, start of events
   lmprop.lmoff = Cnt.LMOFF;
 
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> LM offset in bytes: %d\n", lmprop.lmoff);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> bytes per LM event: %d\n", lmprop.bpe);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> frame start time: %d\n", tstart);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> frame stop  time: %d\n", tstop);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> LM offset in bytes: %d\n", lmprop.lmoff);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> bytes per LM event: %d\n", lmprop.bpe);
+  if (Cnt.LOG <= LOGINFO) printf("i> frame start time: %d\n", tstart);
+  if (Cnt.LOG <= LOGINFO) printf("i> frame stop  time: %d\n", tstop);
   //---
 
   //======= get only the chunks which have the time frame data
@@ -154,9 +149,7 @@ execution.
   HANDLE_ERROR(cudaMemcpy(dicout.ssr, d_ssrb, SEG0 * NSBINANG * sizeof(unsigned int),
                           cudaMemcpyDeviceToHost));
   unsigned long long psum_ssrb = 0;
-  for (int i = 0; i < SEG0 * NSBINANG; i++) {
-    psum_ssrb += dicout.ssr[i];
-  }
+  for (int i = 0; i < SEG0 * NSBINANG; i++) { psum_ssrb += dicout.ssr[i]; }
   //---
 
   //> copy to host the compressed prompt and delayed sinograms
@@ -171,8 +164,7 @@ execution.
     dicout.dsn[i] = sino[i] >> 16;
     dicout.psm += dicout.psn[i];
     dicout.dsm += dicout.dsn[i];
-    if (mxbin < dicout.psn[i])
-      mxbin = dicout.psn[i];
+    if (mxbin < dicout.psn[i]) mxbin = dicout.psn[i];
   }
 
   //--- output data to Python
@@ -207,8 +199,7 @@ execution.
            dicout.dsm);
   if (Cnt.LOG <= LOGINFO)
     printf("\nic> total prompt and delayeds head-curve events:  P = %llu, D = %llu\n", sphc, sdhc);
-  if (Cnt.LOG <= LOGINFO)
-    printf("\nic> maximum prompt sino value:  %u \n", mxbin);
+  if (Cnt.LOG <= LOGINFO) printf("\nic> maximum prompt sino value:  %u \n", mxbin);
 
   //-fansums and bucket singles
   HANDLE_ERROR(cudaMemcpy(dicout.fan, d_fansums, NRINGS * nCRS * sizeof(unsigned int),

@@ -189,8 +189,7 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- TRANSAXIAL COMPONENT
   float4 *d_crs;
@@ -269,8 +268,7 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
 
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> calculating image through back projection... ");
+  if (Cnt.LOG <= LOGDEBUG) printf("i> calculating image through back projection... ");
 
   //------------DO TRANSAXIAL CALCULATIONS---------------------------------
   gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
@@ -314,8 +312,7 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
   cudaDeviceSynchronize();
 
@@ -341,8 +338,7 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
         cudaMemcpy(bimg, d_imr, SZ_IMX * SZ_IMY * nvz * sizeof(float), cudaMemcpyDeviceToHost));
     cudaFree(d_im);
     cudaFree(d_imr);
-    if (Cnt.LOG <= LOGDEBUG)
-      printf("i> reduced the axial (z) image size to %d\n", nvz);
+    if (Cnt.LOG <= LOGDEBUG) printf("i> reduced the axial (z) image size to %d\n", nvz);
   } else {
     // copy to host memory
     HANDLE_ERROR(
@@ -368,8 +364,7 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
   // get the axial LUTs in constant memory
   cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
@@ -387,8 +382,7 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> subset back projection (Nprj=%d)... ", Nprj);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> subset back projection (Nprj=%d)... ", Nprj);
 
   //============================================================================
   bprj_drct<<<Nprj, NRINGS>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
@@ -413,8 +407,7 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
   cudaDeviceSynchronize();
 

@@ -87,8 +87,7 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
   // axially interpolated scatter pre-sino; full span-1 without MRD limit or span-11 with MRD=60
   float *d_sct3di;
   int tbins = 0;
-  if (Cnt.SPN == 1)
-    tbins = Cnt.NSN64 * d_scrsdef.nscrs * d_scrsdef.nscrs;
+  if (Cnt.SPN == 1) tbins = Cnt.NSN64 * d_scrsdef.nscrs * d_scrsdef.nscrs;
   // scatter pre-sino, span-11
   else if (Cnt.SPN == 11)
     tbins = Cnt.NSN11 * d_scrsdef.nscrs * d_scrsdef.nscrs;
@@ -160,11 +159,9 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    if (Cnt.LOG <= LOGINFO)
-      printf("DONE in %fs.\n", 1e-3 * elapsedTime);
+    if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
 
-    if (Cnt.LOG <= LOGINFO)
-      printf("i> 3D scatter axial interpolation...");
+    if (Cnt.LOG <= LOGINFO) printf("i> 3D scatter axial interpolation...");
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
@@ -185,8 +182,7 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    if (Cnt.LOG <= LOGINFO)
-      printf("DONE in %fs.\n", 1e-3 * elapsedTime);
+    if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
   }
 
   cudaFree(d_scts1);
@@ -203,15 +199,13 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   iMSK msk;
   int nvx = 0;
 
   for (int i = 0; i < (SSE_IMX * SSE_IMY * SSE_IMZ); i++) {
-    if (imvol.im[i] > thrshld)
-      nvx++;
+    if (imvol.im[i] > thrshld) nvx++;
   }
   //------------------------------------------------------------------
   // create the mask thru indexes
@@ -280,13 +274,11 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   int nvx = 0;
   for (int i = 0; i < (SS_IMX * SS_IMY * SS_IMZ); i++) {
-    if (msk[i] > 0)
-      nvx++;
+    if (msk[i] > 0) nvx++;
   }
   //------------------------------------------------------------------
   // create the mask thru indecies

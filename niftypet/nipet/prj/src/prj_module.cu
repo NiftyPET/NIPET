@@ -154,8 +154,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
 
   int N0crs = PyArray_DIM(p_crs, 0);
   int N1crs = PyArray_DIM(p_crs, 1);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("\ni> N0crs=%d, N1crs=%d\n", N0crs, N1crs);
+  if (Cnt.LOG <= LOGDEBUG) printf("\ni> N0crs=%d, N1crs=%d\n", N0crs, N1crs);
 
   float *im = (float *)PyArray_DATA(p_im);
   if (Cnt.LOG <= LOGDEBUG)
@@ -176,8 +175,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- TRANSAXIAL COMPONENTS
   float4 *d_crs;
@@ -377,9 +375,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
       printf("i> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
     // all projections in
     subs = (int *)malloc(Nprj * sizeof(int));
-    for (int i = 0; i < Nprj; i++) {
-      subs[i] = i;
-    }
+    for (int i = 0; i < Nprj; i++) { subs[i] = i; }
   } else {
     if (Cnt.LOG <= LOGDEBUG)
       printf("i> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
@@ -411,8 +407,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
   PyArray_ResolveWritebackIfCopy(p_prjout);
   Py_DECREF(p_prjout);
 
-  if (subs_[0] == -1)
-    free(subs);
+  if (subs_[0] == -1) free(subs);
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -558,9 +553,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
       printf("\ni> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
     // all projections in
     subs = (int *)malloc(Nprj * sizeof(int));
-    for (int i = 0; i < Nprj; i++) {
-      subs[i] = i;
-    }
+    for (int i = 0; i < Nprj; i++) { subs[i] = i; }
   } else {
     if (Cnt.LOG <= LOGDEBUG)
       printf("\ni> subsets defined.  number of subset projection bins in 2D: %d\n", Nprj);
@@ -595,8 +588,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   PyArray_ResolveWritebackIfCopy(p_bim);
   Py_DECREF(p_bim);
 
-  if (subs_[0] == -1)
-    free(subs);
+  if (subs_[0] == -1) free(subs);
 
   Py_INCREF(Py_None);
   return Py_None;
@@ -769,12 +761,10 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   //>--- PSF KERNEL ---
   float *krnl;
   int SZ_KRNL = (int)PyArray_DIM(p_krnl, 1);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> kernel size [voxels]: %d\n", SZ_KRNL);
+  if (Cnt.LOG <= LOGINFO) printf("i> kernel size [voxels]: %d\n", SZ_KRNL);
 
   if (SZ_KRNL != KERNEL_LENGTH) {
-    if (Cnt.LOG <= LOGWARNING)
-      printf("w> wrong kernel size.\n");
+    if (Cnt.LOG <= LOGWARNING) printf("w> wrong kernel size.\n");
     krnl = (float *)malloc(KERNEL_LENGTH * sizeof(float));
     krnl[0] = -1;
   } else {

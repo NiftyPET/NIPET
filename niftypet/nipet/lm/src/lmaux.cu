@@ -31,8 +31,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   fseek(fr, 0, SEEK_END);
   size_t nbytes = ftell(fr);
   size_t ele = nbytes / sizeof(int);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> number of elements in the list mode file: %lu\n", ele);
+  if (Cnt.LOG <= LOGINFO) printf("i> number of elements in the list mode file: %lu\n", ele);
   rewind(fr);
 
 #endif
@@ -42,14 +41,12 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   _stati64(flm, &bufStat);
   size_t nbytes = bufStat.st_size;
   size_t ele = nbytes / sizeof(int);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> number of elements in the list mode file: %lu\n", ele);
+  if (Cnt.LOG <= LOGINFO) printf("i> number of elements in the list mode file: %lu\n", ele);
 #endif
 
     //--try reading the whole lot to memory
 #if RD2MEM
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> reading the whole file...");
+  if (Cnt.LOG <= LOGINFO) printf("i> reading the whole file...");
   if (NULL == (lm = (int *)malloc(ele * sizeof(int)))) {
     printf("malloc failed\n");
     return;
@@ -59,8 +56,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
     fprintf(stderr, "Reading error: r = %lu and ele = %lu\n", r, ele);
     exit(3);
   }
-  if (Cnt.LOG <= LOGINFO)
-    printf("DONE.\n\n");
+  if (Cnt.LOG <= LOGINFO) printf("DONE.\n\n");
   rewind(fr);
 #endif
 
@@ -118,8 +114,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   // first time tag is also the time offset used later on.
   if (first_ttag < last_ttag) {
     toff = first_ttag;
-    if (Cnt.LOG <= LOGINFO)
-      printf("i> using time offset:           %d\n", toff);
+    if (Cnt.LOG <= LOGINFO) printf("i> using time offset:           %d\n", toff);
   } else {
     fprintf(stderr, "Weird time stamps.  The first and last time tags are: %d and %d\n",
             first_ttag, last_ttag);
@@ -129,17 +124,14 @@ void getLMinfo(char *flm, const Cnst Cnt) {
 
   int nitag =
       ((last_ttag - toff) + ITIME - 1) / ITIME; // # integration time tags (+1 for the end).
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> number of report itags is:   %d\n", nitag);
+  if (Cnt.LOG <= LOGINFO) printf("i> number of report itags is:   %d\n", nitag);
 
   // divide the data into data chunks
   // the default is to read 1GB to be dealt with all streams (default: 32)
   int nchnk = 10 + (ele + ELECHNK - 1) / ELECHNK; // plus ten extra...
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> # chunks of data (initial):  %d\n\n", nchnk);
+  if (Cnt.LOG <= LOGINFO) printf("i> # chunks of data (initial):  %d\n\n", nchnk);
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> # elechnk:  %d\n\n", ELECHNK);
+  if (Cnt.LOG <= LOGINFO) printf("i> # elechnk:  %d\n\n", ELECHNK);
 
   // divide the list mode data (1GB) into chunks in terms of addresses of selected time tags
   // break time tag
@@ -159,8 +151,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   atag[0] = 0;
 
   //------------------------------------------------------------------------------------------------
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> setting up data chunks:\n");
+  if (Cnt.LOG <= LOGINFO) printf("i> setting up data chunks:\n");
   int i = 0;
   while ((ele - atag[i]) > (size_t)ELECHNK) {
     // printf(">>>>>>>>>>>>>>>>>>> ele=%lu, atag=%lu, ELE=%d\n", ele, atag[i], ELECHNK);
@@ -240,8 +231,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt) {
   int ntag[2] = {-1, -1}; // new start and end time/address break tag
   for (int n = 0; n < lmprop.nchnk; n++) {
     if ((tstart <= (lmprop.btag[n + 1] / ITIME)) && ((lmprop.btag[n] / ITIME) < tstop)) {
-      if (ntag[0] == -1)
-        ntag[0] = n;
+      if (ntag[0] == -1) ntag[0] = n;
       ntag[1] = n;
       if (Cnt.LOG <= LOGDEBUG)
         printf("   > time break [%d] <%lu, %lu> is in. ele={%d, %d}.\n", n + 1, lmprop.btag[n],
@@ -259,8 +249,7 @@ void modifyLMinfo(int tstart, int tstop, const Cnst Cnt) {
   int nn = 0; // new indexing
   tmp_btag[0] = lmprop.btag[ntag[0]];
   tmp_atag[0] = lmprop.atag[ntag[0]];
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("> leaving only those chunks for histogramming:\n");
+  if (Cnt.LOG <= LOGDEBUG) printf("> leaving only those chunks for histogramming:\n");
 
   for (int n = ntag[0]; n <= ntag[1]; n++) {
     tmp_btag[nn + 1] = lmprop.btag[n + 1];

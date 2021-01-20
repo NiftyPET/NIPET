@@ -25,8 +25,7 @@ int *lm;
 
 //************ CHECK DEVICE MEMORY USAGE *********************
 void getMemUse(const Cnst Cnt) {
-  if (Cnt.LOG > LOGDEBUG)
-    return;
+  if (Cnt.LOG > LOGDEBUG) return;
   size_t free_mem;
   size_t total_mem;
   HANDLE_ERROR(cudaMemGetInfo(&free_mem, &total_mem));
@@ -52,8 +51,7 @@ span11LUT span1_span11(const Cnst Cnt) {
   // cumulative sum of the above segment def
   int cumSeg[SPAN];
   cumSeg[0] = 0;
-  for (int i = 1; i < SPAN; i++)
-    cumSeg[i] = cumSeg[i - 1] + sinoSeg[i - 1];
+  for (int i = 1; i < SPAN; i++) cumSeg[i] = cumSeg[i - 1] + sinoSeg[i - 1];
 
   int segsum = Cnt.NRNG;
   int rd = 0;
@@ -111,8 +109,7 @@ void remove_gaps(float *sng, float *sino, int snno, int *aw2ali, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   int nthreads = 256;
   int blcks = ceil(AW / (float)nthreads);
@@ -130,8 +127,7 @@ void remove_gaps(float *sng, float *sino, int snno, int *aw2ali, Cnst Cnt) {
   HANDLE_ERROR(cudaMalloc(&d_aw2ali, AW * sizeof(int)));
   HANDLE_ERROR(cudaMemcpy(d_aw2ali, aw2ali, AW * sizeof(int), cudaMemcpyHostToDevice));
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> and removing the gaps and reordering sino for GPU...");
+  if (Cnt.LOG <= LOGINFO) printf("i> and removing the gaps and reordering sino for GPU...");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -147,8 +143,7 @@ void remove_gaps(float *sng, float *sino, int snno, int *aw2ali, Cnst Cnt) {
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf(" DONE in %fs\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs\n", 0.001 * elapsedTime);
 
   HANDLE_ERROR(cudaMemcpy(sng, d_sng, AW * snno * sizeof(float), cudaMemcpyDeviceToHost));
 
@@ -167,9 +162,7 @@ __global__ void d_putgaps(float *sne7, float *snaw, int *aw2ali, const int snno)
   // sino bin index
   int awi = blockIdx.x;
 
-  if (sni < snno) {
-    sne7[aw2ali[awi] * snno + sni] = snaw[awi * snno + sni];
-  }
+  if (sni < snno) { sne7[aw2ali[awi] * snno + sni] = snaw[awi * snno + sni]; }
 }
 //=============================================================================
 
@@ -178,8 +171,7 @@ void put_gaps(float *sino, float *sng, int *aw2ali, int sino_no, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   // number of sinos
   int snno = -1;
@@ -200,8 +192,7 @@ void put_gaps(float *sino, float *sng, int *aw2ali, int sino_no, Cnst Cnt) {
     snno = nrng_c * nrng_c;
     // correct for the max. ring difference in the full axial extent (don't use ring range (1,63)
     // as for this case no correction)
-    if (nrng_c == 64)
-      snno -= 12;
+    if (nrng_c == 64) snno -= 12;
   } else {
     printf("e> not span-1, span-11 nor user defined.\n");
     return;
@@ -222,8 +213,7 @@ void put_gaps(float *sino, float *sng, int *aw2ali, int sino_no, Cnst Cnt) {
   HANDLE_ERROR(cudaMalloc(&d_aw2ali, AW * sizeof(int)));
   HANDLE_ERROR(cudaMemcpy(d_aw2ali, aw2ali, AW * sizeof(int), cudaMemcpyHostToDevice));
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> put gaps in and reorder sino...");
+  if (Cnt.LOG <= LOGINFO) printf("i> put gaps in and reorder sino...");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -239,8 +229,7 @@ void put_gaps(float *sino, float *sng, int *aw2ali, int sino_no, Cnst Cnt) {
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
   HANDLE_ERROR(
       cudaMemcpy(sino, d_sino, NSBINS * NSANGLES * snno * sizeof(float), cudaMemcpyDeviceToHost));

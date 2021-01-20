@@ -16,15 +16,12 @@ Copyrights:
 /// z: how many Z-slices to add
 __global__ void pad(float *dst, float *src, const int z) {
   int i = threadIdx.x + blockDim.x * blockIdx.x;
-  if (i >= SZ_IMX)
-    return;
+  if (i >= SZ_IMX) return;
   int j = threadIdx.y + blockDim.y * blockIdx.y;
-  if (j >= SZ_IMY)
-    return;
+  if (j >= SZ_IMY) return;
   src += i * SZ_IMY * SZ_IMZ + j * SZ_IMZ;
   dst += i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z);
-  for (int k = 0; k < SZ_IMZ; ++k)
-    dst[k] = src[k];
+  for (int k = 0; k < SZ_IMZ; ++k) dst[k] = src[k];
 }
 void d_pad(float *dst, float *src,
            const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
@@ -37,15 +34,12 @@ void d_pad(float *dst, float *src,
 /// z: how many Z-slices to remove
 __global__ void unpad(float *dst, float *src, const int z) {
   int i = threadIdx.x + blockDim.x * blockIdx.x;
-  if (i >= SZ_IMX)
-    return;
+  if (i >= SZ_IMX) return;
   int j = threadIdx.y + blockDim.y * blockIdx.y;
-  if (j >= SZ_IMY)
-    return;
+  if (j >= SZ_IMY) return;
   dst += i * SZ_IMY * SZ_IMZ + j * SZ_IMZ;
   src += i * SZ_IMY * (SZ_IMZ + z) + j * (SZ_IMZ + z);
-  for (int k = 0; k < SZ_IMZ; ++k)
-    dst[k] = src[k];
+  for (int k = 0; k < SZ_IMZ; ++k) dst[k] = src[k];
 }
 void d_unpad(float *dst, float *src,
              const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
@@ -65,12 +59,10 @@ void setConvolutionKernel(float *krnl) {
 void setKernelGaussian(float sigma) {
   float knlRM[KERNEL_LENGTH * 3];
   const double tmpE = -1.0 / (2 * sigma * sigma);
-  for (int i = 0; i < KERNEL_LENGTH; ++i)
-    knlRM[i] = (float)exp(tmpE * pow(RSZ_PSF_KRNL - i, 2));
+  for (int i = 0; i < KERNEL_LENGTH; ++i) knlRM[i] = (float)exp(tmpE * pow(RSZ_PSF_KRNL - i, 2));
   // normalise
   double knlSum = 0;
-  for (size_t i = 0; i < KERNEL_LENGTH; ++i)
-    knlSum += knlRM[i];
+  for (size_t i = 0; i < KERNEL_LENGTH; ++i) knlSum += knlRM[i];
   for (size_t i = 0; i < KERNEL_LENGTH; ++i) {
     knlRM[i] /= knlSum;
     // also fill in other dimensions
@@ -229,8 +221,7 @@ void d_conv(float *d_buff, float *d_imgout, float *d_imgint, int Nvk, int Nvj, i
 // Element-wise multiplication
 __global__ void elmult(float *inA, float *inB, int length) {
   int idx = threadIdx.x + blockDim.x * blockIdx.x;
-  if (idx < length)
-    inA[idx] *= inB[idx];
+  if (idx < length) inA[idx] *= inB[idx];
 }
 
 void d_elmult(float *d_inA, float *d_inB, int length) {
@@ -244,8 +235,7 @@ void d_elmult(float *d_inA, float *d_inB, int length) {
 // Element-wise division with result stored in first input variable
 __global__ void eldiv0(float *inA, float *inB, int length) {
   int idx = threadIdx.x + blockDim.x * blockIdx.x;
-  if (idx >= length)
-    return;
+  if (idx >= length) return;
   if (FLOAT_WITHIN_EPS(inB[idx]))
     inA[idx] = 0;
   else
@@ -263,8 +253,7 @@ void d_eldiv(float *d_inA, float *d_inB, int length) {
 
 __global__ void sneldiv(float *inA, unsigned short *inB, int *sub, int Nprj, int snno) {
   int idz = threadIdx.x + blockDim.x * blockIdx.x;
-  if (!(blockIdx.y < Nprj && idz < snno))
-    return;
+  if (!(blockIdx.y < Nprj && idz < snno)) return;
   // inA > only active bins of the subset
   // inB > all sinogram bins
   float b = (float)inB[snno * sub[blockIdx.y] + idz];
@@ -299,8 +288,7 @@ void d_sneladd(float *d_inA, float *d_inB, int *d_sub, int Nprj, int snno) {
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __global__ void eladd(float *inA, float *inB, int length) {
   int idx = threadIdx.x + blockDim.x * blockIdx.x;
-  if (idx < length)
-    inA[idx] += inB[idx];
+  if (idx < length) inA[idx] += inB[idx];
 }
 
 void d_eladd(float *d_inA, float *d_inB, int length) {
@@ -342,8 +330,7 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- TRANSAXIAL COMPONENT
   float4 *d_crs;
@@ -472,8 +459,7 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
   getMemUse(Cnt);
 
   for (int i = 0; i < Nsub; i++) {
-    if (Cnt.LOG <= LOGDEBUG)
-      printf("<> subset %d-th <>\n", i);
+    if (Cnt.LOG <= LOGDEBUG) printf("<> subset %d-th <>\n", i);
 
     // resolution modelling current image
     if (krnl[0] >= 0) {

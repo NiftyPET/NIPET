@@ -38,15 +38,13 @@ __inline__ __device__ float crystal_sum(float cval) {
   cval = warpsum(cval);
 
   // write the sum to shared memory and then sync (wait)
-  if (lane == 0)
-    shared[warpid] = cval;
+  if (lane == 0) shared[warpid] = cval;
   __syncthreads();
 
   // read from shared memory only if that warp existed
   cval = (cidx < (blockDim.x * blockDim.y) / warpSize) ? shared[lane] : 0;
 
-  if (warpid == 0)
-    cval = warpsum(cval); // Final reduce within first warp
+  if (warpid == 0) cval = warpsum(cval); // Final reduce within first warp
 
   return cval;
 }
@@ -141,8 +139,7 @@ __global__ void rnd(float *res, const float *crs) {
       // first see the order of the range; since it is on a circle the other end can be of lower
       // number
       if (c_crange[iby + 2 * nCRSR] == 0) {
-        if (ic <= c_crange[iby + nCRSR])
-          crystal_val = crs[itx + NRINGS * ic];
+        if (ic <= c_crange[iby + nCRSR]) crystal_val = crs[itx + NRINGS * ic];
       } else {
         if (ic <= (c_crange[iby + nCRSR] + nCRSR)) {
           ic -= nCRSR * (ic >= nCRSR);
@@ -174,8 +171,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- the sino for estimated random events
   float *d_rsino;
@@ -215,8 +211,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
 
     for (int c2 = 0; c2 < Cnt.NCRSR; c2 += 1) {
       wsum += txlut.cij[c2 + Cnt.NCRSR * c1];
-      if (txlut.cij[c2 + Cnt.NCRSR * c1] > prv)
-        crange[c1] = c2;
+      if (txlut.cij[c2 + Cnt.NCRSR * c1] > prv) crange[c1] = c2;
       if (txlut.cij[c2 + Cnt.NCRSR * c1] < prv)
         crange[c1 + Cnt.NCRSR] = c2 - 1 + Cnt.NCRSR * (c2 == 0);
       prv = txlut.cij[c2 + Cnt.NCRSR * c1];
@@ -245,8 +240,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
     for (int rq = (ri - Cnt.MRD); rq < (ri + Cnt.MRD + 1); rq++) {
       if ((rq >= 0) && (rq < Cnt.NRNG)) {
         wsum += 1;
-        if (rrange[ri] == 257)
-          rrange[ri] = rq;
+        if (rrange[ri] == 257) rrange[ri] = rq;
         rrange[ri + Cnt.NRNG] = rq;
       }
       rrange[ri + 2 * Cnt.NRNG] = wsum;
@@ -291,8 +285,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
 
   // crystal 'ones' for init and number of crystal in coincidence for each opposing crystal
   float *ones = (float *)malloc(Cnt.NRNG * Cnt.NCRSR * sizeof(float));
-  for (int i = 0; i < Cnt.NRNG * Cnt.NCRSR; i++)
-    ones[i] = 1;
+  for (int i = 0; i < Cnt.NRNG * Cnt.NCRSR; i++) ones[i] = 1;
   float *d_ones;
   HANDLE_ERROR(cudaMalloc(&d_ones, Cnt.NRNG * Cnt.NCRSR * sizeof(float)));
   HANDLE_ERROR(
@@ -303,8 +296,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
   HANDLE_ERROR(cudaMalloc(&d_ncrs, Cnt.NRNG * Cnt.NCRSR * sizeof(float)));
 
   //=============================================<<<<<<<<
-  if (Cnt.LOG <= LOGINFO)
-    printf("\ni> estimating random events (variance reduction)... ");
+  if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events (variance reduction)... ");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -349,8 +341,7 @@ void gpu_randoms(float *rsn, float *cmap, unsigned int *fansums, txLUTs txlut, s
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf(" DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001 * elapsedTime);
   //=============================================<<<<<<<<
 
   //--- results to CPU
@@ -472,8 +463,7 @@ void p_randoms(float *rsn, float *cmap,
 
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- the sino for estimated random events
   float *d_rsino;
@@ -527,8 +517,7 @@ void p_randoms(float *rsn, float *cmap,
 
     for (int c2 = 0; c2 < Cnt.NCRSR; c2 += 1) {
       wsum += txlut.cij[c2 + Cnt.NCRSR * c1];
-      if (txlut.cij[c2 + Cnt.NCRSR * c1] > prv)
-        crange[c1] = c2;
+      if (txlut.cij[c2 + Cnt.NCRSR * c1] > prv) crange[c1] = c2;
       if (txlut.cij[c2 + Cnt.NCRSR * c1] < prv)
         crange[c1 + Cnt.NCRSR] = c2 - 1 + Cnt.NCRSR * (c2 == 0);
       prv = txlut.cij[c2 + Cnt.NCRSR * c1];
@@ -557,8 +546,7 @@ void p_randoms(float *rsn, float *cmap,
     for (int rq = (ri - Cnt.MRD); rq < (ri + Cnt.MRD + 1); rq++) {
       if ((rq >= 0) && (rq < Cnt.NRNG)) {
         wsum += 1;
-        if (rrange[ri] == 257)
-          rrange[ri] = rq;
+        if (rrange[ri] == 257) rrange[ri] = rq;
         rrange[ri + Cnt.NRNG] = rq;
       }
       rrange[ri + 2 * Cnt.NRNG] = wsum;
@@ -603,8 +591,7 @@ void p_randoms(float *rsn, float *cmap,
 
   // crystal 'ones' for init and number of crystal in coincidence for each opposing crystal
   float *ones = (float *)malloc(Cnt.NRNG * Cnt.NCRSR * sizeof(float));
-  for (int i = 0; i < Cnt.NRNG * Cnt.NCRSR; i++)
-    ones[i] = 1;
+  for (int i = 0; i < Cnt.NRNG * Cnt.NCRSR; i++) ones[i] = 1;
   float *d_ones;
   HANDLE_ERROR(cudaMalloc(&d_ones, Cnt.NRNG * Cnt.NCRSR * sizeof(float)));
   HANDLE_ERROR(
@@ -615,8 +602,7 @@ void p_randoms(float *rsn, float *cmap,
   HANDLE_ERROR(cudaMalloc(&d_ncrs, Cnt.NRNG * Cnt.NCRSR * sizeof(float)));
 
   //=============================================<<<<<<<<
-  if (Cnt.LOG <= LOGINFO)
-    printf("\ni> estimating random events from prompts... ");
+  if (Cnt.LOG <= LOGINFO) printf("\ni> estimating random events from prompts... ");
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -661,8 +647,7 @@ void p_randoms(float *rsn, float *cmap,
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGINFO)
-    printf(" DONE in %fs.\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGINFO) printf(" DONE in %fs.\n", 0.001 * elapsedTime);
   //=============================================<<<<<<<<
 
   //--- results to CPU

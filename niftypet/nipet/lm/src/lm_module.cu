@@ -75,8 +75,7 @@ static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
 
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "s", &flm))
-    return NULL;
+  if (!PyArg_ParseTuple(args, "s", &flm)) return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   FILE *fr;

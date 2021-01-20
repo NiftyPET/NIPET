@@ -272,16 +272,12 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
   // get the stats in the image structure
   float mumx = -1e12, emmx = -1e12, mumn = 1e12, emmn = 1e12;
   for (int i = 0; i < muIMG.nvx; i++) {
-    if (mumap[i] > mumx)
-      mumx = mumap[i];
-    if (mumap[i] < mumn)
-      mumn = mumap[i];
+    if (mumap[i] > mumx) mumx = mumap[i];
+    if (mumap[i] < mumn) mumn = mumap[i];
   }
   for (int i = 0; i < emIMG.nvx; i++) {
-    if (emimg[i] > emmx)
-      emmx = emimg[i];
-    if (emimg[i] < emmn)
-      emmn = emimg[i];
+    if (emimg[i] > emmx) emmx = emimg[i];
+    if (emimg[i] < emmn) emmn = emimg[i];
   }
 
   muIMG.im = mumap;
@@ -293,12 +289,10 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
   muIMG.n10mx = 0;
   emIMG.n10mx = 0;
   for (int i = 0; i < muIMG.nvx; i++)
-    if (mumap[i] > 0.1 * mumx)
-      muIMG.n10mx += 1;
+    if (mumap[i] > 0.1 * mumx) muIMG.n10mx += 1;
 
   for (int i = 0; i < emIMG.nvx; i++)
-    if (emimg[i] > 0.1 * emmx)
-      emIMG.n10mx += 1;
+    if (emimg[i] > 0.1 * emmx) emIMG.n10mx += 1;
 
   if (Cnt.LOG <= LOGDEBUG)
     printf("i> mumx = %f, mumin = %f, emmx = %f, emmn = %f\n", mumx, mumn, emmx, emmn);
@@ -315,8 +309,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
   //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
   // Clean up
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("i> cleaning scatter variables...");
+  if (Cnt.LOG <= LOGDEBUG) printf("i> cleaning scatter variables...");
   Py_DECREF(p_mumap);
   Py_DECREF(p_mumsk);
   Py_DECREF(p_emimg);
@@ -337,7 +330,6 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
   Py_DECREF(p_sval);
 
   Py_INCREF(Py_None);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("DONE.\n");
+  if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
   return Py_None;
 }

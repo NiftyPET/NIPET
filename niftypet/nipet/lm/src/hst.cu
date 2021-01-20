@@ -150,8 +150,7 @@ __global__ void hst(int *lm, unsigned int *psino,
           si_ssrb = c_ssrb[si];
 
           // span-1
-          if (span == 1)
-            addr = val;
+          if (span == 1) addr = val;
           // span-11
           else if (span == 11)
             addr = si11 * NSBINANG + aw;
@@ -256,8 +255,7 @@ curandGenerator_t h_rndgen;
 curandState *setup_curand() {
 
   // Setup RANDOM NUMBERS even when bootstrapping was not requested
-  if (LOG <= LOGINFO)
-    printf("\ni> setting up CUDA pseudorandom number generator... ");
+  if (LOG <= LOGINFO) printf("\ni> setting up CUDA pseudorandom number generator... ");
   curandState *d_prng_states;
 
   // cudaMalloc((void **)&d_prng_states,	MIN(NSTREAMS, lmprop.nchnk)*BTHREADS*NTHREADS *
@@ -267,8 +265,7 @@ curandState *setup_curand() {
   cudaMalloc((void **)&d_prng_states, BTHREADS * NTHREADS * sizeof(curandState));
   setup_rand<<<BTHREADS, NTHREADS>>>(d_prng_states);
 
-  if (LOG <= LOGINFO)
-    printf("DONE.\n");
+  if (LOG <= LOGINFO) printf("DONE.\n");
 
   return d_prng_states;
 }
@@ -300,8 +297,7 @@ void seek_lm(FILE *f) {
   _fseeki64(f, seek_offset, SEEK_SET); //<<<<------------------- IMPORTANT!!!
 #endif
 
-  if (LOG <= LOGDEBUG)
-    printf("ic> fseek adrress: %zd\n", lmprop.lmoff + lmprop.atag[nchnkrd]);
+  if (LOG <= LOGDEBUG) printf("ic> fseek adrress: %zd\n", lmprop.lmoff + lmprop.atag[nchnkrd]);
 }
 
 void get_lm_chunk(FILE *f, int stream_idx) {
@@ -325,8 +321,7 @@ void get_lm_chunk(FILE *f, int stream_idx) {
   // Set a flag: stream[i] is free now and the new data is ready.
   dataready[stream_idx] = true;
 
-  if (LOG <= LOGDEBUG)
-    printf("[%4d / %4d] chunks read\n\n", nchnkrd, lmprop.nchnk);
+  if (LOG <= LOGDEBUG) printf("[%4d / %4d] chunks read\n\n", nchnkrd, lmprop.nchnk);
 }
 
 //================================================================================================
@@ -345,8 +340,7 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data) {
     get_lm_chunk(fr, stream_idx);
     fclose(fr);
   }
-  if (LOG <= LOGDEBUG)
-    printf("\n");
+  if (LOG <= LOGDEBUG) printf("\n");
 }
 
 //================================================================================
@@ -370,8 +364,7 @@ void gpu_hst(unsigned int *d_psino,
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
 
   //--- INITIALISE GPU RANDOM GENERATOR
   if (Cnt.BTP > 0) {
@@ -386,8 +379,7 @@ void gpu_hst(unsigned int *d_psino,
   curandDiscreteDistribution_t poisson_hst;
   // normally instead of Cnt.BTPRT I would have 1.0 if expecting the same
   // number of resampled events as in the original file (or close to)
-  if (Cnt.BTP == 2)
-    curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
+  if (Cnt.BTP == 2) curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
   //---
 
   // single slice rebinning LUT to constant memory
@@ -413,8 +405,7 @@ void gpu_hst(unsigned int *d_psino,
   // cumulative sum of the above segment def
   int cumSeg[nSEG];
   cumSeg[0] = 0;
-  for (int i = 1; i < nSEG; i++)
-    cumSeg[i] = cumSeg[i - 1] + sinoSeg[i - 1];
+  for (int i = 1; i < nSEG; i++) cumSeg[i] = cumSeg[i - 1] + sinoSeg[i - 1];
 
   cudaMemcpyToSymbol(c_cumSeg, cumSeg, nSEG * sizeof(int));
 
@@ -428,14 +419,11 @@ void gpu_hst(unsigned int *d_psino,
   // Get the number of streams to be used
   int nstreams = MIN(NSTREAMS, lmprop.nchnk);
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("\ni> creating %d CUDA streams... ", nstreams);
+  if (Cnt.LOG <= LOGINFO) printf("\ni> creating %d CUDA streams... ", nstreams);
   cudaStream_t *stream = new cudaStream_t[nstreams];
   // cudaStream_t stream[nstreams];
-  for (int i = 0; i < nstreams; ++i)
-    HANDLE_ERROR(cudaStreamCreate(&stream[i]));
-  if (Cnt.LOG <= LOGINFO)
-    printf("DONE.\n");
+  for (int i = 0; i < nstreams; ++i) HANDLE_ERROR(cudaStreamCreate(&stream[i]));
+  if (Cnt.LOG <= LOGINFO) printf("DONE.\n");
 
   // ****** check memory usage
   getMemUse(Cnt);
@@ -453,9 +441,7 @@ void gpu_hst(unsigned int *d_psino,
   // Jump the any LM headers
   seek_lm(fr);
 
-  for (int i = 0; i < nstreams; i++) {
-    get_lm_chunk(fr, i);
-  }
+  for (int i = 0; i < nstreams; i++) { get_lm_chunk(fr, i); }
   fclose(fr);
 
   if (Cnt.LOG <= LOGINFO) {
@@ -512,8 +498,7 @@ void gpu_hst(unsigned int *d_psino,
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGDEBUG)
-    printf("+> histogramming DONE in %fs.\n\n", 0.001 * elapsedTime);
+  if (Cnt.LOG <= LOGDEBUG) printf("+> histogramming DONE in %fs.\n\n", 0.001 * elapsedTime);
 
   for (int i = 0; i < nstreams; ++i) {
     cudaError_t err = cudaStreamSynchronize(stream[i]);
@@ -536,8 +521,7 @@ void gpu_hst(unsigned int *d_psino,
   cudaFree(d_sn1_rno);
 
   // destroy the histogram for parametric bootstrap
-  if (Cnt.BTP == 2)
-    curandDestroyDistribution(poisson_hst);
+  if (Cnt.BTP == 2) curandDestroyDistribution(poisson_hst);
   //*****
 
   return;

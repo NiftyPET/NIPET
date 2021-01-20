@@ -404,8 +404,7 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
 
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOO", &o_sng, &o_sino, &o_txLUT, &o_mmrcnst))
-    return NULL;
+  if (!PyArg_ParseTuple(args, "OOOO", &o_sng, &o_sino, &o_txLUT, &o_mmrcnst)) return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   /* Interpret the input objects as... PyLong_AsLong*/
@@ -482,8 +481,7 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
 
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "O", &o_mmrcnst))
-    return NULL;
+  if (!PyArg_ParseTuple(args, "O", &o_mmrcnst)) return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   /* Interpret the input objects as... */
@@ -532,8 +530,7 @@ static PyObject *aux_varon(PyObject *self, PyObject *args) {
 
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOiO", &o_m1, &o_m2, &o_x, &b, &o_mmrcnst))
-    return NULL;
+  if (!PyArg_ParseTuple(args, "OOOiO", &o_m1, &o_m2, &o_x, &b, &o_mmrcnst)) return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
   PyObject *pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
@@ -562,9 +559,7 @@ static PyObject *aux_varon(PyObject *self, PyObject *args) {
   float *x = (float *)PyArray_DATA(p_x);
   int ndim = PyArray_NDIM(p_x);
   size_t nele = 1;
-  for (int i = 0; i < ndim; i++) {
-    nele *= PyArray_DIM(p_x, i);
-  }
+  for (int i = 0; i < ndim; i++) { nele *= PyArray_DIM(p_x, i); }
 
   printf("i> number of elements in data array: %lu\n", nele);
 
