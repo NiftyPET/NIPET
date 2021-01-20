@@ -191,17 +191,17 @@ tls.update_resources(Cnt)
 log.info("hardware mu-maps have been located")
 
 build_ver = ".".join(__version__.split('.')[:3]).split(".dev")[0]
+cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
-    nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo()}
+    nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo() if i[2:4] >= (3, 5)}
+    if nvcc_arches:
+        cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
 except Exception as exc:
     if "sdist" not in sys.argv or any(i in sys.argv for i in ["build", "bdist", "wheel"]):
-        log.warning("could not detect CUDA architectures:\n%s", exc)
-    nvcc_arches = []
+        log.warning("Import or CUDA device detection error:\n%s", exc)
 for i in (Path(__file__).resolve().parent / "_skbuild").rglob("CMakeCache.txt"):
     i.write_text(re.sub("^//.*$\n^[^#].*pip-build-env.*$", "", i.read_text(), flags=re.M))
-setup(
-    use_scm_version=True, packages=find_packages(exclude=["examples", "tests"]),
-    package_data={"niftypet": ["nipet/auxdata/*"]}, cmake_source_dir="niftypet",
-    cmake_languages=("C", "CXX", "CUDA"), cmake_minimum_required_version="3.18", cmake_args=[
-        f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}",
-        "-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches))])
+setup(use_scm_version=True, packages=find_packages(exclude=["examples", "tests"]),
+      package_data={"niftypet": ["nipet/auxdata/*"]}, cmake_source_dir="niftypet",
+      cmake_languages=("C", "CXX", "CUDA"), cmake_minimum_required_version="3.18",
+      cmake_args=cmake_args)

@@ -51,8 +51,6 @@ jobs:
     - run: pip install -U --no-binary nimpa -e .[dev]
     - run: pytest
     - run: codecov
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
     - name: Post Run setup-python
       run: setup-python -p3.7 -Dr
       if: ${{ always() }}
