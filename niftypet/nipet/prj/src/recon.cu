@@ -441,7 +441,6 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
   // resolution modelling sensitivity image
   for (int i = 0; i < Nsub && krnl[0] >= 0; i++) {
-    HANDLE_ERROR(cudaMemset(d_convDst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + 1) * sizeof(float)));
     d_pad(d_convSrc, &d_sensim[i * SZ_IMZ * SZ_IMX * SZ_IMY]);
     d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
     d_unpad(&d_sensim[i * SZ_IMZ * SZ_IMX * SZ_IMY], d_convDst);
@@ -464,7 +463,6 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
     // resolution modelling current image
     if (krnl[0] >= 0) {
-      HANDLE_ERROR(cudaMemset(d_convDst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + 1) * sizeof(float)));
       d_pad(d_convSrc, d_imgout);
       d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
       d_unpad(d_imgout_rm, d_convDst);
@@ -472,7 +470,7 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
     // forward project
     cudaMemset(d_esng, 0, Nprj * snno * sizeof(float));
-    rec_fprj(d_esng, Cnt.SIGMA_RM > 0 ? d_imgout_rm : d_imgout, &d_subs[i * Nprj + 1],
+    rec_fprj(d_esng, krnl[0]>=0 ? d_imgout_rm : d_imgout, &d_subs[i * Nprj + 1],
              subs[i * Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
     // add the randoms+scatter
@@ -488,7 +486,6 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
     // resolution modelling backprojection
     if (krnl[0] >= 0) {
-      HANDLE_ERROR(cudaMemset(d_convDst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + 1) * sizeof(float)));
       d_pad(d_convSrc, d_bimg);
       d_conv(d_convTmp, d_convDst, d_convSrc, SZ_IMX, SZ_IMY, SZ_IMZ + 1);
       d_unpad(d_bimg, d_convDst);
