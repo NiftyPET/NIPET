@@ -23,7 +23,8 @@ def mmrchain(
     scanner_params,         # all scanner parameters in one dictionary
                             # containing constants, transaxial and axial
                             # LUTs.
-    outpath='',             # output path for results
+    outpath=None,           # output path for results
+    fout=None,              # full file name (any folders and extensions are disregarded)
     frames=None,            # definition of time frames, default: ['fluid', [0, 0]]
     mu_h=None,              # hardware mu-map.
     mu_o=None,              # object mu-map.
@@ -134,7 +135,7 @@ def mmrchain(
 
     # -------------------------------------------------------------------------
     # create folders for results
-    if outpath == '':
+    if outpath is None:
         petdir = os.path.join(datain['corepath'], 'reconstructed')
         fmudir = os.path.join(datain['corepath'], 'mumap-obj')
         pvcdir = os.path.join(datain['corepath'], 'PRCL')
@@ -142,6 +143,12 @@ def mmrchain(
         petdir = os.path.join(outpath, 'PET')
         fmudir = os.path.join(outpath, 'mumap-obj')
         pvcdir = os.path.join(outpath, 'PRCL')
+
+    if fout is not None:
+        #> get rid of folders
+        fout = os.path.basename(fout)
+        #> get rid of extension
+        fout = fout.split('.')[0]
 
     # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join(fmudir, 'registered')
@@ -373,7 +380,11 @@ def mmrchain(
     output['im'] = np.squeeze(dynim)
 
     if ret_sinos and itr > 1 and recmod > 2:
-        output['sinos'] = {'psino': dynpsn, 'ssino': dynssn, 'rsino': dynrsn, 'amask': dynmsk}
+        output['sinos'] = dict(
+            psino=np.squeeze(dynpsn),
+            ssino=np.squeeze(dynssn),
+            rsino=np.squeeze(dynrsn),
+            amask=np.squeeze(dynmsk))
 
     if ret_histo:
         output['hst'] = hsts
@@ -487,15 +498,27 @@ def mmrchain(
             if t1 == t0:
                 t0 = 0
                 t1 = hst['dur']
-            fpet = os.path.join(petimg,
-                                os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}')
-            fpeto = f"{fpet}{fcomment}.nii.gz"
+            # > --- file naming and saving ---
+            if fout is None:
+                fpet = os.path.join(petimg,
+                                    os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}')
+                fpeto = f"{fpet}{fcomment}.nii.gz"
+            else:
+                fpeto = os.path.join(petimg, os.path.basename(fout)+'.nii.gz')
+
             nimpa.prc.array2nii(dynim[::-1, ::-1, :], recimg.affine, fpeto, descrip=descrip)
+            # > --- ---
         else:
-            fpet = os.path.join(petimg,
-                                os.path.basename(recimg.fpet)[:8] + f'_nfrm-{nfrm}_itr-{itr}')
-            fpeto = f"{fpet}{fcomment}.nii.gz"
+            if fout is None:
+                fpet = os.path.join(petimg,
+                                    os.path.basename(recimg.fpet)[:8] + f'_nfrm-{nfrm}_itr-{itr}')
+                fpeto = f"{fpet}{fcomment}.nii.gz"
+            else:
+                fpeto = os.path.join(petimg, os.path.basename(fout) + f'_nfrm-{nfrm}.nii.gz')
+
             nimpa.prc.array2nii(dynim[:, ::-1, ::-1, :], recimg.affine, fpeto, descrip=descrip)
+
+        output['fpet'] = fpeto
 
         # get output file names for trimmed/PVC images
         if trim:
@@ -506,8 +529,12 @@ def mmrchain(
             # trimming scale added to NIfTI descritoption
             descrip_trim = f'{descrip};trim_scale={trim_scale}'
             # file name for saving the trimmed image
-            fpetu = os.path.join(pettrim,
-                                 os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
+            if fout is None:
+                fpetu = os.path.join(pettrim,
+                            os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
+            else:
+                fpetu = os.path.join(pettrim,
+                            os.path.basename(fout) + f'_trimmed-upsampled-scale-{trim_scale}')
             # in case of PVC
             if pvcroi:
                 # itertive Yang (iY) added to NIfTI descritoption
@@ -521,7 +548,6 @@ def mmrchain(
             # store the file name in the output dictionary
             output['trimmed']['fpet'] = fpetu
 
-        output['fpet'] = fpeto
 
         # save images
         if nfrm == 1:

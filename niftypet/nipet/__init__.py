@@ -50,6 +50,8 @@ from .img.pipe import mmrchain
 from .lm.mmrhist import dynamic_timings, mmrhist, randoms
 from .mmraux import explore_input as classify_input
 from .mmraux import mMR_params as get_mmrparams
+from .mmraux import sino2ssr
+
 from .prj.mmrprj import back_prj, frwd_prj
 from .prj.mmrsim import simulate_recon, simulate_sino
 from .sct.mmrsct import vsm
