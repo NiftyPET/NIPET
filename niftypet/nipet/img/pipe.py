@@ -380,11 +380,9 @@ def mmrchain(
     output['im'] = np.squeeze(dynim)
 
     if ret_sinos and itr > 1 and recmod > 2:
-        output['sinos'] = dict(
-            psino=np.squeeze(dynpsn),
-            ssino=np.squeeze(dynssn),
-            rsino=np.squeeze(dynrsn),
-            amask=np.squeeze(dynmsk))
+        output['sinos'] = {
+            'psino': np.squeeze(dynpsn), 'ssino': np.squeeze(dynssn), 'rsino': np.squeeze(dynrsn),
+            'amask': np.squeeze(dynmsk)}
 
     if ret_histo:
         output['hst'] = hsts
@@ -500,11 +498,12 @@ def mmrchain(
                 t1 = hst['dur']
             # > --- file naming and saving ---
             if fout is None:
-                fpet = os.path.join(petimg,
-                                    os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}')
+                fpet = os.path.join(
+                    petimg,
+                    os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}')
                 fpeto = f"{fpet}{fcomment}.nii.gz"
             else:
-                fpeto = os.path.join(petimg, os.path.basename(fout)+'.nii.gz')
+                fpeto = os.path.join(petimg, os.path.basename(fout) + '.nii.gz')
 
             nimpa.prc.array2nii(dynim[::-1, ::-1, :], recimg.affine, fpeto, descrip=descrip)
             # > --- ---
@@ -530,11 +529,13 @@ def mmrchain(
             descrip_trim = f'{descrip};trim_scale={trim_scale}'
             # file name for saving the trimmed image
             if fout is None:
-                fpetu = os.path.join(pettrim,
-                            os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
+                fpetu = os.path.join(
+                    pettrim,
+                    os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
             else:
-                fpetu = os.path.join(pettrim,
-                            os.path.basename(fout) + f'_trimmed-upsampled-scale-{trim_scale}')
+                fpetu = os.path.join(
+                    pettrim,
+                    os.path.basename(fout) + f'_trimmed-upsampled-scale-{trim_scale}')
             # in case of PVC
             if pvcroi:
                 # itertive Yang (iY) added to NIfTI descritoption
@@ -547,7 +548,6 @@ def mmrchain(
             fpetu += f'{fcomment}.nii.gz'
             # store the file name in the output dictionary
             output['trimmed']['fpet'] = fpetu
-
 
         # save images
         if nfrm == 1:

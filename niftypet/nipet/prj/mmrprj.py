@@ -42,7 +42,8 @@ def trnx_prj(scanner_params, sino=None, im=None):
 # ------------------------------------------------------------------------
 
 
-def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False, fullsino_out=True):
+def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False,
+             fullsino_out=True):
     """
     Calculate forward projection (a set of sinograms) for the provided input image.
     Arguments:
@@ -115,13 +116,12 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
     petprj.fprj(sinog, ims, txLUT, axLUT, isub, Cnt, att)
     # --------------------
 
-
     # get the sinogram bins in a full sinogram if requested
     if fullsino_out:
         sino = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
-        if isub[0] >= 0: 
+        if isub[0] >= 0:
             sino[isub, :] = sinog
-        else: 
+        else:
             sino = sinog
     else:
         sino = sinog

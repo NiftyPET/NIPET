@@ -42,16 +42,14 @@ from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resourc
 # > Siemens Biograph mMR
 from . import img, lm, mmr_auxe, mmraux, mmrnorm, prj
 from .img.mmrimg import align_mumap
-from .img.mmrimg import get_cylinder
 from .img.mmrimg import convert2dev as im_e72dev
 from .img.mmrimg import convert2e7 as im_dev2e7
-from .img.mmrimg import hdw_mumap, obj_mumap, pct_mumap
+from .img.mmrimg import get_cylinder, hdw_mumap, obj_mumap, pct_mumap
 from .img.pipe import mmrchain
 from .lm.mmrhist import dynamic_timings, mmrhist, randoms
 from .mmraux import explore_input as classify_input
 from .mmraux import mMR_params as get_mmrparams
 from .mmraux import sino2ssr
-
 from .prj.mmrprj import back_prj, frwd_prj
 from .prj.mmrsim import simulate_recon, simulate_sino
 from .sct.mmrsct import vsm
