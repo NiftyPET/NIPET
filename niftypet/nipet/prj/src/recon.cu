@@ -7,10 +7,12 @@ Copyrights:
 2020 Casper da Costa-Luis
 ------------------------------------------------------------------------*/
 #include "recon.h"
-#include <assert.h>
+#include <cassert>
 
 // number of threads used for element-wise GPU calculations
+#ifndef NTHRDS
 #define NTHRDS 1024
+#endif NTHRDS
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
 /// z: how many Z-slices to add
