@@ -48,12 +48,7 @@ jobs:
         fetch-depth: 0
     - name: Run setup-python
       run: setup-python -p3.7
-    - name: pip install -e .
-      run: |
-        export PATH="$CUDAToolkit_ROOT/bin:$PATH"
-        pip install -U --no-binary nimpa -e .[dev]
-      env:
-        CUDAToolkit_ROOT: /usr/local/cuda-10.2
+    - run: pip install -U --no-binary nimpa -e .[dev]
     - run: pytest
     - run: codecov
     - name: Post Run setup-python
