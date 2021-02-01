@@ -145,10 +145,10 @@ def mmrchain(
         pvcdir = os.path.join(outpath, 'PRCL')
 
     if fout is not None:
-        #> get rid of folders
+        # > get rid of folders
         fout = os.path.basename(fout)
-        #> get rid of extension
-        fout = fout.split('.')[0]
+        # > get rid of extension
+        fout = fout.rsplit('.', 1)[0]
 
     # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join(fmudir, 'registered')
