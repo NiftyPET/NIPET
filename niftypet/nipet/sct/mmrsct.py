@@ -614,7 +614,7 @@ def vsm(
         mssr = mmraux.sino2ssr(msksn, axLUT, Cnt)
         mssr = mssr > 0
     else:
-        mssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.bool)
+        mssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=bool)
 
     # <<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
 
