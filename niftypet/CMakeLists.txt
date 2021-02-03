@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 if("${NIPET_BUILD_VERSION}" STREQUAL "")
-set(NIPET_BUILD_VERSION 2 CACHE STRING "version" FORCE)
+  set(NIPET_BUILD_VERSION 2 CACHE STRING "version" FORCE)
 endif()
 project(nipet LANGUAGES C CXX CUDA VERSION "${NIPET_BUILD_VERSION}")
 
@@ -10,16 +10,16 @@ cmake_policy(SET CMP0104 NEW)  # CMAKE_CUDA_ARCHITECTURES
 find_package(Python3 COMPONENTS Interpreter Development NumPy REQUIRED)
 find_package(CUDAToolkit REQUIRED)
 if(SKBUILD)
-find_package(PythonExtensions REQUIRED)
-set(LIB_TYPE "MODULE")
+  find_package(PythonExtensions REQUIRED)
+  set(LIB_TYPE "MODULE")
 else()
-set(LIB_TYPE "SHARED")
+  set(LIB_TYPE "SHARED")
 endif()
 cmake_policy(POP)
 
 message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
 if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+  set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
