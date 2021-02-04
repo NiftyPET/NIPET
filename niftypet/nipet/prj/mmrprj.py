@@ -103,7 +103,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
                          ' it has to be one of these: (z,y,x) = (127,344,344)'
                          ' or (y,x,z) = (320,320,128)')
 
-    log.debug('number of sinos:%d' % nsinos)
+    log.debug('number of sinos: %d', nsinos)
 
     # predefine the sinogram.
     # if subsets are used then only preallocate those bins which will be used.
