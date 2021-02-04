@@ -28,7 +28,9 @@
 #define MXNITAG 5400 // max number of time tags <nitag> to avoid out of memory errors
 
 // maximum threads for device
-#define MXTHRD 1024
+#ifndef NIPET_CU_THREADS
+#define NIPET_CU_THREADS 1024
+#endif
 
 #define TOT_BINS_S1 354033792 // 344*252*4084
 

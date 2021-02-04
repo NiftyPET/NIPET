@@ -23,6 +23,11 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "")
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
+if("${NIPET_CU_THREADS}" STREQUAL "")
+  set(NIPET_CU_THREADS 1024 CACHE STRING
+    "Maximum number of CUDA threads per block (should be less than cudaDeviceProp::maxThreadsDim)" FORCE)
+endif()
+add_compile_definitions(NIPET_CU_THREADS=${NIPET_CU_THREADS})
 add_subdirectory(nipet)
 
 include(CMakePackageConfigHelpers)
