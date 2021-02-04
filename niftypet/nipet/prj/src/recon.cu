@@ -9,10 +9,6 @@ Copyrights:
 #include "recon.h"
 #include <cassert>
 
-// number of threads used for element-wise GPU calculations
-#ifndef NTHRDS
-#define NTHRDS 1024
-#endif NTHRDS
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
 /// z: how many Z-slices to add
@@ -28,8 +24,8 @@ __global__ void pad(float *dst, float *src, const int z) {
 void d_pad(float *dst, float *src,
            const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
   HANDLE_ERROR(cudaMemset(dst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + z) * sizeof(float)));
-  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
-  dim3 TpB(NTHRDS / 32, 32);
+  dim3 BpG((SZ_IMX + NIPET_CU_THREADS / 32 - 1) / (NIPET_CU_THREADS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NIPET_CU_THREADS / 32, 32);
   pad<<<BpG, TpB>>>(dst, src, z);
 }
 
@@ -45,8 +41,8 @@ __global__ void unpad(float *dst, float *src, const int z) {
 }
 void d_unpad(float *dst, float *src,
              const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
-  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
-  dim3 TpB(NTHRDS / 32, 32);
+  dim3 BpG((SZ_IMX + NIPET_CU_THREADS / 32 - 1) / (NIPET_CU_THREADS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NIPET_CU_THREADS / 32, 32);
   unpad<<<BpG, TpB>>>(dst, src, z);
 }
 
@@ -227,8 +223,8 @@ __global__ void elmult(float *inA, float *inB, int length) {
 }
 
 void d_elmult(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmult<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -245,8 +241,8 @@ __global__ void eldiv0(float *inA, float *inB, int length) {
 }
 
 void d_eldiv(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eldiv0<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -267,8 +263,8 @@ __global__ void sneldiv(float *inA, unsigned short *inB, int *sub, int Nprj, int
 }
 
 void d_sneldiv(float *d_inA, unsigned short *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NTHRDS), Nprj, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(snno / (float)NIPET_CU_THREADS), Nprj, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneldiv<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -281,8 +277,8 @@ __global__ void sneladd(float *inA, float *inB, int *sub, int Nprj, int snno) {
 }
 
 void d_sneladd(float *d_inA, float *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NTHRDS), Nprj, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(snno / (float)NIPET_CU_THREADS), Nprj, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneladd<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -294,8 +290,8 @@ __global__ void eladd(float *inA, float *inB, int length) {
 }
 
 void d_eladd(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eladd<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -313,8 +309,8 @@ __global__ void elmsk(float *inA, float *inB, bool *msk, int length) {
 }
 
 void d_elmsk(float *d_inA, float *d_inB, bool *d_msk, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmsk<<<BpG, TpB>>>(d_inA, d_inB, d_msk, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
