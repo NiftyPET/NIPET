@@ -223,7 +223,7 @@ __global__ void elmult(float *inA, float *inB, int length) {
 }
 
 void d_elmult(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmult<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
@@ -241,7 +241,7 @@ __global__ void eldiv0(float *inA, float *inB, int length) {
 }
 
 void d_eldiv(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eldiv0<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
@@ -263,7 +263,7 @@ __global__ void sneldiv(float *inA, unsigned short *inB, int *sub, int Nprj, int
 }
 
 void d_sneldiv(float *d_inA, unsigned short *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NIPET_CU_THREADS), Nprj, 1);
+  dim3 BpG((snno + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, Nprj, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneldiv<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
@@ -277,7 +277,7 @@ __global__ void sneladd(float *inA, float *inB, int *sub, int Nprj, int snno) {
 }
 
 void d_sneladd(float *d_inA, float *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NIPET_CU_THREADS), Nprj, 1);
+  dim3 BpG((snno + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, Nprj, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneladd<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
@@ -290,7 +290,7 @@ __global__ void eladd(float *inA, float *inB, int length) {
 }
 
 void d_eladd(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eladd<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
@@ -309,7 +309,7 @@ __global__ void elmsk(float *inA, float *inB, bool *msk, int length) {
 }
 
 void d_elmsk(float *d_inA, float *d_inB, bool *d_msk, int length) {
-  dim3 BpG(ceil(length / (float)NIPET_CU_THREADS), 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmsk<<<BpG, TpB>>>(d_inA, d_inB, d_msk, length);
 }
