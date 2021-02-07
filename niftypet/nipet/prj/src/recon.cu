@@ -7,10 +7,8 @@ Copyrights:
 2020 Casper da Costa-Luis
 ------------------------------------------------------------------------*/
 #include "recon.h"
-#include <assert.h>
+#include <cassert>
 
-// number of threads used for element-wise GPU calculations
-#define NTHRDS 1024
 #define FLOAT_WITHIN_EPS(x) (-0.000001f < x && x < 0.000001f)
 
 /// z: how many Z-slices to add
@@ -26,8 +24,8 @@ __global__ void pad(float *dst, float *src, const int z) {
 void d_pad(float *dst, float *src,
            const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
   HANDLE_ERROR(cudaMemset(dst, 0, SZ_IMX * SZ_IMY * (SZ_IMZ + z) * sizeof(float)));
-  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
-  dim3 TpB(NTHRDS / 32, 32);
+  dim3 BpG((SZ_IMX + NIPET_CU_THREADS / 32 - 1) / (NIPET_CU_THREADS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NIPET_CU_THREADS / 32, 32);
   pad<<<BpG, TpB>>>(dst, src, z);
 }
 
@@ -43,8 +41,8 @@ __global__ void unpad(float *dst, float *src, const int z) {
 }
 void d_unpad(float *dst, float *src,
              const int z = COLUMNS_BLOCKDIM_X - SZ_IMZ % COLUMNS_BLOCKDIM_X) {
-  dim3 BpG((SZ_IMX + NTHRDS / 32 - 1) / (NTHRDS / 32), (SZ_IMY + 31) / 32);
-  dim3 TpB(NTHRDS / 32, 32);
+  dim3 BpG((SZ_IMX + NIPET_CU_THREADS / 32 - 1) / (NIPET_CU_THREADS / 32), (SZ_IMY + 31) / 32);
+  dim3 TpB(NIPET_CU_THREADS / 32, 32);
   unpad<<<BpG, TpB>>>(dst, src, z);
 }
 
@@ -225,8 +223,8 @@ __global__ void elmult(float *inA, float *inB, int length) {
 }
 
 void d_elmult(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmult<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -243,8 +241,8 @@ __global__ void eldiv0(float *inA, float *inB, int length) {
 }
 
 void d_eldiv(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eldiv0<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -265,8 +263,8 @@ __global__ void sneldiv(float *inA, unsigned short *inB, int *sub, int Nprj, int
 }
 
 void d_sneldiv(float *d_inA, unsigned short *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NTHRDS), Nprj, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((snno + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, Nprj, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneldiv<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -279,8 +277,8 @@ __global__ void sneladd(float *inA, float *inB, int *sub, int Nprj, int snno) {
 }
 
 void d_sneladd(float *d_inA, float *d_inB, int *d_sub, int Nprj, int snno) {
-  dim3 BpG(ceil(snno / (float)NTHRDS), Nprj, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((snno + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, Nprj, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sneladd<<<BpG, TpB>>>(d_inA, d_inB, d_sub, Nprj, snno);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -292,8 +290,8 @@ __global__ void eladd(float *inA, float *inB, int length) {
 }
 
 void d_eladd(float *d_inA, float *d_inB, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   eladd<<<BpG, TpB>>>(d_inA, d_inB, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -311,8 +309,8 @@ __global__ void elmsk(float *inA, float *inB, bool *msk, int length) {
 }
 
 void d_elmsk(float *d_inA, float *d_inB, bool *d_msk, int length) {
-  dim3 BpG(ceil(length / (float)NTHRDS), 1, 1);
-  dim3 TpB(NTHRDS, 1, 1);
+  dim3 BpG((length + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   elmsk<<<BpG, TpB>>>(d_inA, d_inB, d_msk, length);
 }
 //- - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -470,8 +468,8 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
 
     // forward project
     cudaMemset(d_esng, 0, Nprj * snno * sizeof(float));
-    rec_fprj(d_esng, krnl[0]>=0 ? d_imgout_rm : d_imgout, &d_subs[i * Nprj + 1],
-             subs[i * Nprj], d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
+    rec_fprj(d_esng, krnl[0] >= 0 ? d_imgout_rm : d_imgout, &d_subs[i * Nprj + 1], subs[i * Nprj],
+             d_tt, d_tv, li2rng, li2sn, li2nos, Cnt);
 
     // add the randoms+scatter
     d_sneladd(d_esng, d_rsng, &d_subs[i * Nprj + 1], subs[i * Nprj], snno);

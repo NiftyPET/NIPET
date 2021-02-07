@@ -328,7 +328,7 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
     HANDLE_ERROR(cudaMalloc(&d_imr, SZ_IMX * SZ_IMY * nvz * sizeof(float)));
     HANDLE_ERROR(cudaMemset(d_imr, 0, SZ_IMX * SZ_IMY * nvz * sizeof(float)));
     // number of axial row for max threads
-    int nar = MXTHRD / nvz;
+    int nar = NIPET_CU_THREADS / nvz;
     dim3 THRD(nvz, nar, 1);
     dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
     imReduce<<<BLCK, THRD>>>(d_imr, d_im, vz0, nvz);

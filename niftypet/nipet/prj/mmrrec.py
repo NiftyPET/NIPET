@@ -184,7 +184,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
 
     # ----------
 
-    log.info('reconstruction in mode:%d' % recmod)
+    log.info('reconstruction in mode: %d', recmod)
 
     # get object and hardware mu-maps
     muh, muo = mumaps
@@ -266,7 +266,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
         ssng = np.zeros(rsng.shape, dtype=rsng.dtype)
     # ========================================================================
 
-    log.info('------ OSEM (%d) -------' % itr)
+    log.info('------ OSEM (%d) -------', itr)
     # ------------------------------------
     Sn = 14   # number of subsets
 
@@ -368,12 +368,12 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                            f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k}{fcomment}_inrecon.nii.gz"))
                 nimpa.array2nii(im[::-1, ::-1, :], B, fout)
 
-    log.info('recon time:%.3g' % (time.time() - stime))
+    log.info('recon time: %.3g', time.time() - stime)
     # ========================================================================
 
-    log.info('applying decay correction of %r' % dcycrr)
-    log.info('applying quantification factor:%r to the whole image' % qf)
-    log.info('for the frame duration of :%r' % hst['dur'])
+    log.info('applying decay correction of: %r', dcycrr)
+    log.info('applying quantification factor: %r to the whole image', qf)
+    log.info('for the frame duration of: %r', hst['dur'])
 
     # additional factor for making it quantitative in absolute terms (derived from measurements)
     img *= dcycrr * qf * qf_loc

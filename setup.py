@@ -14,7 +14,6 @@ from setuptools_scm import get_version
 from skbuild import setup
 
 from niftypet.ninst import cudasetup as cs
-from niftypet.ninst import dinf
 from niftypet.ninst import install_tools as tls
 
 __version__ = get_version(root=".", relative_to=__file__)
@@ -156,8 +155,9 @@ cs.resources_setup(gpu=False) # install resources.py
 # check and update the constants in C headers according to resources.py
 check_constants()
 try:
-    gpuarch = cs.dev_setup() # update resources.py with a supported GPU device
+    nvcc_arches = cs.dev_setup() # update resources.py with a supported GPU device
 except Exception as exc:
+    nvcc_arches = []
     log.error("could not set up CUDA:\n%s", exc)
 
 log.info(
@@ -193,7 +193,6 @@ log.info("hardware mu-maps have been located")
 build_ver = ".".join(__version__.split('.')[:3]).split(".dev")[0]
 cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
-    nvcc_arches = {"{2:d}{3:d}".format(*i) for i in dinf.gpuinfo() if i[2:4] >= (3, 5)}
     if nvcc_arches:
         cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
 except Exception as exc:

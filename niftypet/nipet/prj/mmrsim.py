@@ -227,7 +227,7 @@ def simulate_recon(
     Cnt['SIGMA_RM'] = mmrrec.fwhm2sig(fwhm_rm, voxsize=Cnt['SZ_VOXZ'] * 10) if fwhm_rm else 0
 
     if simulate_3d:
-        log.debug('------ OSEM (%d) -------' % nitr)
+        log.debug('------ OSEM (%d) -------', nitr)
 
         # measured sinogram in GPU-enabled shape
         psng = mmraux.remgaps(measured_sino.astype(np.uint16), txLUT, Cnt)

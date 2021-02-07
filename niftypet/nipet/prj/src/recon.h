@@ -3,10 +3,10 @@
 #include "prjf.h"
 #include "scanner_0.h"
 #include "tprj.h"
-#include <stdio.h>
+#include <cstdio>
 
-#ifndef RECON_H
-#define RECON_H
+#ifndef _NIPET_RECON_H_
+#define _NIPET_RECON_H_
 
 /* separable convolution */
 #define KERNEL_LENGTH (2 * RSZ_PSF_KRNL + 1)
@@ -34,4 +34,4 @@ void osem(float *imgout, bool *rcnmsk, unsigned short *psng, float *rsng, float 
 
           int Nsub, int Nprj, int N0crs, Cnst Cnt);
 
-#endif
+#endif // _NIPET_RECON_H_

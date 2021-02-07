@@ -286,7 +286,7 @@ void gpu_fprj(float *prjout, float *im, float *li2rng, short *li2sn, char *li2no
     // put zeros in the gaps of unused voxels
     HANDLE_ERROR(cudaMemset(d_im, 0, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
     // number of axial row for max threads
-    int nar = MXTHRD / nvz;
+    int nar = NIPET_CU_THREADS / nvz;
     dim3 THRD(nvz, nar, 1);
     dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
     imExpand<<<BLCK, THRD>>>(d_im, d_imr, vz0, nvz);

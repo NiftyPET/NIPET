@@ -180,8 +180,8 @@ void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_t
   cudaEventRecord(start, 0);
 
   //-----
-  dim3 BpG(ceil(AW / (float)NTHREADS), 1, 1);
-  dim3 TpB(NTHREADS, 1, 1);
+  dim3 BpG((AW + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
+  dim3 TpB(NIPET_CU_THREADS, 1, 1);
   sddn_tx<<<BpG, TpB>>>(d_crs, d_s2c, d_tt, d_tv);
   HANDLE_ERROR(cudaGetLastError());
   //-----
