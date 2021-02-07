@@ -371,7 +371,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
   int *subs;
   if (subs_[0] == -1) {
     Nprj = AW;
-    if (Cnt.LOG <= LOGWARNING)
+    if (Cnt.LOG <= LOGDEBUG)
       printf("i> no subsets defined.  number of projection bins in 2D: %d\n", Nprj);
     // all projections in
     subs = (int *)malloc(Nprj * sizeof(int));
@@ -761,7 +761,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   //>--- PSF KERNEL ---
   float *krnl;
   int SZ_KRNL = (int)PyArray_DIM(p_krnl, 1);
-  if (Cnt.LOG <= LOGINFO) printf("i> kernel size [voxels]: %d\n", SZ_KRNL);
+  if (Cnt.LOG <= LOGDEBUG) printf("d> kernel size [voxels]: %d\n", SZ_KRNL);
 
   if (SZ_KRNL != KERNEL_LENGTH) {
     if (Cnt.LOG <= LOGWARNING) printf("w> wrong kernel size.\n");

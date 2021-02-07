@@ -296,7 +296,8 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     lmbd = np.log(2) / resources.riLUT[Cnt['ISOTOPE']]['thalf']
     if Cnt['DCYCRR'] and 't0' in hst and 'dur' in hst:
         # > decay correct to the reference time (e.g., injection time) if provided
-        # > otherwise correct in reference to the scan start time
+        # > otherwise correct in reference to the scan start time (using the time
+        # > past from the start to the start time frame)
         if decay_ref_time is not None:
             tref = decay_ref_time
         else:
@@ -363,7 +364,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
 
                 fout = os.path.join(
-                    opth, (os.path.basename(datain['lm_bf'])[:8] +
+                    opth, (os.path.basename(datain['lm_bf'])[:16].replace('.','-') +
                            f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k}{fcomment}_inrecon.nii.gz"))
                 nimpa.array2nii(im[::-1, ::-1, :], B, fout)
 

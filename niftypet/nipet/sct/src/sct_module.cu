@@ -265,8 +265,8 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
   emIMG.nvx =
       (size_t)(PyArray_DIM(p_emimg, 0) * PyArray_DIM(p_emimg, 1) * PyArray_DIM(p_emimg, 2));
 
-  if ((muIMG.nvx != emIMG.nvx) && (Cnt.LOG <= LOGWARNING))
-    printf("\nw> mu-map and emission image have different dims: mu.nvx = %lu, em.nvx = %lu\n",
+  if ((muIMG.nvx != emIMG.nvx) && (Cnt.LOG <= LOGDEBUG))
+    printf("\nd> mu-map and emission image have different dims: mu.nvx = %lu, em.nvx = %lu\n",
            muIMG.nvx, emIMG.nvx);
 
   // get the stats in the image structure

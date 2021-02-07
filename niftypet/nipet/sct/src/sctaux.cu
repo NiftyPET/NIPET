@@ -138,8 +138,8 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
     HANDLE_ERROR(
         cudaMemset(d_scts1, 0, Cnt.NSN64 * d_scrsdef.nscrs * d_scrsdef.nscrs * sizeof(float)));
 
-    if (Cnt.LOG <= LOGINFO)
-      printf("i> 3D scatter results into span-1 pre-sino for TOF bin %d...", i);
+    if (Cnt.LOG <= LOGDEBUG)
+      printf("d> 3D scatter results into span-1 pre-sino for TOF bin %d...", i);
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
@@ -159,9 +159,9 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
+    if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
 
-    if (Cnt.LOG <= LOGINFO) printf("i> 3D scatter axial interpolation...");
+    if (Cnt.LOG <= LOGDEBUG) printf("d> 3D scatter axial interpolation...");
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start, 0);
@@ -182,7 +182,7 @@ float *srslt2sino(float *d_srslt, char *d_xsxu, scrsDEF d_scrsdef, int *sctaxR, 
     cudaEventElapsedTime(&elapsedTime, start, stop);
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
-    if (Cnt.LOG <= LOGINFO) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
+    if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 1e-3 * elapsedTime);
   }
 
   cudaFree(d_scts1);
@@ -199,7 +199,7 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("d> emission data masking using CUDA device #%d\n", dev_id);
 
   iMSK msk;
   int nvx = 0;
@@ -257,8 +257,8 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt) {
 
 #endif
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> number of voxel values greater than %3.2f is %d out of %d (ratio: %3.2f)\n",
+  if (Cnt.LOG <= LOGDEBUG)
+    printf("d> number of voxel values greater than %3.2f is %d out of %d (ratio: %3.2f)\n",
            thrshld, nvx, SSE_IMX * SSE_IMY * SSE_IMZ, nvx / (float)(SSE_IMX * SSE_IMY * SSE_IMZ));
   msk.nvx = nvx;
   msk.i2v = d_i2v;
@@ -274,7 +274,7 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt) {
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("d> masking using CUDA device #%d\n", dev_id);
 
   int nvx = 0;
   for (int i = 0; i < (SS_IMX * SS_IMY * SS_IMZ); i++) {
@@ -329,8 +329,8 @@ iMSK get_imskMu(IMflt imvol, char *msk, Cnst Cnt) {
   }
 
 #endif
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> number of voxels within the mu-mask is %d out of %d (ratio: %3.2f)\n", nvx,
+  if (Cnt.LOG <= LOGDEBUG)
+    printf("d> number of voxels within the mu-mask is %d out of %d (ratio: %3.2f)\n", nvx,
            SS_IMX * SS_IMY * SS_IMZ, nvx / (float)(SS_IMX * SS_IMY * SS_IMZ));
   iMSK mlut;
   mlut.nvx = nvx;

@@ -413,7 +413,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   // check which device is going to be used
   int dev_id;
   cudaGetDevice(&dev_id);
-  if (Cnt.LOG <= LOGINFO) printf("i> using CUDA device #%d\n", dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
   getMemUse(Cnt);
 
@@ -430,7 +430,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   tofbin[3] = Cnt.ITOFBIND;
   cudaMemcpyToSymbol(c_TOFBIN, tofbin, 4 * sizeof(float));
 
-  if (Cnt.LOG <= LOGINFO) {
+  if (Cnt.LOG <= LOGDEBUG) {
     printf("i> time of flight properties for scatter estimation:\n");
     for (int i = 0; i < 4; i++) printf("   tofbin[%d]=%f\n", i, tofbin[i]);
   }
@@ -452,7 +452,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
 
   d_scrsdef.nscrs = Cnt.NSCRS;
   d_scrsdef.nsrng = Cnt.NSRNG;
-  if (Cnt.LOG <= LOGINFO)
+  if (Cnt.LOG <= LOGDEBUG)
     printf("i> number of scatter crystals used:\n  >transaxially: %d\n  >axially: %d\n",
            d_scrsdef.nscrs, d_scrsdef.nsrng);
 
@@ -524,7 +524,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
   cudaTextureObject_t texo_mu3d = 0;
   cudaCreateTextureObject(&texo_mu3d, &resDesc, &texDesc, NULL);
 
-  if (Cnt.LOG <= LOGINFO) printf("i> 3D CUDA texture for the mu-map has been initialised.\n");
+  if (Cnt.LOG <= LOGDEBUG) printf("d> 3D CUDA texture for the mu-map has been initialised.\n");
   //====================================================================
 
   //============================================================
@@ -541,7 +541,7 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
     //============================================================
 
     if (Cnt.LOG <= LOGINFO)
-      printf("i> calculating scatter probabilities for %d emission voxels...", d_em_msk.nvx);
+      printf("i> calculating scatter probabilities for %d emission voxels using device #%d...", d_em_msk.nvx, dev_id);
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
