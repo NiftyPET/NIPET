@@ -148,7 +148,7 @@ def mmrchain(
         # > get rid of folders
         fout = os.path.basename(fout)
         # > get rid of extension
-        fout = fout.rsplit('.', 1)[0]
+        fout = fout.split('.')[0]
 
     # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join(fmudir, 'registered')
@@ -231,9 +231,9 @@ def mmrchain(
             nimpa.create_dir(petaff)
             faff_frms = []
             for i in range(nfrm):
-                fout = os.path.join(petaff, 'affine_frame(' + str(i) + ').txt')
-                np.savetxt(fout, tAffine[i], fmt='%3.9f')
-                faff_frms.append(fout)
+                fout_ = os.path.join(petaff, 'affine_frame(' + str(i) + ').txt')
+                np.savetxt(fout_, tAffine[i], fmt='%3.9f')
+                faff_frms.append(fout_)
             log.info('using provided numpy arrays affine transformations for each dynamic frame.')
         else:
             raise ValueError(
@@ -355,7 +355,7 @@ def mmrchain(
         recimg = mmrrec.osemone(datain, [muhd['im'], muo], hst, scanner_params,
                                 decay_ref_time=decay_ref_time, recmod=recmod, itr=itr, fwhm=fwhm,
                                 psf=psf, outpath=petimg, frmno=frmno, fcomment=fcomment + '_i',
-                                store_img=store_img_intrmd, store_itr=store_itr,
+                                store_img=store_img_intrmd, store_itr=store_itr, fout=fout,
                                 ret_sinos=ret_sinos)
 
         # form dynamic Numpy array

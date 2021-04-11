@@ -155,8 +155,8 @@ def psf_config(psf, Cnt):
 
 def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=None,
             mask_radius=29., decay_ref_time=None, attnsino=None, sctsino=None, randsino=None,
-            normcomp=None, emmskS=False, frmno='', fcomment='', outpath=None, store_img=False,
-            store_itr=None, ret_sinos=False):
+            normcomp=None, emmskS=False, frmno='', fcomment='', outpath=None, fout=None,
+            store_img=False, store_itr=None, ret_sinos=False):
     '''
     OSEM image reconstruction with several modes
     (with/without scatter and/or attenuation correction)
@@ -176,6 +176,13 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
         opth = os.path.join(datain['corepath'], 'reconstructed')
     else:
         opth = outpath
+
+    #> file output name (the path is ignored if given)
+    if fout is not None:
+        # > get rid of folders
+        fout = os.path.basename(fout)
+        # > get rid of extension
+        fout = fout.split('.')[0]
 
     if store_img is True or store_itr is not None:
         mmraux.create_dir(opth)
@@ -360,13 +367,18 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 ssng = mmraux.remgaps(ssn, txLUT, Cnt)
                 pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
             # save images during reconstruction if requested
-            if store_itr and k in store_itr:
+            if store_itr and (k+1) in store_itr:
                 im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
 
-                fout = os.path.join(
-                    opth, (os.path.basename(datain['lm_bf'])[:16].replace('.','-') +
-                           f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k}{fcomment}_inrecon.nii.gz"))
-                nimpa.array2nii(im[::-1, ::-1, :], B, fout)
+                if fout is None:
+                    fpet = os.path.join(
+                        opth, (os.path.basename(datain['lm_bf'])[:16].replace('.','-') +
+                               f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k+1}{fcomment}_inrecon.nii.gz"))
+                else:
+                    fpet = os.path.join(
+                        opth, fout+f'_itr{k+1}{fcomment}_inrecon.nii.gz')
+
+                nimpa.array2nii(im[::-1, ::-1, :], B, fpet)
 
     log.info('recon time: %.3g', time.time() - stime)
     # ========================================================================
@@ -399,8 +411,11 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
 
     # > file name of the output reconstructed image
     # > (maybe used later even if not stored now)
-    fpet = os.path.join(opth, (os.path.basename(datain['lm_bf']).split('.')[0] +
+    if fout is None:
+        fpet = os.path.join(opth, (os.path.basename(datain['lm_bf']).split('.')[0] +
                                f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{itr}{fcomment}.nii.gz"))
+    else:
+        fpet = os.path.join(opth, fout+f'_itr{itr}{fcomment}.nii.gz')
 
     if store_img:
         log.info('saving image to: %s', fpet)
