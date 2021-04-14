@@ -72,23 +72,19 @@ def get_scrystals(scanner_params):
     scrs = np.array(scrs, dtype=np.float32)
     # ------------------------------------------------------
 
-    # ------------------------------------------------------
-    # > scatter ring definition (axially)
-    sct_irng = np.int16([0, 10, 19, 28, 35, 44, 53, 63])
-    # number of scatter rings (used for scatter estimation)
-    NSRNG = len(sct_irng)
-    # ------------------------------------------------------
-
     logtxt = ''
 
-    srng = np.zeros((NSRNG, 2), dtype=np.float32)
-    for ir in range(NSRNG):
-        srng[ir, 0] = float(sct_irng[ir])
-        srng[ir, 1] = axLUT['rng'][sct_irng[ir], :].mean()
+    sirng = np.int16(Cnt['SIRNG'])
+
+    #> axial scatter ring positions in cm 
+    srng = np.zeros((Cnt['NSRNG'], 2), dtype=np.float32)
+    for ir in range(Cnt['NSRNG']):
+        srng[ir, 0] = float(sirng[ir])
+        srng[ir, 1] = axLUT['rng'][sirng[ir], :].mean()
         logtxt += '> [{}]: ring_i={}, ring_z={}\n'.format(ir, int(srng[ir, 0]), srng[ir, 1])
 
     log.debug(logtxt)
-    return {'scrs': scrs, 'srng': srng, 'sirng': sct_irng, 'NSCRS': scrs.shape[0], 'NSRNG': NSRNG}
+    return {'scrs': scrs, 'srng': srng, 'sirng': sirng, 'NSCRS': scrs.shape[0], 'NSRNG': Cnt['NSRNG']}
 
 
 # ======================================================================

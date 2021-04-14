@@ -571,7 +571,10 @@ def reduce_rings(pars, rs=0, re=64):
         rs -- start ring
         re -- end ring (not included in the resulting reduced rings)
     """
+
+    #> reduced rings work in span-1 only
     pars['Cnt']['SPN'] = 1
+    
     # select the number of sinograms for the number of rings
     # RNG_STRT is included in detection
     # RNG_END is not included in detection process

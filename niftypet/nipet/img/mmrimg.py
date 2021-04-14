@@ -440,10 +440,6 @@ def align_mumap(
     # > create the folder, if not existent
     nimpa.create_dir(opth)
 
-    # > tmp folder for not aligned mu-maps
-    tmpdir = os.path.join(opth, 'tmp')
-    nimpa.create_dir(tmpdir)
-
     # > get the timing of PET if affine not given
     if faff == '' and hst is not None and isinstance(hst, dict) and 't0' in hst:
         t0 = hst['t0']
@@ -459,9 +455,10 @@ def align_mumap(
     # > used stored if requested
     if use_stored:
         fmu_stored = fnm + '-aligned-to_t'\
-                     + str(hst['t0'])+'-'+str(hst['t1'])+'_'+petopt.upper()\
+                     + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
                      + fcomment
-        fmupath = os.path.join(opth, fmu_stored)
+        fmupath = os.path.join(opth, fmu_stored+'.nii.gz')
+
         if os.path.isfile(fmupath):
             mudct_stored = nimpa.getnii(fmupath, output='all')
             # > create output dictionary
@@ -470,6 +467,10 @@ def align_mumap(
             # pu_dct['faff'] = faff
             return mu_dct
     # ---------------------------------------------------------------------------
+
+    # > tmp folder for not aligned mu-maps
+    tmpdir = os.path.join(opth, 'tmp')
+    nimpa.create_dir(tmpdir)
 
     # > three ways of passing scanner constants <Cnt> are here decoded
     if 'Cnt' in scanner_params:
@@ -706,7 +707,7 @@ def align_mumap(
         nimpa.create_dir(opth)
         if faff == '':
             fname = fnm + '-aligned-to_t'\
-                    + str(hst['t0'])+'-'+str(hst['t1'])+'_'+petopt.upper()\
+                    + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
                     + fcomment
         else:
             fname = fnm + '-aligned-to-given-affine' + fcomment
