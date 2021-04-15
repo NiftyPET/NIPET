@@ -271,14 +271,22 @@ def mmrchain(
         if fwhm > 0:
             output['fsmoi'] = []
 
+    # > number of3D  sinograms
+    if Cnt['SPN']==1:
+        snno = Cnt['NSN1']
+    elif Cnt['SPN']==11:
+        snno = Cnt['NSN11']
+    else:
+        raise ValueError('unrecognised span: {}'.format(Cnt['SPN']))
+
     # dynamic images in one numpy array
     dynim = np.zeros((nfrm, Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMY']), dtype=np.float32)
     # if asked, output only scatter+randoms sinogram for each frame
     if ret_sinos and itr > 1 and recmod > 2:
         dynmsk = np.zeros((nfrm, Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-        dynrsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-        dynssn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
-        dynpsn = np.zeros((nfrm, Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        dynrsn = np.zeros((nfrm, snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        dynssn = np.zeros((nfrm, snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
+        dynpsn = np.zeros((nfrm, snno, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.float32)
 
     # > returning dictionary of histograms if requested
     if ret_histo:

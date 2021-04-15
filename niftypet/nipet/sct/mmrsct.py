@@ -295,7 +295,12 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
     '''
 
     # > number of sinograms
-    snno = sct3d.shape[1]
+    if Cnt['SPN']==1:
+        snno = Cnt['NSN1']
+    elif Cnt['SPN']==11:
+        snno = Cnt['NSN11']
+    else:
+        raise ValueError('unrecognised span!')
 
     i_scrs = sctLUT['scrs'][:, 0].astype(int)
 
