@@ -210,7 +210,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     else:
         ncmp = normcomp
         log.warning('using user-defined normalisation components')
-    nsng = mmrnorm.get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=ncmp)
+    nsng = mmrnorm.get_norm_sino(datain, scanner_params, hst, normcomp=ncmp, gpu_dim=True)
     # ========================================================================
 
     # ========================================================================

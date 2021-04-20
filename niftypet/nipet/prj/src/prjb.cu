@@ -84,9 +84,12 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
 
 //************** OBLIQUE **************************************************
 __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const unsigned char *tv,
-                          const int *subs, const short snno, const int zoff) {
+                          const int *subs, const short snno, const int zoff, const short nil2r_c) {
+  
   int ixz = threadIdx.x + zoff; // axial (z)
-  if (ixz < NLI2R) {
+
+  if (ixz < nil2r_c) {
+
     int ixt = subs[blockIdx.x]; // blockIdx.x is the transaxial bin index
                                 // bin values to be back projected
     float bin = sino[c_li2sn[ixz].x + snno * blockIdx.x];
@@ -280,30 +283,22 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
   //============================================================================
 
   int zoff = nrng_c;
-  // number of oblique sinograms
+  //> number of oblique sinograms
   int Noblq = (nrng_c - 1) * nrng_c / 2;
+  int Nz = ((Noblq+127)/128)*128;
 
-  // cudaGetDeviceCount(&nDevices);
-  // for (int i = 0; i < nDevices; i++) {
-  // cudaDeviceProp prop;
-  // cudaGetDeviceProperties(&prop, i);
-  // printf("Device Number: %d\n", i);
-  // printf("  Device name: %s\n", prop.name);
-  // printf("  Device supports concurrentManagedAccess?: %s\n", prop.concurrentManagedAccess);
-  //}
+  //============================================================================
+  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  HANDLE_ERROR(cudaGetLastError());
 
-  // cudaMemPrefetchAsync(d_sino, Nprj*snno * sizeof(float), nDevices, NULL);
+  zoff += Nz/2;
+  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-  if (Cnt.SPN == 1 && Noblq <= 1024) {
-    bprj_oblq<<<Nprj, Noblq>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-    HANDLE_ERROR(cudaGetLastError());
-  } else {
-    bprj_oblq<<<Nprj, NSINOS / 4>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-    HANDLE_ERROR(cudaGetLastError());
-    zoff += NSINOS / 4;
-    bprj_oblq<<<Nprj, NSINOS / 4>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff);
-    HANDLE_ERROR(cudaGetLastError());
-  }
+
+
+
   //============================================================================
 
   cudaEventRecord(stop, 0);
@@ -378,6 +373,11 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
   else if (Cnt.SPN == 11)
     snno = NSINOS11;
 
+  //> number of oblique sinograms
+  int Noblq = (NRINGS*(NRINGS-1)-12)/2;
+  //> number of threads (in the axial direction)
+  int Nz = ((Noblq+127)/128)*128;
+
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
@@ -386,19 +386,19 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
 
   //============================================================================
   bprj_drct<<<Nprj, NRINGS>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
-  // HANDLE_ERROR(cudaGetLastError());
+  HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   int zoff = NRINGS;
   //============================================================================
-  bprj_oblq<<<Nprj, NSINOS / 4>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-  // HANDLE_ERROR(cudaGetLastError());
+  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
-  zoff += NSINOS / 4;
+  zoff += Nz/2;
   //============================================================================
-  bprj_oblq<<<Nprj, NSINOS / 4>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff);
-  // HANDLE_ERROR(cudaGetLastError());
+  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   cudaEventRecord(stop, 0);
