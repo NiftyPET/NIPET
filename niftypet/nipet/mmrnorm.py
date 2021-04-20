@@ -110,7 +110,8 @@ def get_components(datain, Cnt):
 
 
 def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
-
+    ''' to be depreciated 
+    '''
     # get the normalisation components
     if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
@@ -131,8 +132,10 @@ def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
 
 def get_sino(datain, hst, axLUT, txLUT, Cnt):
+    ''' to be depreciated 
+    '''
 
-    # gumber of sino planes (2D sinos) depends on the span used
+    # number of sino planes (2D sinos) depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
@@ -149,27 +152,48 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     return sino
 
 
-def get_norm_sino(datain, scanner_params, hst):
+def get_norm_sino(
+        datain,
+        scanner_params,
+        hst,
+        normcomp=None,
+        gpu_dim=False):
 
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    # if not hst:
-    #     hst = mmrhist.mmrhist(datain, scanner_params)
+    #> get the normalisation components
+    if normcomp is None:
+        normcomp, _ = get_components(datain, Cnt)
 
-    # gumber of sino planes (2D sinos) depends on the span used
+    #> number of sinogram planes, depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
         nsinos = Cnt['NSN11']
+    else:
+        raise ValueError('unrecognised span {}'.format(Cnt['SPN']))
 
-    # get sino with no gaps
-    s = get_sinog(datain, hst, axLUT, txLUT, Cnt)
-    # greallocate sino with gaps
-    sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
-    # gill the sino with gaps
-    mmr_auxe.pgaps(sino, s, txLUT, Cnt, 0)
-    sino = np.transpose(sino, (2, 0, 1))
+    #-------------------------------------------------------------------------
+    #> initialise the sinogram
+    sng = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
 
-    return sino
+    #> get the norm
+    mmr_auxe.norm(sng, normcomp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
+    #-------------------------------------------------------------------------
+
+    #> check if needed reduction of axial FOV (reducing the number of rings)
+    if 'rNSN1' in Cnt and 'rLUT' in axLUT:
+        sng = sng[:, axLUT['rLUT']]
+
+    if gpu_dim:
+        return sng
+
+    else:
+        # initialise sinogram with gaps
+        sino = np.zeros((Cnt['NSANGLES'], Cnt['NSBINS'], nsinos), dtype=np.float32)
+        # fill the sinogram
+        mmr_auxe.pgaps(sino, sng, txLUT, Cnt, 0)
+        sino = np.transpose(sino, (2, 0, 1))
+        return sino

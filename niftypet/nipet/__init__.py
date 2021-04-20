@@ -54,6 +54,8 @@ from .prj.mmrprj import back_prj, frwd_prj
 from .prj.mmrsim import simulate_recon, simulate_sino
 from .sct.mmrsct import vsm
 
+from .mmrnorm import get_norm_sino
+
 # log = logging.getLogger(__name__)
 # technically bad practice to add handlers
 # https://docs.python.org/3/howto/logging.html#library-config

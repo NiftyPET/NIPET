@@ -566,11 +566,16 @@ def reduce_rings(pars, rs=0, re=64):
     Reduce the axial rings for faster reconstructions, particularly simulations.
     This function customises axial FOV for reduced rings in range(rs,re).
     Note it only works in span-1 and ring re is not included in the reduced rings.
+    Total number of used rings has to be even at all times.
     Arguments:
         pars -- scanner parameters: constants, LUTs
         rs -- start ring
         re -- end ring (not included in the resulting reduced rings)
     """
+
+
+    if (re-rs)<0 or ((re-rs)%2)!=0:
+        raise ValueError('The resulting number of rings has to be even and start ring (rs) smaller than end ring (re)')
 
     #> reduced rings work in span-1 only
     pars['Cnt']['SPN'] = 1
