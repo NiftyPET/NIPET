@@ -105,11 +105,17 @@ def image_affine(datain, Cnt, gantry_offset=False):
     else:
         goff = np.zeros((3))
     vbed, hbed = mmraux.vh_bedpos(datain, Cnt)
+
+    if 'rNRNG' in Cnt and 'rSO_IMZ' in Cnt:
+        imz = Cnt['rSO_IMZ']
+    else:
+        imz = Cnt['SO_IMZ']
+
     # create a reference empty mu-map image
     B = np.diag(np.array([-10 * Cnt['SO_VXX'], 10 * Cnt['SO_VXY'], 10 * Cnt['SO_VXZ'], 1]))
     B[0, 3] = 10 * (.5 * Cnt['SO_IMX'] * Cnt['SO_VXX'] + goff[0])
     B[1, 3] = 10 * ((-.5 * Cnt['SO_IMY'] + 1) * Cnt['SO_VXY'] - goff[1])
-    B[2, 3] = 10 * ((-.5 * Cnt['SO_IMZ'] + 1) * Cnt['SO_VXZ'] - goff[2] + hbed)
+    B[2, 3] = 10 * ((-.5 * imz + 1) * Cnt['SO_VXZ'] - goff[2] + hbed)
     # -------------------------------------------------------------------------------------
     return B
 

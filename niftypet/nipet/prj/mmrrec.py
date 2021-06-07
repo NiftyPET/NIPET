@@ -239,7 +239,8 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     # ========================================================================
     # Randoms
     # -------------------------------------------------------------------------
-    if isinstance(randsino, np.ndarray):
+    if isinstance(randsino, np.ndarray) \
+            and randsino.shape==(Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
         rsino = randsino
         rsng = mmraux.remgaps(randsino, txLUT, Cnt)
     else:

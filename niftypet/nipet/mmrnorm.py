@@ -163,6 +163,11 @@ def get_norm_sino(
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
+    #> check if reduction of axial FOV (reducing the number of rings) is off
+    if 'rNSN1' in Cnt and 'rLUT' in axLUT:
+        raise ValueError('Full FOV has to be used for normalisation - switch off reduced rings mode.')
+
+
     #> get the normalisation components
     if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
@@ -182,10 +187,6 @@ def get_norm_sino(
     #> get the norm
     mmr_auxe.norm(sng, normcomp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
     #-------------------------------------------------------------------------
-
-    #> check if needed reduction of axial FOV (reducing the number of rings)
-    if 'rNSN1' in Cnt and 'rLUT' in axLUT:
-        sng = sng[:, axLUT['rLUT']]
 
     if gpu_dim:
         return sng
