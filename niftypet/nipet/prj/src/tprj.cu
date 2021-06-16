@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-CUDA C extention for Python
+CUDA C extension for Python
 Provides functionality for forward and back projection in
 transaxial dimension.
 
@@ -21,50 +21,51 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
     short c1 = s2c[idx].x;
     short c2 = s2c[idx].y;
 
-    float cc1[3];
-    float cc2[3];
-    cc1[0] = .5 * (crs[c1].x + crs[c1].z);
-    cc2[0] = .5 * (crs[c2].x + crs[c2].z);
+    float2 cc1;
+    float2 cc2;
+    cc1.x = .5 * (crs[c1].x + crs[c1].z);
+    cc2.x = .5 * (crs[c2].x + crs[c2].z);
 
-    cc1[1] = .5 * (crs[c1].y + crs[c1].w);
-    cc2[1] = .5 * (crs[c2].y + crs[c2].w);
+    cc1.y = .5 * (crs[c1].y + crs[c1].w);
+    cc2.y = .5 * (crs[c2].y + crs[c2].w);
 
     // crystal edge vector
-    float e[2];
-    e[0] = crs[c1].z - crs[c1].x;
-    e[1] = crs[c1].w - crs[c1].y;
+    float2 e;
+    e.x = crs[c1].z - crs[c1].x;
+    e.y = crs[c1].w - crs[c1].y;
 
     float px, py;
-    px = crs[c1].x + 0.5 * e[0];
-    py = crs[c1].y + 0.5 * e[1];
+    px = crs[c1].x + 0.5 * e.x;
+    py = crs[c1].y + 0.5 * e.y;
 
-    float at[3], atn;
-    for (int i = 0; i < 2; i++) {
-      at[i] = cc2[i] - cc1[i];
-      atn += at[i] * at[i];
-    }
+    float2 at;
+    float atn;
+    
+    at.x = cc2.x - cc1.x;
+    at.y = cc2.y - cc1.y;
+    atn = at.x*at.x + at.y*at.y;
     atn = sqrtf(atn);
 
-    at[0] = at[0] / atn;
-    at[1] = at[1] / atn;
+    at.x = at.x / atn;
+    at.y = at.y / atn;
 
     //--ring tfov
-    float Br = 2 * (px * at[0] + py * at[1]);
+    float Br = 2 * (px * at.x + py * at.y);
     float Cr = 4 * (-TFOV2 + px * px + py * py);
     float t1 = .5 * (-Br - sqrtf(Br * Br - Cr));
     float t2 = .5 * (-Br + sqrtf(Br * Br - Cr));
     //--
 
     //-rows
-    float y1 = py + at[1] * t1;
-    float lr1 = SZ_VOXY * (ceilf(y1 / SZ_VOXY) - signbit(at[1])); // line of the first row
+    float y1 = py + at.y * t1;
+    float lr1 = SZ_VOXY * (ceilf(y1 / SZ_VOXY) - signbit(at.y)); // line of the first row
     int v = 0.5 * SZ_IMY - ceil(y1 / SZ_VOXY);
 
-    float y2 = py + at[1] * t2;
-    float lr2 = SZ_VOXY * (floorf(y2 / SZ_VOXY) + signbit(at[1])); // line of the last row
+    float y2 = py + at.y * t2;
+    float lr2 = SZ_VOXY * (floorf(y2 / SZ_VOXY) + signbit(at.y)); // line of the last row
 
-    float tr1 = (lr1 - py) / at[1]; // first ray interaction with a row
-    float tr2 = (lr2 - py) / at[1]; // last ray interaction with a row
+    float tr1 = (lr1 - py) / at.y; // first ray interaction with a row
+    float tr2 = (lr2 - py) / at.y; // last ray interaction with a row
                                     // boolean
     bool y21 = (fabsf(y2 - y1) >= SZ_VOXY);
     bool lr21 = (fabsf(lr1 - lr2) < L21);
@@ -76,15 +77,15 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
       dtr = t2;
 
     //-columns
-    double x1 = px + at[0] * t1;
-    float lc1 = SZ_VOXY * (ceil(x1 / SZ_VOXY) - signbit(at[0]));
+    double x1 = px + at.x * t1;
+    float lc1 = SZ_VOXY * (ceil(x1 / SZ_VOXY) - signbit(at.x));
     int u = 0.5 * SZ_IMX + floor(x1 / SZ_VOXY); // starting voxel column
 
-    float x2 = px + at[0] * t2;
-    float lc2 = SZ_VOXY * (floor(x2 / SZ_VOXY) + signbit(at[0]));
+    float x2 = px + at.x * t2;
+    float lc2 = SZ_VOXY * (floor(x2 / SZ_VOXY) + signbit(at.x));
 
-    float tc1 = (lc1 - px) / at[0];
-    float tc2 = (lc2 - px) / at[0];
+    float tc1 = (lc1 - px) / at.x;
+    float tc2 = (lc2 - px) / at.x;
 
     bool x21 = (fabsf(x2 - x1) >= SZ_VOXY);
     bool lc21 = (fabsf(lc1 - lc2) < L21);
@@ -101,17 +102,17 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
     // }
 
     /***************************************************************/
-    float ang = atanf(at[1] / at[0]); // angle of the ray
+    float ang = atanf(at.y / at.x); // angle of the ray
     bool tsin;                        // condition for the slower changing <t> to be in
 
     // save the sign of vector at components.  used for image indx increments.
     // since it is saved in unsigned format use offset of 1;
-    if (at[0] >= 0)
+    if (at.x >= 0)
       tv[N_TV * idx] = 2;
     else
       tv[N_TV * idx] = 0;
 
-    if (at[1] >= 0)
+    if (at.y >= 0)
       tv[N_TV * idx + 1] = 2;
     else
       tv[N_TV * idx + 1] = 0;
