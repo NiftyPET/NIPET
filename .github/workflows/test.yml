@@ -2,7 +2,7 @@ name: Test
 on: [push, pull_request]
 jobs:
   check:
-    if: github.event_name != 'push' || github.ref != 'refs/heads/devel'
+    if: github.event_name != 'pull_request' || github.head_ref != 'devel'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -68,6 +68,7 @@ jobs:
       with:
         requirements: twine setuptools wheel setuptools_scm[toml] ninst scikit-build
         build: sdist
+        gpg_key: ${{ secrets.GPG_KEY }}
         password: ${{ secrets.PYPI_TOKEN }}
         upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
       env:
@@ -81,16 +82,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: nipet ${{ github.ref }} stable
+        name: nipet ${{ github.ref }} stable
         body_path: _CHANGES.md
         draft: true
-    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: dist/${{ steps.dist.outputs.targz }}
-        asset_name: ${{ steps.dist.outputs.targz }}
-        asset_content_type: application/gzip
+        files: |
+          dist/${{ steps.dist.outputs.targz }}
+          dist/${{ steps.dist.outputs.targz_asc }}
