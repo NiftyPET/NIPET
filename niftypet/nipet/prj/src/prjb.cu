@@ -85,7 +85,7 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
 //************** OBLIQUE **************************************************
 __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const unsigned char *tv,
                           const int *subs, const short snno, const int zoff, const short nil2r_c) {
-  
+
   int ixz = threadIdx.x + zoff; // axial (z)
 
   if (ixz < nil2r_c) {
@@ -285,19 +285,16 @@ void gpu_bprj(float *bimg, float *sino, float *li2rng, short *li2sn, char *li2no
   int zoff = nrng_c;
   //> number of oblique sinograms
   int Noblq = (nrng_c - 1) * nrng_c / 2;
-  int Nz = ((Noblq+127)/128)*128;
+  int Nz = ((Noblq + 127) / 128) * 128;
 
   //============================================================================
-  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
 
-  zoff += Nz/2;
-  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  zoff += Nz / 2;
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_im, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
-
-
-
 
   //============================================================================
 
@@ -374,9 +371,9 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
     snno = NSINOS11;
 
   //> number of oblique sinograms
-  int Noblq = (NRINGS*(NRINGS-1)-12)/2;
+  int Noblq = (NRINGS * (NRINGS - 1) - 12) / 2;
   //> number of threads (in the axial direction)
-  int Nz = ((Noblq+127)/128)*128;
+  int Nz = ((Noblq + 127) / 128) * 128;
 
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
@@ -391,13 +388,13 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
 
   int zoff = NRINGS;
   //============================================================================
-  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
-  zoff += Nz/2;
+  zoff += Nz / 2;
   //============================================================================
-  bprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 

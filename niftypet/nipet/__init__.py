@@ -20,12 +20,14 @@ __all__ = [
     # package
     'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj',
     # img
-    'align_mumap', 'im_e72dev', 'im_dev2e7', 'hdw_mumap', 'obj_mumap',
+    'align_mumap', 'get_cylinder', 'im_e72dev', 'im_dev2e7', 'hdw_mumap', 'obj_mumap',
     'pct_mumap', 'mmrchain',
     # lm
     'dynamic_timings', 'mmrhist', 'randoms',
     # mmraux
-    'classify_input', 'get_mmrparams',
+    'classify_input', 'get_mmrparams', 'sino2ssr',
+    # mmrnorm
+    'get_norm_sino',
     # prj
     'back_prj', 'frwd_prj', 'simulate_recon', 'simulate_sino',
     # sct
@@ -50,11 +52,10 @@ from .lm.mmrhist import dynamic_timings, mmrhist, randoms
 from .mmraux import explore_input as classify_input
 from .mmraux import mMR_params as get_mmrparams
 from .mmraux import sino2ssr
+from .mmrnorm import get_norm_sino
 from .prj.mmrprj import back_prj, frwd_prj
 from .prj.mmrsim import simulate_recon, simulate_sino
 from .sct.mmrsct import vsm
-
-from .mmrnorm import get_norm_sino
 
 # log = logging.getLogger(__name__)
 # technically bad practice to add handlers

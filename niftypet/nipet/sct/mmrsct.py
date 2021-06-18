@@ -76,7 +76,7 @@ def get_scrystals(scanner_params):
 
     sirng = np.int16(Cnt['SIRNG'])
 
-    #> axial scatter ring positions in cm 
+    # > axial scatter ring positions in cm
     srng = np.zeros((Cnt['NSRNG'], 2), dtype=np.float32)
     for ir in range(Cnt['NSRNG']):
         srng[ir, 0] = float(sirng[ir])
@@ -84,7 +84,8 @@ def get_scrystals(scanner_params):
         logtxt += '> [{}]: ring_i={}, ring_z={}\n'.format(ir, int(srng[ir, 0]), srng[ir, 1])
 
     log.debug(logtxt)
-    return {'scrs': scrs, 'srng': srng, 'sirng': sirng, 'NSCRS': scrs.shape[0], 'NSRNG': Cnt['NSRNG']}
+    return {
+        'scrs': scrs, 'srng': srng, 'sirng': sirng, 'NSCRS': scrs.shape[0], 'NSRNG': Cnt['NSRNG']}
 
 
 # ======================================================================
@@ -295,9 +296,9 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
     '''
 
     # > number of sinograms
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         snno = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         snno = Cnt['NSN11']
     else:
         raise ValueError('unrecognised span!')

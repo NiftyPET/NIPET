@@ -573,13 +573,13 @@ def reduce_rings(pars, rs=0, re=64):
         re -- end ring (not included in the resulting reduced rings)
     """
 
+    if (re - rs) < 0 or ((re-rs) % 2) != 0:
+        raise ValueError('The resulting number of rings has to be even and start ring (rs)'
+                         ' smaller than end ring (re)')
 
-    if (re-rs)<0 or ((re-rs)%2)!=0:
-        raise ValueError('The resulting number of rings has to be even and start ring (rs) smaller than end ring (re)')
-
-    #> reduced rings work in span-1 only
+    # > reduced rings work in span-1 only
     pars['Cnt']['SPN'] = 1
-    
+
     # select the number of sinograms for the number of rings
     # RNG_STRT is included in detection
     # RNG_END is not included in detection process

@@ -272,9 +272,9 @@ def mmrchain(
             output['fsmoi'] = []
 
     # > number of3D  sinograms
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         snno = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         snno = Cnt['NSN11']
     else:
         raise ValueError('unrecognised span: {}'.format(Cnt['SPN']))

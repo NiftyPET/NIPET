@@ -463,7 +463,7 @@ def align_mumap(
         fmu_stored = fnm + '-aligned-to_t'\
                      + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
                      + fcomment
-        fmupath = os.path.join(opth, fmu_stored+'.nii.gz')
+        fmupath = os.path.join(opth, fmu_stored + '.nii.gz')
 
         if os.path.isfile(fmupath):
             mudct_stored = nimpa.getnii(fmupath, output='all')

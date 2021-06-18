@@ -541,7 +541,8 @@ scatOUT prob_scatt(scatOUT sctout, float *KNlut, char *mumsk, IMflt mu, IMflt em
     //============================================================
 
     if (Cnt.LOG <= LOGINFO)
-      printf("i> calculating scatter probabilities for %d emission voxels using device #%d...", d_em_msk.nvx, dev_id);
+      printf("i> calculating scatter probabilities for %d emission voxels using device #%d...",
+             d_em_msk.nvx, dev_id);
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
