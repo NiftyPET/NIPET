@@ -72,10 +72,10 @@ else:
     xnat = None
 
 # > GE Signa
-# from . import aux_sig
+from . import aux_sig
 
-# from . import lm_sig
-# from .lm_sig.hst_sig import lminfo_sig
+from . import lm_sig
+from .lm_sig.hst_sig import lminfo_sig
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`
 cmake_prefix = resource_filename(__name__, "cmake")

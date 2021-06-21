@@ -35,7 +35,7 @@ add_subdirectory(lm)
 add_subdirectory(prj)
 add_subdirectory(sct)
 # HDF5 needed for GE data
-#set(HDF5_ROOT "/usr/local/hdf5/")
+set(HDF5_ROOT "/usr/local/hdf5/")
 find_package(HDF)
 if(HDF5_FOUND)
   message(STATUS "HDF5 include dir: ${HDF5_INCLUDE_DIRS}")
