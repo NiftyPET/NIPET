@@ -1,60 +1,28 @@
-cmake_minimum_required(VERSION 3.2)
-
-# set project name as the module name of the .so/.dll/.pyd 
 project(lmproc_sig)
-set(CURR_FOLDER_NAME "lm_sig")
 
-#set(HDF5_ROOT "/usr/local/hdf5/")
+file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
+include_directories(src)
+include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${Python3_NumPy_INCLUDE_DIRS})
+include_directories(${HDF5_INCLUDE_DIRS})
 
+add_library(${PROJECT_NAME} ${LIB_TYPE} ${SRC})
+add_library(NiftyPET::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+target_include_directories(${PROJECT_NAME} PUBLIC
+  "$<BUILD_INTERFACE:${${CMAKE_PROJECT_NAME}_INCLUDE_DIRS}>"
+  "$<INSTALL_INTERFACE:niftypet/${CMAKE_PROJECT_NAME}/include>")
+target_link_libraries(${PROJECT_NAME} mmr_auxe ${Python3_LIBRARIES} ${HDF5_LIBRARIES} CUDA::cudart_static CUDA::curand_static)
 
-# get the site packages location, then strip the trailing white space
-execute_process ( COMMAND python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())" OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-# HDF5 needed for GE data
-find_package(HDF5 REQUIRED)
-
-#get source files
-file(GLOB_RECURSE SRC "src/*.cu")
-file(GLOB_RECURSE HDR "src/*.h")
-
-list(APPEND SRC ${HDR})
-
-include_directories(include	${CMAKE_BINARY_DIR}/include)
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME})
-include_directories(${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/src)
-include_directories(${PYTHON_INCLUDE_DIRS})
-include_directories(${PYTHON_SITE_PACKAGES}/numpy/core/include/)
-if(HDF5_FOUND)
-	include_directories(${HDF5_INCLUDE_DIRS})
-	message(">>> HDF5: include dir is: ${HDF5_INCLUDE_DIRS}")
-else()
-	message(">>> Could not find the HDF5 package")
+if(SKBUILD)
+python_extension_module(${PROJECT_NAME})
 endif()
-
-cuda_add_library(${PROJECT_NAME} SHARED ${SRC}) 
-
-target_link_libraries(${PROJECT_NAME} ${PYTHON_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} ${CUDA_LIBRARIES} ${CUDA_curand_LIBRARY})
-target_link_libraries(${PROJECT_NAME} ${HDF5_LIBRARIES})
-
-if(WIN32)
-	set_target_properties(${PROJECT_NAME} PROPERTIES SUFFIX ".pyd")
-	ADD_CUSTOM_COMMAND(
-	    TARGET ${PROJECT_NAME}
-	    POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy
-		${PROJECT_BINARY_DIR}/Release/${PROJECT_NAME}.pyd
-		${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.pyd
-	)
-endif()
-
-if(UNIX)
-    set_target_properties(${PROJECT_NAME} PROPERTIES PREFIX "")
-    ADD_CUSTOM_COMMAND(
-        TARGET ${PROJECT_NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.so
-        ${CMAKE_SOURCE_DIR}/${CMAKE_PROJECT_NAME}/${CURR_FOLDER_NAME}/${PROJECT_NAME}.so
-    )
-endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES
+  VERSION ${CMAKE_PROJECT_VERSION}
+  SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
+  INTERFACE_${PROJECT_NAME}_MAJOR_VERSION ${CMAKE_PROJECT_VERSION_MAJOR})
+set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPATIBLE_INTERFACE_STRING ${PROJECT_NAME}_MAJOR_VERSION)
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}Targets
+  INCLUDES DESTINATION niftypet/${CMAKE_PROJECT_NAME}/include
+  LIBRARY DESTINATION niftypet/${CMAKE_PROJECT_NAME}/lm_sig)
+install(EXPORT ${PROJECT_NAME}Targets FILE NiftyPET${PROJECT_NAME}Targets.cmake
+  NAMESPACE NiftyPET:: DESTINATION niftypet/${CMAKE_PROJECT_NAME}/cmake)

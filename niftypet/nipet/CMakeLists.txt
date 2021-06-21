@@ -34,3 +34,12 @@ install(EXPORT ${PROJECT_NAME}Targets FILE NiftyPET${PROJECT_NAME}Targets.cmake
 add_subdirectory(lm)
 add_subdirectory(prj)
 add_subdirectory(sct)
+# HDF5 needed for GE data
+#set(HDF5_ROOT "/usr/local/hdf5/")
+find_package(HDF)
+if(HDF5_FOUND)
+  message(STATUS "HDF5 include dir: ${HDF5_INCLUDE_DIRS}")
+  add_subdirectory(lm_sig)
+else()
+  message(WARNING "Could not find HDF5. Not building lm_sig")
+endif()
