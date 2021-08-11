@@ -70,19 +70,21 @@ jobs:
         build: sdist
         gpg_key: ${{ secrets.GPG_KEY }}
         password: ${{ secrets.PYPI_TOKEN }}
-        upload: ${{ github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags') }}
+        upload: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags') }}
       env:
         PATHTOOLS: ${{ github.workspace }}/NiftyPET_tools
         HMUDIR: ${{ github.workspace }}
-    - name: Changelog
-      run: git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD > _CHANGES.md
-    - if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
-      id: create_release
-      uses: actions/create-release@v1
+    - id: meta
+      name: Changelog
+      run: |
+        echo ::set-output name=tag::${GITHUB_REF#refs/tags/}
+        git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD > _CHANGES.md
+    - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        name: nipet ${{ github.ref }} stable
+        name: nipet ${{ steps.meta.outputs.tag }} stable
         body_path: _CHANGES.md
         draft: true
         files: |
