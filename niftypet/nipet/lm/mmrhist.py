@@ -13,7 +13,8 @@ from niftypet import nimpa
 from .. import mmraux
 
 # CUDA extension module
-from . import mmr_lmproc
+#from . import mmr_lmproc
+from . import mcr_lmproc
 
 log = logging.getLogger(__name__)
 

@@ -8,6 +8,20 @@
 #include "lmaux.h"
 #include "scanner_0.h"
 
+
+//=== LM bit fields/masks ===
+// mask for time bits
+#define mMR_TMSK (0x1fffffff)
+// check if time tag
+#define mMR_TTAG(w) ((w >> 29) == 4)
+
+
+#define MCR_TMSK (0xffffffff)
+// check if time tag
+#define MCR_TTAG(w) ((w >> 29) == 4)
+//=== - ===
+
+
 typedef struct {
   int nitag;
   int sne;           // number of elements in sino views

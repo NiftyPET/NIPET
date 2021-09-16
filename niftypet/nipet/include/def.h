@@ -42,11 +42,9 @@
 #define ELECHNK_S                                                                                 \
   (268435456 /                                                                                    \
    NSTREAMS) // GE Signa: 2^28 = 268435456 int elements to make up 1.6GB when 6bytes per event
-//=== LM bit fields/masks ===
-// mask for time bits
-#define mMR_TMSK (0x1fffffff)
-// check if time tag
-#define mMR_TTAG(w) ((w >> 29) == 4)
+
+// # bytes per event
+//#define BPE = 6
 
 // for randoms
 #define mxRD 60 // maximum ring difference

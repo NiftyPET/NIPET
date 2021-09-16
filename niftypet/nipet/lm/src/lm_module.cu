@@ -20,15 +20,15 @@ Copyrights: 2019
 //=== START PYTHON INIT ===
 
 //--- Available functions
-static PyObject *mmr_lminfo(PyObject *self, PyObject *args);
+static PyObject *mcr_lminfo(PyObject *self, PyObject *args);
 static PyObject *mmr_hist(PyObject *self, PyObject *args);
 static PyObject *mmr_rand(PyObject *self, PyObject *args);
 static PyObject *mmr_prand(PyObject *self, PyObject *args);
 //---
 
 //> Module Method Table
-static PyMethodDef mmr_lmproc_methods[] = {
-    {"lminfo", mmr_lminfo, METH_VARARGS, "Get the timing info from the LM data."},
+static PyMethodDef mcr_lmproc_methods[] = {
+    {"lminfo", mcr_lminfo, METH_VARARGS, "Get the timing info from the LM data."},
     {"hist", mmr_hist, METH_VARARGS, "Process and histogram the LM data using CUDA streams."},
     {"rand", mmr_rand, METH_VARARGS, "Estimates randoms' 3D sinograms from crystal singles."},
     {"prand", mmr_prand, METH_VARARGS,
@@ -37,23 +37,23 @@ static PyMethodDef mmr_lmproc_methods[] = {
 };
 
 //> Module Definition Structure
-static struct PyModuleDef mmr_lmproc_module = {
+static struct PyModuleDef mcr_lmproc_module = {
     PyModuleDef_HEAD_INIT,
-    "mmr_lmproc", //> name of module
+    "mcr_lmproc", //> name of module
     //> module documentation, may be NULL
-    "This module provides an interface for mMR image generation using GPU routines.",
+    "This module provides an interface for image generation using GPU routines.",
     -1, //> the module keeps state in global variables.
-    mmr_lmproc_methods};
+    mcr_lmproc_methods};
 
 //> Initialization function
-PyMODINIT_FUNC PyInit_mmr_lmproc(void) {
+PyMODINIT_FUNC PyInit_mcr_lmproc(void) {
 
   Py_Initialize();
 
   //> load NumPy functionality
   import_array();
 
-  return PyModule_Create(&mmr_lmproc_module);
+  return PyModule_Create(&mcr_lmproc_module);
 }
 
 //=== END PYTHON INIT ===
@@ -63,9 +63,9 @@ PyMODINIT_FUNC PyInit_mmr_lmproc(void) {
 //=============================================================================
 // P R O C E S I N G   L I S T   M O D E   D A T A
 //-----------------------------------------------------------------------------
-// Siemens mMR
+// Siemens microPET
 
-static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
+static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
   /* Quickly process the list mode file to find the timing information
      and number of elements
   */
@@ -73,10 +73,24 @@ static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
   // path to LM file
   char *flm;
 
+  // Dictionary of scanner constants
+  PyObject *o_mmrcnst = NULL;
+
+  // structure of constants
+  Cnst Cnt;
+
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "s", &flm)) return NULL;
+  if (!PyArg_ParseTuple(args, "sO", &flm, &o_mmrcnst)) return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  /* Interpret the input objects as numpy arrays. */
+  // the dictionary of constants
+  PyObject *pd_log = PyDict_GetItemString(o_mmrcnst, "LOG");
+  Cnt.LOG = (char)PyLong_AsLong(pd_log);
+
+  PyObject *pd_bpe = PyDict_GetItemString(o_mmrcnst, "BPE");
+  Cnt.BPE = (int)PyLong_AsLong(pd_bpe);
 
   FILE *fr;
   size_t r;
@@ -92,64 +106,72 @@ static PyObject *mmr_lminfo(PyObject *self, PyObject *args) {
   // file size in elements
   fseek(fr, 0, SEEK_END);
   size_t nbytes = ftell(fr);
-  size_t ele = nbytes / sizeof(int);
+  size_t ele = nbytes / Cnt.BPE;
   rewind(fr);
-
 #endif
 
 #ifdef WIN32
   struct _stati64 bufStat;
   _stati64(flm, &bufStat);
   size_t nbytes = bufStat.st_size;
-  size_t ele = nbytes / sizeof(int);
+  size_t ele = nbytes / Cnt.BPE;
 #endif
 
-  unsigned int buff;
+  if (Cnt.LOG<20)
+    printf("ic> number of list-mode events: %lu\n", ele);
+
+  char buff[6];
   // tag times
-  int tagt1, tagt0;
+  unsigned int tagt1, tagt0;
   // address of tag times in LM stream
   size_t taga1, taga0;
   size_t c = 1;
   //--
   int tag = 0;
   while (tag == 0) {
-    r = fread(&buff, sizeof(unsigned int), 1, fr);
+    r = fread(buff, 1, 6, fr);
     if (r != 1) {
-      fputs("Reading error \n", stderr);
+      printf("Error at the beginning of file:\n %s", flm);
+      printf("\nc position: %lu", c);
+      fputs("Reading error\n", stderr);
       exit(3);
     }
 
-    if (mMR_TTAG(buff)) {
+    if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      tagt0 = buff & mMR_TMSK;
+      tagt0 = (buff[3]<<24) + (lm[2]<<16) + ((lm[1])<<8) + lm[0];
       taga0 = c;
     }
     c += 1;
   }
-  // printf("i> the first time tag is:       %d at positon %lu.\n", tagt0, taga0);
+
+  if (Cnt.LOG<20)
+    printf("ic> the first time tag is:       %d at positon %lu.\n", tagt0, taga0);
 
   tag = 0;
   c = 1;
   while (tag == 0) {
 #ifdef __linux__
-    fseek(fr, -c * sizeof(unsigned int), SEEK_END);
+    fseek(fr, -c * Cnt.BPE, SEEK_END);
 #endif
 #ifdef WIN32
-    _fseeki64(fr, -c * sizeof(unsigned int), SEEK_END);
+    _fseeki64(fr, -c * Cnt.BPE, SEEK_END);
 #endif
-    r = fread(&buff, sizeof(unsigned int), 1, fr);
+    r = fread(buff, 1, 6, fr);
     if (r != 1) {
       fputs("Reading error \n", stderr);
       exit(3);
     }
-    if (mMR_TTAG(buff)) {
+    if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      tagt1 = buff & mMR_TMSK;
+      tagt1 = (buff[3]<<24) + (lm[2]<<16) + ((lm[1])<<8) + lm[0];
       taga1 = ele - c;
     }
     c += 1;
   }
-  // printf("i> the last time tag is:        %d at positon %lu.\n", tagt1, taga1);
+
+  if (Cnt.LOG<20)
+    printf("ic> the last time tag is:        %d at positon %lu.\n", tagt1, taga1);
 
   // first/last time tags out
   PyObject *tuple_ttag = PyTuple_New(2);
