@@ -194,7 +194,7 @@ build_ver = ".".join(__version__.split('.')[:3]).split(".dev")[0]
 cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:
     if nvcc_arches:
-        cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + " ".join(sorted(nvcc_arches)))
+        cmake_args.append("-DCMAKE_CUDA_ARCHITECTURES=" + ";".join(sorted(nvcc_arches)))
 except Exception as exc:
     if "sdist" not in sys.argv or any(i in sys.argv for i in ["build", "bdist", "wheel"]):
         log.warning("Import or CUDA device detection error:\n%s", exc)
