@@ -170,7 +170,7 @@ path_resources = cs.path_niftypet_local()
 # if exists, import the resources and get the constants
 resources = cs.get_resources()
 # get the current setup, if any
-Cnt = resources.get_setup()
+Cnt = resources.get_mmr_constants()
 
 # hardware mu-maps
 hmu_dir = None
