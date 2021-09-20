@@ -16,7 +16,6 @@ from miutil.fdio import hasext
 
 from niftypet import nimpa
 
-from niftypet.ninst import cudasetup as cs
 from niftypet.ninst import install_tools as tls
 
 from . import mmr_auxe, resources
@@ -1184,12 +1183,7 @@ def get_mmrparams(hmu_dir=None):
             Finding hardware mu-maps
             --------------------------------------------------------------"""))
 
-    # get the local path to NiftyPET resources.py
-    path_resources = cs.path_niftypet_local()
-    # if exists, import the resources and get the constants
-    resources = cs.get_resources()
-    # get the current setup, if any
-    Cnt = resources.get_mmr_constants()
+    Cnt, txLUT, axLUT = mmrinit()
 
     # > hardware mu-maps
     if Cnt.get("HMUDIR", None):
@@ -1208,6 +1202,5 @@ def get_mmrparams(hmu_dir=None):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     log.info("hardware mu-maps have been located")
 
-
-    Cnt, txLUT, axLUT = mmrinit()
+    
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}
