@@ -1,4 +1,4 @@
-project(mcr_lmproc)
+project(lmproc_mcr)
 
 file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
 include_directories(src)

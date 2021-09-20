@@ -21,8 +21,6 @@ Copyrights: 2018
 //     return EXIT_FAILURE;}} while(0)
 
 // put the info about sino segemnts to constant memory
-__constant__ int c_sinoSeg[nSEG];
-__constant__ int c_cumSeg[nSEG];
 __constant__ short c_ssrb[nhNSN1];
 // span-1 to span-11
 __constant__ short c_li2span11[nhNSN1];
@@ -34,25 +32,38 @@ __global__ void setup_rand(curandState *state) {
 }
 
 //=====================================================================
-__global__ void hst(int *lm, unsigned int *psino,
-                    // unsigned int *dsino,
-                    unsigned int *ssrb, unsigned int *rdlyd, unsigned int *rprmt, mMass mass,
-                    unsigned int *snview, short2 *sn2crs, short2 *sn1_rno, unsigned int *fansums,
-                    unsigned int *bucks, const int ele4thrd, const int elm, const int off,
-                    const int toff, const int nitag, const int span, const int btp,
-                    const float btprt, const int tstart, const int tstop, curandState *state,
-                    curandDiscreteDistribution_t poisson_hst) {
+__global__ void hst(
+    int *lm,
+    unsigned int *psino,
+    unsigned int *ssrb,
+    unsigned int *rdlyd,
+    unsigned int *rprmt,
+    unsigned int *fansums,
+    unsigned int *bucks,
+    mMass mass,
+    unsigned int *snview,
+
+    //> inputs:
+    int *c2sF,
+    short2 *sn1_rno,
+    const int ele4thrd,
+    const int elm,
+    const int off,
+    const int toff,
+    const int nitag,
+    const int span,
+    const int btp,
+    const float btprt,
+    const int tstart,
+    const int tstop,
+    curandState *state,
+    curandDiscreteDistribution_t poisson_hst) {
+
+
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-  //>  stream index
-  // int strmi = off / ELECHNK;
-
-  //> index for bootstrap random numbers state
-  // int idb = (BTHREADS*strmi + blockIdx.x)*blockDim.x + threadIdx.x;
-  int idb = blockIdx.x * blockDim.x + threadIdx.x;
-
   // random number generator for bootstrapping when requested
-  curandState locState = state[idb];
+  curandState locState = state[idx];
   // weight for number of events, only for parametric bootstrap it can be different than 1.
   unsigned int Nevnt = 1;
 
@@ -65,36 +76,44 @@ __global__ void hst(int *lm, unsigned int *psino,
     i_start = off + idx * ele4thrd;
   }
 
-  int word;
-  bool P;  // prompt bit
-  int val; // bin address or time
-  int addr = -1;
-  int si = -1, si11 = -1; // span-1/11 sino index
-  short si_ssrb = -1;     // ssrb sino index
-  int aw = -1;
-  int a = -1, w = -1; // angle and projection bin indexes
-  bool a0, a126;
 
   int bi; // bootstrap index
 
+  //> packet type
+  char ptype;
+
+  //> prompt/delay 
+  char pd;
+
+  //> coincidence crystal locations
+  short2 cl;
+
+  //> ring index
+  short2 ri;
+
+  //> crystal index
+  short2 ci;
+
+
   // find the first time tag in this thread patch
   int itag; // integration time tag
-  int itagu;
   int i = i_start;
   int tag = 0;
   while (tag == 0) {
-    if (((lm[i] >> 29) == -4)) {
+
+    if (((lm[BPEV*i+5]&0x0f)==0x0a) && ((lm[BPEV*i+4]&0xf0)==0)) {
       tag = 1;
-      itag = ((lm[i] & 0x1fffffff) - toff) / ITIME; // assuming that the tag is every 1ms
-      itagu = (val - toff) - itag * ITIME;
+      itag = ((lm[BPEV*i+3]<<24) + (lm[BPEV*i+2]<<16) + ((lm[BPEV*i+1])<<8) + lm[BPEV*i])/5 - toff;
+      itag /= ITIME;
     }
+
     i++;
+
     if (i >= i_stop) {
       printf("wc> couldn't find time tag from this position onwards: %d, \n    assuming the last "
              "one.\n",
              i_start);
       itag = nitag;
-      itagu = 0;
       break;
     }
   }
@@ -103,144 +122,176 @@ __global__ void hst(int *lm, unsigned int *psino,
 
   for (int i = i_start; i < i_stop; i++) {
 
+    // //--- do the bootstrapping when requested <---------------------------------------------------
+    // if (btp == 1) {
+    //   // this is non-parametric bootstrap (btp==1);
+    //   // the parametric bootstrap (btp==2) will perform better (memory access) and may have better
+    //   // statistical properties
+    //   // for the given position in LM check if an event.  if so do the bootstrapping.  otherwise
+    //   // leave as is.
+    //   if (word > 0) {
+    //     bi = (int)floorf((i_stop - i_start) * curand_uniform(&locState));
+
+    //     // do the random sampling until it is an event
+    //     while (lm[i_start + bi] <= 0) {
+    //       bi = (int)floorf((i_stop - i_start) * curand_uniform(&locState));
+    //     }
+    //     // get the randomly chosen packet
+    //     word = lm[i_start + bi];
+    //   }
+    //   // otherwise do the normal stuff for non-event packets
+    // } else if (btp == 2) {
+    //   // parametric bootstrap (btp==2)
+    //   Nevnt = curand_discrete(&locState, poisson_hst);
+    // } // <-----------------------------------------------------------------------------------------
+
+
     // read the data packet from global memory
-    word = lm[i];
+    ptype = lm[i*BPEV+5]&0x0f;
 
-    //--- do the bootstrapping when requested <---------------------------------------------------
-    if (btp == 1) {
-      // this is non-parametric bootstrap (btp==1);
-      // the parametric bootstrap (btp==2) will perform better (memory access) and may have better
-      // statistical properties
-      // for the given position in LM check if an event.  if so do the bootstrapping.  otherwise
-      // leave as is.
-      if (word > 0) {
-        bi = (int)floorf((i_stop - i_start) * curand_uniform(&locState));
+    if (ptype<8){
+      pd = ptype>>2;
 
-        // do the random sampling until it is an event
-        while (lm[i_start + bi] <= 0) {
-          bi = (int)floorf((i_stop - i_start) * curand_uniform(&locState));
+      //> crystal locations
+      cl.x = ((lm[i*BPEV+2]&0x01)<<16) + ((lm[i*BPEV+1])<<8) + lm[i*BPEV];
+      cl.y = ((lm[i*BPEV+4]&0x0f)<<13) + ((lm[i*BPEV+3])<<5) + ((lm[i*BPEV+2]&0xf8)>>3);
+
+      //> ring and crystal of photon x
+      ri.x = cl.x/NCRSTLS;
+      ci.x = cl.x-ri.x*NCRSTLS;
+
+      //> ring and crystal of photon y
+      ri.y = cl.y/NCRSTLS;
+      ci.y = cl.y-ri.y*NCRSTLS;
+
+      if (c2sF[ci.y, ci.x]>0){
+        if (pd==1){
+          atomicAdd(ssrb + c2sF[ci.y, ci.x], Nevnt);
+          atomicAdd(rprmt + itag, Nevnt);
         }
-        // get the randomly chosen packet
-        word = lm[i_start + bi];
-      }
-      // otherwise do the normal stuff for non-event packets
-    } else if (btp == 2) {
-      // parametric bootstrap (btp==2)
-      Nevnt = curand_discrete(&locState, poisson_hst);
-    } // <-----------------------------------------------------------------------------------------
-
-    // by masking (ignore the first bits) extract the bin address or time
-    val = word & 0x3fffffff;
-
-    if ((itag >= tstart) && (itag < tstop)) {
-
-      if (word > 0) {
-
-        if ((Nevnt > 0) && (Nevnt < 32)) {
-
-          si = val / NSBINANG;
-          aw = val - si * NSBINANG;
-          a = aw / NSBINS;
-          w = aw - a * NSBINS;
-
-          // span-11 sinos
-          si11 = c_li2span11[si];
-
-          // SSRB sino [127x252x344]
-          si_ssrb = c_ssrb[si];
-
-          // span-1
-          if (span == 1) addr = val;
-          // span-11
-          else if (span == 11)
-            addr = si11 * NSBINANG + aw;
-          // SSRB
-          else if (span == 0)
-            addr = si_ssrb * NSBINANG + aw;
-
-          P = (word >> 30);
-
-          //> prompts
-          if (P == 1) {
-
-            atomicAdd(rprmt + itag, Nevnt);
-
-            //---SSRB
-            atomicAdd(ssrb + si_ssrb * NSBINANG + aw, Nevnt);
-            //---
-
-            //---sino
-            atomicAdd(psino + addr, Nevnt);
-            //---
-
-            //-- centre of mass
-            atomicAdd(mass.zR + itag, si_ssrb);
-            atomicAdd(mass.zM + itag, Nevnt);
-            //---
-
-            //---motion projection view
-            a0 = a == 0;
-            a126 = a == 126;
-            if ((a0 || a126) && (itag < MXNITAG)) {
-              atomicAdd(snview + (itag >> VTIME) * SEG0 * NSBINS + si_ssrb * NSBINS + w,
-                        Nevnt << (a126 * 8));
-            }
-
-          }
-
-          //> delayeds
-          else {
-            //> use the same UINT32 sinogram for prompts after shifting delayeds
-            atomicAdd(psino + addr, Nevnt << 16);
-
-            //> delayeds head curve
-            atomicAdd(rdlyd + itag, Nevnt);
-
-            //+++ fan-sums (for singles estimation) +++
-            atomicAdd(fansums + nCRS * sn1_rno[si].x + sn2crs[a + NSANGLES * w].x, Nevnt);
-            atomicAdd(fansums + nCRS * sn1_rno[si].y + sn2crs[a + NSANGLES * w].y, Nevnt);
-            //+++
-          }
-        }
-      }
-
-      else {
-
-        //--time tags
-        if ((word >> 29) == -4) {
-          itag = (val - toff) / ITIME;
-          itagu = (val - toff) - itag * ITIME;
-        }
-        //--singles
-        else if (((word >> 29) == -3) && (itag >= tstart) && (itag < tstop)) {
-
-          // bucket index
-          unsigned short ibck = ((word & 0x1fffffff) >> 19);
-
-          // weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
-          if (ibck < NBUCKTS) {
-            atomicAdd(bucks + ibck + NBUCKTS * itag, (word & 0x0007ffff) << 3);
-            // how many reads greater than zeros per one sec
-            // the last two bits are used for the number of reports per second
-            atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, ((word & 0x0007ffff) > 0)
-                                                                           << 30);
-
-            //--get some more info about the time tag (mili seconds) for up to two singles reports
-            // per second
-            if (bucks[ibck + NBUCKTS * itag + NBUCKTS * nitag] == 0)
-              atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu);
-            else
-              atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu << 10);
-          }
-        }
+        // else{
+        //   atomicAdd(psino + c2sF[ci.y, ci.x], Nevnt << 16);
+        // }
       }
     }
+    else if ( (ptype==0x0a) && (((lm[i*BPEV+4]&0xf0)>>4)==0) ){
+      itag = ((lm[BPEV*i+3]<<24) + (lm[BPEV*i+2]<<16) + ((lm[BPEV*i+1])<<8) + lm[BPEV*i])/5 - toff;
+      itag /= ITIME;
+    }
+
+
+
+    // // by masking (ignore the first bits) extract the bin address or time
+    // val = word & 0x3fffffff;
+
+    // if ((itag >= tstart) && (itag < tstop)) {
+
+    //   if (word > 0) {
+
+    //     if ((Nevnt > 0) && (Nevnt < 32)) {
+
+    //       si = val / NSBINANG;
+    //       aw = val - si * NSBINANG;
+    //       a = aw / NSBINS;
+    //       w = aw - a * NSBINS;
+
+    //       // span-11 sinos
+    //       si11 = c_li2span11[si];
+
+    //       // SSRB sino [127x252x344]
+    //       si_ssrb = c_ssrb[si];
+
+    //       // span-1
+    //       if (span == 1) addr = val;
+    //       // span-11
+    //       else if (span == 11)
+    //         addr = si11 * NSBINANG + aw;
+    //       // SSRB
+    //       else if (span == 0)
+    //         addr = si_ssrb * NSBINANG + aw;
+
+    //       P = (word >> 30);
+
+    //       //> prompts
+    //       if (P == 1) {
+
+    //         atomicAdd(rprmt + itag, Nevnt);
+
+    //         //---SSRB
+    //         atomicAdd(ssrb + si_ssrb * NSBINANG + aw, Nevnt);
+    //         //---
+
+    //         //---sino
+    //         atomicAdd(psino + addr, Nevnt);
+    //         //---
+
+    //         //-- centre of mass
+    //         atomicAdd(mass.zR + itag, si_ssrb);
+    //         atomicAdd(mass.zM + itag, Nevnt);
+    //         //---
+
+    //         //---motion projection view
+    //         a0 = a == 0;
+    //         a126 = a == 126;
+    //         if ((a0 || a126) && (itag < MXNITAG)) {
+    //           atomicAdd(snview + (itag >> VTIME) * SEG0 * NSBINS + si_ssrb * NSBINS + w,
+    //                     Nevnt << (a126 * 8));
+    //         }
+
+    //       }
+
+    //       //> delayeds
+    //       else {
+    //         //> use the same UINT32 sinogram for prompts after shifting delayeds
+    //         atomicAdd(psino + addr, Nevnt << 16);
+
+    //         //> delayeds head curve
+    //         atomicAdd(rdlyd + itag, Nevnt);
+
+    //         //+++ fan-sums (for singles estimation) +++
+    //         atomicAdd(fansums + nCRS * sn1_rno[si].x + sn2crs[a + NSANGLES * w].x, Nevnt);
+    //         atomicAdd(fansums + nCRS * sn1_rno[si].y + sn2crs[a + NSANGLES * w].y, Nevnt);
+    //         //+++
+    //       }
+    //     }
+    //   }
+
+    //   else {
+
+    //     //--time tags
+    //     if ((word >> 29) == -4) {
+    //       itag = (val - toff) / ITIME;
+    //       itagu = (val - toff) - itag * ITIME;
+    //     }
+    //     //--singles
+    //     else if (((word >> 29) == -3) && (itag >= tstart) && (itag < tstop)) {
+
+    //       // bucket index
+    //       unsigned short ibck = ((word & 0x1fffffff) >> 19);
+
+    //       // weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
+    //       if (ibck < NBUCKTS) {
+    //         atomicAdd(bucks + ibck + NBUCKTS * itag, (word & 0x0007ffff) << 3);
+    //         // how many reads greater than zeros per one sec
+    //         // the last two bits are used for the number of reports per second
+    //         atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, ((word & 0x0007ffff) > 0)
+    //                                                                        << 30);
+
+    //         //--get some more info about the time tag (mili seconds) for up to two singles reports
+    //         // per second
+    //         if (bucks[ibck + NBUCKTS * itag + NBUCKTS * nitag] == 0)
+    //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu);
+    //         else
+    //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu << 10);
+    //       }
+    //     }
+    //   }
+    //}
 
   } // <--for
 
   // put back the state for random generator when bootstrapping is requested
-  // if (btp>0)
-  state[idb] = locState;
+  state[idx] = locState;
 }
 
 //=============================================================================
@@ -343,12 +394,25 @@ void CUDART_CB MyCallback(cudaStream_t stream, cudaError_t status, void *data) {
   if (LOG <= LOGDEBUG) printf("\n");
 }
 
+
+
+
+
 //================================================================================
-void gpu_hst(unsigned int *d_psino,
-             // unsigned int *d_dsino,
-             unsigned int *d_ssrb, unsigned int *d_rdlyd, unsigned int *d_rprmt, mMass d_mass,
-             unsigned int *d_snview, unsigned int *d_fansums, unsigned int *d_bucks, int tstart,
-             int tstop, LORcc *s2cF, axialLUT axLUT, const Cnst Cnt) {
+void gpu_hst(
+    unsigned int *d_psino,
+    unsigned int *d_ssrb,
+    unsigned int *d_rdlyd,
+    unsigned int *d_rprmt,
+    unsigned int *d_fansums,
+    unsigned int *d_bucks,
+    mMass d_mass,
+    unsigned int *d_snview,
+    int tstart,
+    int tstop,
+    int *d_c2sF,
+    axialLUT axLUT,
+    const Cnst Cnt) {
 
   LOG = Cnt.LOG;
   BTP = Cnt.BTP;
@@ -388,26 +452,11 @@ void gpu_hst(unsigned int *d_psino,
   // SPAN-1 to SPAN-11 conversion table in GPU constant memory
   cudaMemcpyToSymbol(c_li2span11, axLUT.sn1_sn11, Cnt.NSN1 * sizeof(short));
 
-  short2 *d_sn2crs;
-  HANDLE_ERROR(cudaMalloc((void **)&d_sn2crs, Cnt.W * Cnt.A * sizeof(short2)));
-  HANDLE_ERROR(cudaMemcpy(d_sn2crs, s2cF, Cnt.W * Cnt.A * sizeof(short2), cudaMemcpyHostToDevice));
-
   short2 *d_sn1_rno;
   HANDLE_ERROR(cudaMalloc((void **)&d_sn1_rno, Cnt.NSN1 * sizeof(short2)));
   HANDLE_ERROR(
       cudaMemcpy(d_sn1_rno, axLUT.sn1_rno, Cnt.NSN1 * sizeof(short2), cudaMemcpyHostToDevice));
 
-  // put the sino segment info into the constant memory
-  int sinoSeg[nSEG] = {127, 115, 115, 93, 93, 71, 71, 49, 49, 27, 27}; // sinos in segments
-
-  cudaMemcpyToSymbol(c_sinoSeg, sinoSeg, nSEG * sizeof(int));
-
-  // cumulative sum of the above segment def
-  int cumSeg[nSEG];
-  cumSeg[0] = 0;
-  for (int i = 1; i < nSEG; i++) cumSeg[i] = cumSeg[i - 1] + sinoSeg[i - 1];
-
-  cudaMemcpyToSymbol(c_cumSeg, cumSeg, nSEG * sizeof(int));
 
   //> allocate memory for the chunks of list mode file
   int *d_lmbuff;
@@ -421,7 +470,6 @@ void gpu_hst(unsigned int *d_psino,
 
   if (Cnt.LOG <= LOGINFO) printf("\ni> creating %d CUDA streams... ", nstreams);
   cudaStream_t *stream = new cudaStream_t[nstreams];
-  // cudaStream_t stream[nstreams];
   for (int i = 0; i < nstreams; ++i) HANDLE_ERROR(cudaStreamCreate(&stream[i]));
   if (Cnt.LOG <= LOGINFO) printf("DONE.\n");
 
@@ -478,8 +526,9 @@ void gpu_hst(unsigned int *d_psino,
                                  stream[si]));
 
     hst<<<BTHREADS, NTHREADS, 0, stream[si]>>>(
-        d_lmbuff, d_psino, d_ssrb, d_rdlyd, d_rprmt, d_mass, d_snview, d_sn2crs, d_sn1_rno,
-        d_fansums, d_bucks, lmprop.ele4thrd[n], lmprop.ele4chnk[n], si * ELECHNK, lmprop.toff,
+        d_lmbuff, d_psino, d_ssrb, d_rdlyd, d_rprmt, d_fansums, d_bucks, d_mass, d_snview,
+        d_c2sF, d_sn1_rno,
+        lmprop.ele4thrd[n], lmprop.ele4chnk[n], si * ELECHNK, lmprop.toff,
         lmprop.nitag, lmprop.span, BTP, BTPRT, tstart, tstop, d_prng_states, poisson_hst);
 
     HANDLE_ERROR(cudaGetLastError());
@@ -517,7 +566,6 @@ void gpu_hst(unsigned int *d_psino,
 
   cudaFreeHost(lmbuff);
   cudaFree(d_lmbuff);
-  cudaFree(d_sn2crs);
   cudaFree(d_sn1_rno);
 
   // destroy the histogram for parametric bootstrap

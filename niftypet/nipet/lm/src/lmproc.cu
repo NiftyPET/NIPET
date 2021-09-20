@@ -9,7 +9,14 @@ Copyrights: 2020
 
 #include "lmproc.h"
 
-void lmproc(hstout dicout, char *flm, int tstart, int tstop, LORcc *s2cF, axialLUT axLUT, Cnst Cnt)
+void lmproc(
+    hstout dicout,
+    char *flm,
+    int tstart,
+    int tstop,
+    int *c2sF,
+    axialLUT axLUT,
+    Cnst Cnt)
 
 /*
 Prepare for processing the list mode data and send it for GPU
@@ -31,10 +38,63 @@ execution.
   lmdir[base - lmdir] = '\0';
   //------------
 
+
+
   //****** get LM info ******
   // uses global variable lmprop (see lmaux.cu)
   getLMinfo(flm, Cnt);
   //******
+
+
+  //--- sino views for motion visualisation
+  // already copy variables to output (number of time tags)
+  dicout.nitag = lmprop.nitag;
+  if (lmprop.nitag > MXNITAG)
+    dicout.sne = MXNITAG / (1 << VTIME) * SEG0 * NSBINS;
+  else
+    dicout.sne = (lmprop.nitag + (1 << VTIME) - 1) / (1 << VTIME) * SEG0 * NSBINS;
+  //---
+
+  //--- sinograms in span-1 or span-11 or ssrb
+  unsigned int tot_bins;
+
+  if (Cnt.SPN == 1) {
+    tot_bins = TOT_BINS_S1;
+  } else if (Cnt.SPN == 11) {
+    tot_bins = TOT_BINS;
+  } else if (Cnt.SPN == 0) {
+    tot_bins = SEG0 * NSBINANG;
+  }
+  //---
+
+  //--- start and stop time
+  //> if start and end times are equal (e.g., both '0')
+  if (tstart == tstop) {
+    tstart = 0;
+    tstop = lmprop.nitag;
+  }
+
+  //> modify it in the properties variable
+  lmprop.tstart = tstart;
+  lmprop.tstop = tstop;
+  
+  //> bytes per LM event
+  lmprop.bpe = Cnt.BPE;
+  
+  //> list mode data offset, start of events
+  lmprop.lmoff = Cnt.LMOFF;
+  //---
+
+
+  if (Cnt.LOG <= LOGDEBUG) printf("i> LM offset in bytes: %d\n", lmprop.lmoff);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> bytes per LM event: %d\n", lmprop.bpe);
+  if (Cnt.LOG <= LOGINFO) printf("i> frame start time: %d\n", tstart);
+  if (Cnt.LOG <= LOGINFO) printf("i> frame stop  time: %d\n", tstop);
+  //---
+
+
+  if (Cnt.LOG <= LOGDEBUG)
+    printf("ic> setting up all CUDA arrays...");
 
   //--- prompt & delayed reports
   unsigned int *d_rdlyd;
@@ -54,15 +114,7 @@ execution.
   cudaMemset(d_mass.zM, 0, lmprop.nitag * sizeof(int));
   //---
 
-  //--- sino views for motion visualisation
-  // already copy variables to output (number of time tags)
-  dicout.nitag = lmprop.nitag;
-  if (lmprop.nitag > MXNITAG)
-    dicout.sne = MXNITAG / (1 << VTIME) * SEG0 * NSBINS;
-  else
-    dicout.sne = (lmprop.nitag + (1 << VTIME) - 1) / (1 << VTIME) * SEG0 * NSBINS;
-
-  // projections for videos
+  // motion visualisation video projections
   unsigned int *d_snview;
   if (lmprop.nitag > MXNITAG) {
     // reduce the sino views to only the first 2 hours
@@ -94,17 +146,6 @@ execution.
   HANDLE_ERROR(cudaMemset(d_ssrb, 0, SEG0 * NSBINANG * sizeof(unsigned int)));
   //---
 
-  //--- sinograms in span-1 or span-11 or ssrb
-  unsigned int tot_bins;
-
-  if (Cnt.SPN == 1) {
-    tot_bins = TOT_BINS_S1;
-  } else if (Cnt.SPN == 11) {
-    tot_bins = TOT_BINS;
-  } else if (Cnt.SPN == 0) {
-    tot_bins = SEG0 * NSBINANG;
-  }
-
   // prompt and delayed sinograms
   unsigned int *d_psino; //, *d_dsino;
 
@@ -112,23 +153,15 @@ execution.
   HANDLE_ERROR(cudaMalloc(&d_psino, tot_bins * sizeof(unsigned int)));
   HANDLE_ERROR(cudaMemset(d_psino, 0, tot_bins * sizeof(unsigned int)));
 
-  //--- start and stop time
-  if (tstart == tstop) {
-    tstart = 0;
-    tstop = lmprop.nitag;
-  }
-  lmprop.tstart = tstart;
-  lmprop.tstop = tstop;
-  //> bytes per LM event
-  lmprop.bpe = Cnt.BPE;
-  //> list mode data offset, start of events
-  lmprop.lmoff = Cnt.LMOFF;
+  //> important look-up table (LUT) for histogramming
+  int *d_c2sF;
+  HANDLE_ERROR(cudaMalloc((void **)&d_c2sF, Cnt.NCRS*Cnt.NCRS * sizeof(int)));
+  HANDLE_ERROR(cudaMemcpy(d_c2sF, c2sF, Cnt.NCRS*Cnt.NCRS * sizeof(int), cudaMemcpyHostToDevice));
 
-  if (Cnt.LOG <= LOGDEBUG) printf("i> LM offset in bytes: %d\n", lmprop.lmoff);
-  if (Cnt.LOG <= LOGDEBUG) printf("i> bytes per LM event: %d\n", lmprop.bpe);
-  if (Cnt.LOG <= LOGINFO) printf("i> frame start time: %d\n", tstart);
-  if (Cnt.LOG <= LOGINFO) printf("i> frame stop  time: %d\n", tstop);
-  //---
+
+  if (Cnt.LOG <= LOGDEBUG)
+    printf("DONE\n");
+
 
   //======= get only the chunks which have the time frame data
   modifyLMinfo(tstart, tstop, Cnt);
@@ -138,10 +171,19 @@ execution.
   //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
   //**************************************************************************************
-  gpu_hst(d_psino, d_ssrb, d_rdlyd, d_rprmt, d_mass, d_snview, d_fansums, d_bucks, tstart, tstop,
-          s2cF, axLUT, Cnt);
+  gpu_hst(
+    d_psino,
+    d_ssrb,
+    d_rdlyd,
+    d_rprmt,
+    d_fansums,
+    d_bucks,
+    d_mass,
+    d_snview,
+    tstart, tstop,
+    d_c2sF, axLUT, Cnt);
   //**************************************************************************************
-  // cudaDeviceSynchronize();
+  cudaDeviceSynchronize();
 
   dicout.tot = tot_bins;
 
@@ -152,64 +194,64 @@ execution.
   for (int i = 0; i < SEG0 * NSBINANG; i++) { psum_ssrb += dicout.ssr[i]; }
   //---
 
-  //> copy to host the compressed prompt and delayed sinograms
-  unsigned int *sino = (unsigned int *)malloc(tot_bins * sizeof(unsigned int));
-  HANDLE_ERROR(cudaMemcpy(sino, d_psino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  // //> copy to host the compressed prompt and delayed sinograms
+  // unsigned int *sino = (unsigned int *)malloc(tot_bins * sizeof(unsigned int));
+  // HANDLE_ERROR(cudaMemcpy(sino, d_psino, tot_bins * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 
-  unsigned int mxbin = 0;
-  dicout.psm = 0;
-  dicout.dsm = 0;
-  for (int i = 0; i < tot_bins; i++) {
-    dicout.psn[i] = sino[i] & 0x0000FFFF;
-    dicout.dsn[i] = sino[i] >> 16;
-    dicout.psm += dicout.psn[i];
-    dicout.dsm += dicout.dsn[i];
-    if (mxbin < dicout.psn[i]) mxbin = dicout.psn[i];
-  }
+  // unsigned int mxbin = 0;
+  // dicout.psm = 0;
+  // dicout.dsm = 0;
+  // for (int i = 0; i < tot_bins; i++) {
+  //   dicout.psn[i] = sino[i] & 0x0000FFFF;
+  //   dicout.dsn[i] = sino[i] >> 16;
+  //   dicout.psm += dicout.psn[i];
+  //   dicout.dsm += dicout.dsn[i];
+  //   if (mxbin < dicout.psn[i]) mxbin = dicout.psn[i];
+  // }
 
-  //--- output data to Python
-  // projection views
-  HANDLE_ERROR(
-      cudaMemcpy(dicout.snv, d_snview, dicout.sne * sizeof(unsigned int), cudaMemcpyDeviceToHost));
+  // //--- output data to Python
+  // // projection views
+  // HANDLE_ERROR(
+  //     cudaMemcpy(dicout.snv, d_snview, dicout.sne * sizeof(unsigned int), cudaMemcpyDeviceToHost));
 
-  // head curves
-  HANDLE_ERROR(cudaMemcpy(dicout.hcd, d_rdlyd, lmprop.nitag * sizeof(unsigned int),
-                          cudaMemcpyDeviceToHost));
-  HANDLE_ERROR(cudaMemcpy(dicout.hcp, d_rprmt, lmprop.nitag * sizeof(unsigned int),
-                          cudaMemcpyDeviceToHost));
+  // // head curves
+  // HANDLE_ERROR(cudaMemcpy(dicout.hcd, d_rdlyd, lmprop.nitag * sizeof(unsigned int),
+  //                         cudaMemcpyDeviceToHost));
+  // HANDLE_ERROR(cudaMemcpy(dicout.hcp, d_rprmt, lmprop.nitag * sizeof(unsigned int),
+  //                         cudaMemcpyDeviceToHost));
 
-  // //mass centre
-  int *zR = (int *)malloc(lmprop.nitag * sizeof(int));
-  int *zM = (int *)malloc(lmprop.nitag * sizeof(int));
-  cudaMemcpy(zR, d_mass.zR, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
-  cudaMemcpy(zM, d_mass.zM, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
+  // // //mass centre
+  // int *zR = (int *)malloc(lmprop.nitag * sizeof(int));
+  // int *zM = (int *)malloc(lmprop.nitag * sizeof(int));
+  // cudaMemcpy(zR, d_mass.zR, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
+  // cudaMemcpy(zM, d_mass.zM, lmprop.nitag * sizeof(int), cudaMemcpyDeviceToHost);
 
-  //> calculate the centre of mass while also the sum of head-curve prompts and delayeds
-  unsigned long long sphc = 0, sdhc = 0;
-  for (int i = 0; i < lmprop.nitag; i++) {
-    dicout.mss[i] = zR[i] / (float)zM[i];
-    sphc += dicout.hcp[i];
-    sdhc += dicout.hcd[i];
-  }
+  // //> calculate the centre of mass while also the sum of head-curve prompts and delayeds
+  // unsigned long long sphc = 0, sdhc = 0;
+  // for (int i = 0; i < lmprop.nitag; i++) {
+  //   dicout.mss[i] = zR[i] / (float)zM[i];
+  //   sphc += dicout.hcp[i];
+  //   sdhc += dicout.hcd[i];
+  // }
 
-  if (Cnt.LOG <= LOGINFO)
-    printf("\nic> total prompt single slice rebinned sinogram:  P = %llu\n", psum_ssrb);
-  if (Cnt.LOG <= LOGINFO)
-    printf("\nic> total prompt and delayeds sinogram   events:  P = %llu, D = %llu\n", dicout.psm,
-           dicout.dsm);
-  if (Cnt.LOG <= LOGINFO)
-    printf("\nic> total prompt and delayeds head-curve events:  P = %llu, D = %llu\n", sphc, sdhc);
-  if (Cnt.LOG <= LOGINFO) printf("\nic> maximum prompt sino value:  %u \n", mxbin);
+  // if (Cnt.LOG <= LOGINFO)
+  //   printf("\nic> total prompt single slice rebinned sinogram:  P = %llu\n", psum_ssrb);
+  // if (Cnt.LOG <= LOGINFO)
+  //   printf("\nic> total prompt and delayeds sinogram   events:  P = %llu, D = %llu\n", dicout.psm,
+  //          dicout.dsm);
+  // if (Cnt.LOG <= LOGINFO)
+  //   printf("\nic> total prompt and delayeds head-curve events:  P = %llu, D = %llu\n", sphc, sdhc);
+  // if (Cnt.LOG <= LOGINFO) printf("\nic> maximum prompt sino value:  %u \n", mxbin);
 
-  //-fansums and bucket singles
-  HANDLE_ERROR(cudaMemcpy(dicout.fan, d_fansums, NRINGS * nCRS * sizeof(unsigned int),
-                          cudaMemcpyDeviceToHost));
-  HANDLE_ERROR(cudaMemcpy(dicout.bck, d_bucks, 2 * NBUCKTS * lmprop.nitag * sizeof(unsigned int),
-                          cudaMemcpyDeviceToHost));
+  // //-fansums and bucket singles
+  // HANDLE_ERROR(cudaMemcpy(dicout.fan, d_fansums, NRINGS * nCRS * sizeof(unsigned int),
+  //                         cudaMemcpyDeviceToHost));
+  // HANDLE_ERROR(cudaMemcpy(dicout.bck, d_bucks, 2 * NBUCKTS * lmprop.nitag * sizeof(unsigned int),
+  //                         cudaMemcpyDeviceToHost));
 
-  /* Clean up. */
-  free(zR);
-  free(zM);
+  // /* Clean up. */
+  // free(zR);
+  // free(zM);
 
   free(lmprop.atag);
   free(lmprop.btag);
@@ -225,6 +267,7 @@ execution.
   cudaFree(d_fansums);
   cudaFree(d_mass.zR);
   cudaFree(d_mass.zM);
+  cudaFree(d_c2sF);
 
   return;
 }

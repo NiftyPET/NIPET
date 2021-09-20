@@ -20,16 +20,16 @@ Copyrights: 2019
 //=== START PYTHON INIT ===
 
 //--- Available functions
-static PyObject *mcr_lminfo(PyObject *self, PyObject *args);
-static PyObject *mmr_hist(PyObject *self, PyObject *args);
+static PyObject *lminfo_mcr(PyObject *self, PyObject *args);
+static PyObject *hist_mcr(PyObject *self, PyObject *args);
 static PyObject *mmr_rand(PyObject *self, PyObject *args);
 static PyObject *mmr_prand(PyObject *self, PyObject *args);
 //---
 
 //> Module Method Table
-static PyMethodDef mcr_lmproc_methods[] = {
-    {"lminfo", mcr_lminfo, METH_VARARGS, "Get the timing info from the LM data."},
-    {"hist", mmr_hist, METH_VARARGS, "Process and histogram the LM data using CUDA streams."},
+static PyMethodDef lmproc_mcr_methods[] = {
+    {"lminfo", lminfo_mcr, METH_VARARGS, "Get the timing info from the LM data."},
+    {"hist", hist_mcr, METH_VARARGS, "Process and histogram the LM data using CUDA streams."},
     {"rand", mmr_rand, METH_VARARGS, "Estimates randoms' 3D sinograms from crystal singles."},
     {"prand", mmr_prand, METH_VARARGS,
      "Estimates randoms' 3D sinograms from prompt-derived fan-sums."},
@@ -37,23 +37,23 @@ static PyMethodDef mcr_lmproc_methods[] = {
 };
 
 //> Module Definition Structure
-static struct PyModuleDef mcr_lmproc_module = {
+static struct PyModuleDef lmproc_mcr_module = {
     PyModuleDef_HEAD_INIT,
-    "mcr_lmproc", //> name of module
+    "lmproc_mcr", //> name of module
     //> module documentation, may be NULL
     "This module provides an interface for image generation using GPU routines.",
     -1, //> the module keeps state in global variables.
-    mcr_lmproc_methods};
+    lmproc_mcr_methods};
 
 //> Initialization function
-PyMODINIT_FUNC PyInit_mcr_lmproc(void) {
+PyMODINIT_FUNC PyInit_lmproc_mcr(void) {
 
   Py_Initialize();
 
   //> load NumPy functionality
   import_array();
 
-  return PyModule_Create(&mcr_lmproc_module);
+  return PyModule_Create(&lmproc_mcr_module);
 }
 
 //=== END PYTHON INIT ===
@@ -65,7 +65,7 @@ PyMODINIT_FUNC PyInit_mcr_lmproc(void) {
 //-----------------------------------------------------------------------------
 // Siemens microPET
 
-static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
+static PyObject *lminfo_mcr(PyObject *self, PyObject *args) {
   /* Quickly process the list mode file to find the timing information
      and number of elements
   */
@@ -120,7 +120,8 @@ static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
   if (Cnt.LOG<20)
     printf("ic> number of list-mode events: %lu\n", ele);
 
-  char buff[6];
+
+  unsigned char buff[6];
   // tag times
   unsigned int tagt1, tagt0;
   // address of tag times in LM stream
@@ -128,18 +129,17 @@ static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
   size_t c = 1;
   //--
   int tag = 0;
+
   while (tag == 0) {
-    r = fread(buff, 1, 6, fr);
-    if (r != 1) {
-      printf("Error at the beginning of file:\n %s", flm);
-      printf("\nc position: %lu", c);
-      fputs("Reading error\n", stderr);
+    r = fread(buff, sizeof(unsigned char), 6, fr);
+    if (r != 6) {
+      fputs("ie> Reading error (beginning of list-mode file)\n", stderr);
       exit(3);
     }
 
     if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      tagt0 = (buff[3]<<24) + (lm[2]<<16) + ((lm[1])<<8) + lm[0];
+      tagt0 = (buff[3]<<24) + (buff[2]<<16) + ((buff[1])<<8) + buff[0];
       taga0 = c;
     }
     c += 1;
@@ -157,14 +157,14 @@ static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
 #ifdef WIN32
     _fseeki64(fr, -c * Cnt.BPE, SEEK_END);
 #endif
-    r = fread(buff, 1, 6, fr);
-    if (r != 1) {
-      fputs("Reading error \n", stderr);
+    r = fread(buff, sizeof(unsigned char), 6, fr);
+    if (r != 6) {
+      fputs("ie> Reading error (end of list-mode file)\n", stderr);
       exit(3);
     }
     if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      tagt1 = (buff[3]<<24) + (lm[2]<<16) + ((lm[1])<<8) + lm[0];
+      tagt1 = (buff[3]<<24) + (buff[2]<<16) + ((buff[1])<<8) + buff[0];
       taga1 = ele - c;
     }
     c += 1;
@@ -193,7 +193,7 @@ static PyObject *mcr_lminfo(PyObject *self, PyObject *args) {
 }
 
 //=============================================================================
-static PyObject *mmr_hist(PyObject *self, PyObject *args) {
+static PyObject *hist_mcr(PyObject *self, PyObject *args) {
 
   // preallocated dictionary of output arrays
   PyObject *o_dicout = NULL;
@@ -257,7 +257,8 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args) {
   Cnt.BTPRT = (float)PyFloat_AsDouble(pd_btprt);
   PyObject *pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
-  // axial LUTs:
+  
+  //> axial LUTs:
   PyObject *pd_sn1_rno = PyDict_GetItemString(o_axLUT, "sn1_rno");
   PyObject *pd_sn1_sn11 = PyDict_GetItemString(o_axLUT, "sn1_sn11");
   PyObject *pd_sn1_ssrb = PyDict_GetItemString(o_axLUT, "sn1_ssrb");
@@ -269,16 +270,17 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args) {
   PyArrayObject *p_sn1_ssrb = NULL;
   p_sn1_ssrb = (PyArrayObject *)PyArray_FROM_OTF(pd_sn1_ssrb, NPY_INT16, NPY_ARRAY_IN_ARRAY);
 
-  PyObject *pd_s2cF = PyDict_GetItemString(o_txLUT, "s2cF");
-  PyArrayObject *p_s2cF = NULL;
-  p_s2cF = (PyArrayObject *)PyArray_FROM_OTF(pd_s2cF, NPY_INT16, NPY_ARRAY_IN_ARRAY);
+  //> transaxial LUTs:
+  PyObject *pd_c2sF = PyDict_GetItemString(o_txLUT, "c2sF");
+  PyArrayObject *p_c2sF = NULL;
+  p_c2sF = (PyArrayObject *)PyArray_FROM_OTF(pd_c2sF, NPY_INT16, NPY_ARRAY_IN_ARRAY);
 
   /* If that didn't work, throw an exception. */
-  if (p_sn1_rno == NULL || p_sn1_sn11 == NULL || p_sn1_ssrb == NULL || p_s2cF == NULL) {
+  if (p_sn1_rno == NULL || p_sn1_sn11 == NULL || p_sn1_ssrb == NULL || p_c2sF == NULL) {
     Py_XDECREF(p_sn1_rno);
     Py_XDECREF(p_sn1_sn11);
     Py_XDECREF(p_sn1_ssrb);
-    Py_XDECREF(p_s2cF);
+    Py_XDECREF(p_c2sF);
     return NULL;
   }
 
@@ -286,8 +288,8 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args) {
   axLUT.sn1_sn11 = (short *)PyArray_DATA(p_sn1_sn11);
   axLUT.sn1_ssrb = (short *)PyArray_DATA(p_sn1_ssrb);
 
-  // sino to crystal LUT from txLUTs
-  LORcc *s2cF = (LORcc *)PyArray_DATA(p_s2cF);
+  // crystal-to-sinogram LUT from txLUTs
+  int *c2sF = (int *)PyArray_DATA(p_c2sF);
 
   //=============== the dictionary of output arrays ==================
   // sinograms
@@ -379,14 +381,14 @@ static PyObject *mmr_hist(PyObject *self, PyObject *args) {
   HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
   //==================================================================
-  lmproc(dicout, flm, tstart, tstop, s2cF, axLUT, Cnt);
+  lmproc(dicout, flm, tstart, tstop, c2sF, axLUT, Cnt);
   //==================================================================
 
   // Clean up:
   Py_DECREF(p_sn1_rno);
   Py_DECREF(p_sn1_sn11);
   Py_DECREF(p_sn1_ssrb);
-  Py_DECREF(p_s2cF);
+  Py_DECREF(p_c2sF);
 
   PyArray_ResolveWritebackIfCopy(p_phc);
   Py_DECREF(p_phc);

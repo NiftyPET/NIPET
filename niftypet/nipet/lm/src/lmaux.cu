@@ -30,7 +30,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   // file size in elements
   fseek(fr, 0, SEEK_END);
   size_t nbytes = ftell(fr);
-  size_t ele = nbytes / sizeof(int);
+  size_t ele = nbytes / Cnt.BPE;
   if (Cnt.LOG <= LOGINFO) printf("i> number of elements in the list mode file: %lu\n", ele);
   rewind(fr);
 
@@ -40,30 +40,14 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   struct _stati64 bufStat;
   _stati64(flm, &bufStat);
   size_t nbytes = bufStat.st_size;
-  size_t ele = nbytes / sizeof(int);
+  size_t ele = nbytes / Cnt.BPE;
   if (Cnt.LOG <= LOGINFO) printf("i> number of elements in the list mode file: %lu\n", ele);
-#endif
-
-    //--try reading the whole lot to memory
-#if RD2MEM
-  if (Cnt.LOG <= LOGINFO) printf("i> reading the whole file...");
-  if (NULL == (lm = (int *)malloc(ele * sizeof(int)))) {
-    printf("malloc failed\n");
-    return;
-  }
-  r = fread(lm, 4, ele, fr);
-  if (r != ele) {
-    fprintf(stderr, "Reading error: r = %lu and ele = %lu\n", r, ele);
-    exit(3);
-  }
-  if (Cnt.LOG <= LOGINFO) printf("DONE.\n\n");
-  rewind(fr);
 #endif
 
   //------------ first and last time tags ---------------
   int tag = 0;
-  int buff[1];
-  int last_ttag, first_ttag;
+  unsigned char buff[6];
+  size_t last_ttag, first_ttag;
 
   // time offset based on the first time tag
   int toff;
@@ -71,52 +55,52 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   long long c = 1;
   //--
   while (tag == 0) {
-    r = fread(buff, 4, 1, fr);
-    if (r != 1) {
+    r = fread(buff, sizeof(unsigned char), Cnt.BPE, fr);
+    if (r != Cnt.BPE) {
       fputs("Reading error \n", stderr);
       exit(3);
     }
-    if ((buff[0] >> 29) == -4) {
+    if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      first_ttag = buff[0] & 0x1fffffff;
+      first_ttag = ((buff[3]<<24) + (buff[2]<<16) + ((buff[1])<<8) + buff[0])/5;
       first_taddr = c;
     }
     c += 1;
   }
   if (Cnt.LOG <= LOGINFO)
-    printf("i> the first time tag is:       %d at positon %lu.\n", first_ttag, first_taddr);
+    printf("i> the first time tag is:       %lums at positon %lu.\n", first_ttag, first_taddr);
 
   tag = 0;
   c = 1;
   while (tag == 0) {
 #ifdef __linux__
-    fseek(fr, c * -4, SEEK_END);
+    fseek(fr, -c * Cnt.BPE, SEEK_END);
 #endif
 #ifdef WIN32
-    _fseeki64(fr, c * -4, SEEK_END);
+    _fseeki64(fr, c * Cnt.BPE, SEEK_END);
 #endif
 
-    r = fread(buff, 4, 1, fr);
-    if (r != 1) {
+    r = fread(buff, sizeof(unsigned char), 6, fr);
+    if (r != Cnt.BPE) {
       fputs("Reading error \n", stderr);
       exit(3);
     }
-    if ((buff[0] >> 29) == -4) {
+    if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
       tag = 1;
-      last_ttag = buff[0] & 0x1fffffff;
+      last_ttag = ((buff[3]<<24) + (buff[2]<<16) + ((buff[1])<<8) + buff[0])/5;
       last_taddr = ele - c;
     }
     c += 1;
   }
   if (Cnt.LOG <= LOGINFO)
-    printf("i> the last time tag is:        %d at positon %lu.\n", last_ttag, last_taddr);
+    printf("i> the last time tag is:        %lums at positon %lu.\n", last_ttag, last_taddr);
 
   // first time tag is also the time offset used later on.
   if (first_ttag < last_ttag) {
     toff = first_ttag;
-    if (Cnt.LOG <= LOGINFO) printf("i> using time offset:           %d\n", toff);
+    if (Cnt.LOG <= LOGINFO) printf("i> using time offset:           %d\xC2\xB5s\n", toff);
   } else {
-    fprintf(stderr, "Weird time stamps.  The first and last time tags are: %d and %d\n",
+    fprintf(stderr, "Weird time stamps.  The first and last time tags are: %lu and %lu\n",
             first_ttag, last_ttag);
     exit(1);
   }
@@ -161,21 +145,20 @@ void getLMinfo(char *flm, const Cnst Cnt) {
     c = 0;
     tag = 0;
     while (tag == 0) {
-#if RD2MEM
-      buff[0] = lm[atag[i - 1] + ELECHNK - c - 1];
-#else
+
 #ifdef __linux__
-      fseek(fr, 4 * (atag[i - 1] + ELECHNK - c - 1),
+      fseek(fr, Cnt.BPE * (atag[i - 1] + ELECHNK - c - 1),
             SEEK_SET); // make the chunks a little smaller than ELECHNK (that's why - )
 #endif
 #ifdef WIN32
-      _fseeki64(fr, 4 * (atag[i - 1] + ELECHNK - c - 1),
+      _fseeki64(fr, Cnt.BPE * (atag[i - 1] + ELECHNK - c - 1),
                 SEEK_SET); // make the chunks a little smaller than ELECHNK (that's why - )
 #endif
-      r = fread(buff, 4, 1, fr);
-#endif
-      if ((buff[0] >> 29) == -4) {
-        int itime = (buff[0] & 0x1fffffff);
+      r = fread(buff, sizeof(unsigned char), Cnt.BPE, fr);
+      if (((buff[5]&0x0f)==0x0a) && ((buff[4]&0xf0)==0)) {
+        
+        int itime = ((buff[3]<<24) + (buff[2]<<16) + ((buff[1])<<8) + buff[0])/5;
+        
         if ((itime % BTPTIME) == 0) {
           tag = 1;
           btag[i] = itime - toff;
@@ -186,14 +169,15 @@ void getLMinfo(char *flm, const Cnst Cnt) {
       }
       c += 1;
     }
-    if (Cnt.LOG <= LOGDEBUG) {
-      printf("i> break time tag [%d] is:       %lums at position %lu. \n", i, btag[i], atag[i]);
-      printf("   # elements: %d/per chunk, %d/per thread. c = %lld.\n", ele4chnk[i - 1],
+    if (Cnt.LOG <= LOGDEBUG){
+      printf("ic> break time tag [%d] is:       %lums at position %lu. \n", i, btag[i], atag[i]);
+      printf("    # elements: %d/per chunk, %d/per thread. c = %lld.\n", ele4chnk[i - 1],
              ele4thrd[i - 1], c);
     } else if (Cnt.LOG <= LOGINFO)
-      printf("i> break time tag [%d] is:     %lums at position %lu.\r", i, btag[i],
+      printf("ic> break time tag [%d] is:     %lums at position %lu.\r", i, btag[i],
              atag[i]); // ele = %lu ele-atag[i] = %lu , , ele, ele-atag[i]
   }
+
 
   i += 1;
   // add 1ms for the remaining events
@@ -202,11 +186,11 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   ele4thrd[i - 1] = (ele - atag[i - 1] + (TOTHRDS - 1)) / TOTHRDS;
   ele4chnk[i - 1] = ele - atag[i - 1];
   if (Cnt.LOG <= LOGDEBUG) {
-    printf("i> break time tag [%d] is:       %lums at position %lu.\n", i, btag[i], atag[i]);
-    printf("   # elements: %d/per chunk, %d/per thread.\n", ele4chnk[i - 1], ele4thrd[i - 1]);
+    printf("ic> break time tag [%d] is:       %lums at position %lu.\n", i, btag[i], atag[i]);
+    printf("    # elements: %d/per chunk, %d/per thread.\n", ele4chnk[i - 1], ele4thrd[i - 1]);
   }
-  if (Cnt.LOG <= LOGINFO)
-    printf("i> break time tag [%d] is:     %lums at position %lu. \n", i, btag[i], atag[i]);
+  else if (Cnt.LOG <= LOGINFO)
+    printf("ic> break time tag [%d] is:     %lums at position %lu. \n", i, btag[i], atag[i]);
   fclose(fr);
 
   //------------------------------------------------------------------------------------------------
@@ -222,7 +206,6 @@ void getLMinfo(char *flm, const Cnst Cnt) {
   lmprop.toff = toff;
   lmprop.last_ttag = last_ttag;
 
-  // free(lm);
 }
 //*********************************************************************
 

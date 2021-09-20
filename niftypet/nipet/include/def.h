@@ -15,8 +15,6 @@
 #define LOGINFO 20
 #define LOGWARNING 30
 
-#define RD2MEM 0
-
 // device
 #define BTHREADS 10
 #define NTHREADS 256
@@ -44,7 +42,8 @@
    NSTREAMS) // GE Signa: 2^28 = 268435456 int elements to make up 1.6GB when 6bytes per event
 
 // # bytes per event
-//#define BPE = 6
+#define BPEV 6
+#define NCRSTLS 320 
 
 // for randoms
 #define mxRD 60 // maximum ring difference

@@ -14,7 +14,7 @@ from .. import mmraux
 
 # CUDA extension module
 #from . import mmr_lmproc
-from . import mcr_lmproc
+from . import lmproc_mcr
 
 log = logging.getLogger(__name__)
 

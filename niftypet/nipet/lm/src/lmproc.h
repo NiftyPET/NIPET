@@ -40,7 +40,13 @@ typedef struct {
   unsigned int tot;       // total number of bins
 } hstout;                 // structure of LM processing outputs
 
-void lmproc(hstout dicout, char *flm, int tstart, int tstop, LORcc *s2cF, axialLUT axLUT,
-            Cnst Cnt);
+void lmproc(
+  hstout dicout,
+  char *flm,
+  int tstart,
+  int tstop,
+  int *c2sF,
+  axialLUT axLUT,
+  Cnst Cnt);
 
 #endif
