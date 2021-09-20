@@ -160,36 +160,6 @@ except Exception as exc:
     nvcc_arches = []
     log.error("could not set up CUDA:\n%s", exc)
 
-log.info(
-    dedent("""\
-        --------------------------------------------------------------
-        Finding hardware mu-maps
-        --------------------------------------------------------------"""))
-# get the local path to NiftyPET resources.py
-path_resources = cs.path_niftypet_local()
-# if exists, import the resources and get the constants
-resources = cs.get_resources()
-# get the current setup, if any
-Cnt = resources.get_mmr_constants()
-
-# hardware mu-maps
-hmu_dir = None
-if Cnt.get("HMUDIR", None):
-    hmu_dir = Path(Cnt["HMUDIR"])
-    # check each piece of the hardware components
-    for i in Cnt["HMULIST"]:
-        if not (hmu_dir / i).is_file():
-            hmu_dir = None
-            break
-# prompt for installation path
-if hmu_dir is None:
-    Cnt["HMUDIR"] = tls.askdirectory(title="Folder for hardware mu-maps: ", name="HMUDIR")
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# update the path in resources.py
-tls.update_resources(Cnt)
-# +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-log.info("hardware mu-maps have been located")
-
 build_ver = ".".join(__version__.split('.')[:3]).split(".dev")[0]
 cmake_args = [f"-DNIPET_BUILD_VERSION={build_ver}", f"-DPython3_ROOT_DIR={sys.prefix}"]
 try:

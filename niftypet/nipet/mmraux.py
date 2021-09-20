@@ -16,6 +16,9 @@ from miutil.fdio import hasext
 
 from niftypet import nimpa
 
+from niftypet.ninst import cudasetup as cs
+from niftypet.ninst import install_tools as tls
+
 from . import mmr_auxe, resources
 
 log = logging.getLogger(__name__)
@@ -1169,7 +1172,42 @@ def mmrinit():
     return Cnt, txLUT, axLUT
 
 
-def get_mmrparams():
-    """get all scanner parameters in one dictionary"""
+def get_mmrparams(hmu_dir=None):
+    """ get all scanner parameters in one dictionary.
+        hmudir: folder with the mMR hardware mu-maps if known;
+                they will be stored in resources.py for the future use.
+    """
+
+    log.info(
+        dedent("""\
+            --------------------------------------------------------------
+            Finding hardware mu-maps
+            --------------------------------------------------------------"""))
+
+    # get the local path to NiftyPET resources.py
+    path_resources = cs.path_niftypet_local()
+    # if exists, import the resources and get the constants
+    resources = cs.get_resources()
+    # get the current setup, if any
+    Cnt = resources.get_mmr_constants()
+
+    # > hardware mu-maps
+    if Cnt.get("HMUDIR", None):
+        hmu_dir = Path(Cnt["HMUDIR"])
+        # check each piece of the hardware components
+        for i in Cnt["HMULIST"]:
+            if not (hmu_dir / i).is_file():
+                hmu_dir = None
+                break
+    # prompt for installation path
+    if hmu_dir is None:
+        Cnt["HMUDIR"] = tls.askdirectory(title="Folder for hardware mu-maps: ", name="HMUDIR")
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # update the path in resources.py
+    tls.update_resources(Cnt)
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    log.info("hardware mu-maps have been located")
+
+
     Cnt, txLUT, axLUT = mmrinit()
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}
