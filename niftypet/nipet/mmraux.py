@@ -1169,7 +1169,7 @@ def mmrinit():
     return Cnt, txLUT, axLUT
 
 
-def mMR_params():
+def get_mmrparams():
     """get all scanner parameters in one dictionary"""
     Cnt, txLUT, axLUT = mmrinit()
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}
