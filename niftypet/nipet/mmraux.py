@@ -15,7 +15,6 @@ import pydicom as dcm
 from miutil.fdio import hasext
 
 from niftypet import nimpa
-
 from niftypet.ninst import install_tools as tls
 
 from . import mmr_auxe, resources
@@ -1202,5 +1201,4 @@ def get_mmrparams(hmu_dir=None):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     log.info("hardware mu-maps have been located")
 
-    
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}

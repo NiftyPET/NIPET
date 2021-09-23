@@ -471,6 +471,11 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
   return Py_None;
 }
 
+void free_capsule(PyObject *capsule) {
+  void *data = PyCapsule_GetPointer(capsule, NULL);
+  free(data);
+}
+
 //====================================================================================================
 static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
   // Dictionary of scanner constants
@@ -500,9 +505,13 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
   dims[0] = Cnt.NSN1;
   PyArrayObject *s1s11_out =
       (PyArrayObject *)PyArray_SimpleNewFromData(1, dims, NPY_INT16, span11.li2s11);
+  PyObject *capsule = PyCapsule_New(span11.li2s11, NULL, free_capsule);
+  PyArray_SetBaseObject(s1s11_out, capsule);
   dims[0] = Cnt.NSN11;
   PyArrayObject *s1nos_out =
       (PyArrayObject *)PyArray_SimpleNewFromData(1, dims, NPY_INT8, span11.NSinos);
+  capsule = PyCapsule_New(span11.NSinos, NULL, free_capsule);
+  PyArray_SetBaseObject(s1nos_out, capsule);
 
   PyObject *o_out = PyTuple_New(2);
   PyTuple_SetItem(o_out, 0, PyArray_Return(s1s11_out));
