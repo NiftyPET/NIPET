@@ -916,7 +916,7 @@ def get_niifiles(dfile, datain):
         log.debug('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
 
     # T1-based labels after parcellation
-    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*giflabels.nii*'))
+    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*gif*labels.nii*'))
     if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
         log.debug('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
