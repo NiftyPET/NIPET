@@ -110,7 +110,7 @@ def get_components(datain, Cnt):
 
 
 def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
-    ''' to be depreciated 
+    ''' to be depreciated
     '''
     # get the normalisation components
     if normcomp is None:
@@ -132,7 +132,7 @@ def get_sinog(datain, hst, axLUT, txLUT, Cnt, normcomp=None):
 
 
 def get_sino(datain, hst, axLUT, txLUT, Cnt):
-    ''' to be depreciated 
+    ''' to be depreciated
     '''
 
     # number of sino planes (2D sinos) depends on the span used
@@ -152,27 +152,22 @@ def get_sino(datain, hst, axLUT, txLUT, Cnt):
     return sino
 
 
-def get_norm_sino(
-        datain,
-        scanner_params,
-        hst,
-        normcomp=None,
-        gpu_dim=False):
+def get_norm_sino(datain, scanner_params, hst, normcomp=None, gpu_dim=False):
 
     Cnt = scanner_params['Cnt']
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    #> check if reduction of axial FOV (reducing the number of rings) is off
+    # > check if reduction of axial FOV (reducing the number of rings) is off
     if 'rNSN1' in Cnt and 'rLUT' in axLUT:
-        raise ValueError('Full FOV has to be used for normalisation - switch off reduced rings mode.')
+        raise ValueError(
+            'Full FOV has to be used for normalisation - switch off reduced rings mode.')
 
-
-    #> get the normalisation components
+    # > get the normalisation components
     if normcomp is None:
         normcomp, _ = get_components(datain, Cnt)
 
-    #> number of sinogram planes, depends on the span used
+    # > number of sinogram planes, depends on the span used
     if Cnt['SPN'] == 1:
         nsinos = Cnt['NSN1']
     elif Cnt['SPN'] == 11:
@@ -180,13 +175,13 @@ def get_norm_sino(
     else:
         raise ValueError('unrecognised span {}'.format(Cnt['SPN']))
 
-    #-------------------------------------------------------------------------
-    #> initialise the sinogram
+    # -------------------------------------------------------------------------
+    # > initialise the sinogram
     sng = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
 
-    #> get the norm
+    # > get the norm
     mmr_auxe.norm(sng, normcomp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
-    #-------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     if gpu_dim:
         return sng

@@ -6,6 +6,7 @@ from collections import namedtuple
 from collections.abc import Iterable
 from numbers import Real
 
+import cuvec as cu
 import numpy as np
 import scipy.ndimage as ndi
 from tqdm.auto import trange
@@ -177,7 +178,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     else:
         opth = outpath
 
-    #> file output name (the path is ignored if given)
+    # > file output name (the path is ignored if given)
     if fout is not None:
         # > get rid of folders
         fout = os.path.basename(fout)
@@ -230,8 +231,10 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
             asng = attnsino
             log.info('using provided attenuation factor sinogram')
         else:
-            asng = np.zeros(psng.shape, dtype=np.float32)
-            petprj.fprj(asng, mus, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
+            asng = cu.zeros(psng.shape, dtype=np.float32)
+            petprj.fprj(asng.cuvec,
+                        cu.asarray(mus).cuvec, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt,
+                        1)
     # > combine attenuation and normalisation
     ansng = asng * nsng
     # ========================================================================
@@ -285,13 +288,17 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     sinoTIdx = np.zeros((Sn, Nprj + 1), dtype=np.int32)
     # -init sensitivity images for each subset
     imgsens = np.zeros((Sn, Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
+    tmpsens = cu.zeros((Cnt['SZ_IMY'], Cnt['SZ_IMX'], Cnt['SZ_IMZ']), dtype=np.float32)
     for n in range(Sn):
         # first number of projection for the given subset
         sinoTIdx[n, 0] = Nprj
         sinoTIdx[n, 1:], s = get_subsets14(n, scanner_params)
         # sensitivity image
-        petprj.bprj(imgsens[n, :, :, :], ansng[sinoTIdx[n, 1:], :], txLUT, axLUT, sinoTIdx[n, 1:],
+        petprj.bprj(tmpsens.cuvec,
+                    cu.asarray(ansng[sinoTIdx[n, 1:], :]).cuvec, txLUT, axLUT, sinoTIdx[n, 1:],
                     Cnt)
+        imgsens[n] = tmpsens
+    del tmpsens
     # -------------------------------------
 
     # -mask for reconstructed image.  anything outside it is set to zero
@@ -368,16 +375,16 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 ssng = mmraux.remgaps(ssn, txLUT, Cnt)
                 pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
             # save images during reconstruction if requested
-            if store_itr and (k+1) in store_itr:
+            if store_itr and (k + 1) in store_itr:
                 im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
 
                 if fout is None:
                     fpet = os.path.join(
-                        opth, (os.path.basename(datain['lm_bf'])[:16].replace('.','-') +
-                               f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k+1}{fcomment}_inrecon.nii.gz"))
+                        opth,
+                        (os.path.basename(datain['lm_bf'])[:16].replace('.', '-') +
+                         f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{k+1}{fcomment}_inrecon.nii.gz"))
                 else:
-                    fpet = os.path.join(
-                        opth, fout+f'_itr{k+1}{fcomment}_inrecon.nii.gz')
+                    fpet = os.path.join(opth, fout + f'_itr{k+1}{fcomment}_inrecon.nii.gz')
 
                 nimpa.array2nii(im[::-1, ::-1, :], B, fpet)
 
@@ -413,10 +420,11 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     # > file name of the output reconstructed image
     # > (maybe used later even if not stored now)
     if fout is None:
-        fpet = os.path.join(opth, (os.path.basename(datain['lm_bf']).split('.')[0] +
-                               f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{itr}{fcomment}.nii.gz"))
+        fpet = os.path.join(opth,
+                            (os.path.basename(datain['lm_bf']).split('.')[0] +
+                             f"{frmno}_t{hst['t0']}-{hst['t1']}sec_itr{itr}{fcomment}.nii.gz"))
     else:
-        fpet = os.path.join(opth, fout+f'_itr{itr}{fcomment}.nii.gz')
+        fpet = os.path.join(opth, fout + f'_itr{itr}{fcomment}.nii.gz')
 
     if store_img:
         log.info('saving image to: %s', fpet)

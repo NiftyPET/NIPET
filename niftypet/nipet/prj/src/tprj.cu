@@ -40,10 +40,10 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
 
     float2 at;
     float atn;
-    
+
     at.x = cc2.x - cc1.x;
     at.y = cc2.y - cc1.y;
-    atn = at.x*at.x + at.y*at.y;
+    atn = at.x * at.x + at.y * at.y;
     atn = sqrtf(atn);
 
     at.x = at.x / atn;
@@ -66,7 +66,7 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
 
     float tr1 = (lr1 - py) / at.y; // first ray interaction with a row
     float tr2 = (lr2 - py) / at.y; // last ray interaction with a row
-                                    // boolean
+                                   // boolean
     bool y21 = (fabsf(y2 - y1) >= SZ_VOXY);
     bool lr21 = (fabsf(lr1 - lr2) < L21);
     int nr = y21 * roundf(abs(lr2 - lr1) / SZ_VOXY) + lr21; // number of rows on the way *_SZVXY
@@ -103,7 +103,7 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
 
     /***************************************************************/
     float ang = atanf(at.y / at.x); // angle of the ray
-    bool tsin;                        // condition for the slower changing <t> to be in
+    bool tsin;                      // condition for the slower changing <t> to be in
 
     // save the sign of vector at components.  used for image indx increments.
     // since it is saved in unsigned format use offset of 1;

@@ -15,6 +15,7 @@ import pydicom as dcm
 from miutil.fdio import hasext
 
 from niftypet import nimpa
+from niftypet.ninst import install_tools as tls
 
 from . import mmr_auxe, resources
 
@@ -573,13 +574,13 @@ def reduce_rings(pars, rs=0, re=64):
         re -- end ring (not included in the resulting reduced rings)
     """
 
+    if (re - rs) < 0 or ((re-rs) % 2) != 0:
+        raise ValueError('The resulting number of rings has to be even and start ring (rs)'
+                         ' smaller than end ring (re)')
 
-    if (re-rs)<0 or ((re-rs)%2)!=0:
-        raise ValueError('The resulting number of rings has to be even and start ring (rs) smaller than end ring (re)')
-
-    #> reduced rings work in span-1 only
+    # > reduced rings work in span-1 only
     pars['Cnt']['SPN'] = 1
-    
+
     # select the number of sinograms for the number of rings
     # RNG_STRT is included in detection
     # RNG_END is not included in detection process
@@ -1169,7 +1170,35 @@ def mmrinit():
     return Cnt, txLUT, axLUT
 
 
-def mMR_params():
-    """get all scanner parameters in one dictionary"""
+def get_mmrparams(hmu_dir=None):
+    """ get all scanner parameters in one dictionary.
+        hmudir: folder with the mMR hardware mu-maps if known;
+                they will be stored in resources.py for the future use.
+    """
+
+    log.info(
+        dedent("""\
+            --------------------------------------------------------------
+            Finding hardware mu-maps
+            --------------------------------------------------------------"""))
+
     Cnt, txLUT, axLUT = mmrinit()
+
+    # > hardware mu-maps
+    if Cnt.get("HMUDIR", None):
+        hmu_dir = Path(Cnt["HMUDIR"])
+        # check each piece of the hardware components
+        for i in Cnt["HMULIST"]:
+            if not (hmu_dir / i).is_file():
+                hmu_dir = None
+                break
+    # prompt for installation path
+    if hmu_dir is None:
+        Cnt["HMUDIR"] = tls.askdirectory(title="Folder for hardware mu-maps: ", name="HMUDIR")
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    # update the path in resources.py
+    tls.update_resources(Cnt)
+    # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    log.info("hardware mu-maps have been located")
+
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}

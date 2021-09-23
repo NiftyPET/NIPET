@@ -183,7 +183,8 @@ void norm_from_components(float *sino,    // output norm sino
   // CUDA grid size (in blocks)
   int blcks = ceil(AW / (float)NTHREADS);
 
-  if (Cnt.LOG <= LOGINFO) printf("i> calculating normalisation sinogram using device #%d...", dev_id);
+  if (Cnt.LOG <= LOGINFO)
+    printf("i> calculating normalisation sinogram using device #%d...", dev_id);
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);

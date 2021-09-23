@@ -6,6 +6,7 @@ import os
 import time
 from math import pi
 
+import cuvec as cu
 import nibabel as nib
 import numpy as np
 import scipy.ndimage as ndi
@@ -76,7 +77,7 @@ def get_scrystals(scanner_params):
 
     sirng = np.int16(Cnt['SIRNG'])
 
-    #> axial scatter ring positions in cm 
+    # > axial scatter ring positions in cm
     srng = np.zeros((Cnt['NSRNG'], 2), dtype=np.float32)
     for ir in range(Cnt['NSRNG']):
         srng[ir, 0] = float(sirng[ir])
@@ -84,7 +85,8 @@ def get_scrystals(scanner_params):
         logtxt += '> [{}]: ring_i={}, ring_z={}\n'.format(ir, int(srng[ir, 0]), srng[ir, 1])
 
     log.debug(logtxt)
-    return {'scrs': scrs, 'srng': srng, 'sirng': sirng, 'NSCRS': scrs.shape[0], 'NSRNG': Cnt['NSRNG']}
+    return {
+        'scrs': scrs, 'srng': srng, 'sirng': sirng, 'NSCRS': scrs.shape[0], 'NSRNG': Cnt['NSRNG']}
 
 
 # ======================================================================
@@ -295,9 +297,9 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
     '''
 
     # > number of sinograms
-    if Cnt['SPN']==1:
+    if Cnt['SPN'] == 1:
         snno = Cnt['NSN1']
-    elif Cnt['SPN']==11:
+    elif Cnt['SPN'] == 11:
         snno = Cnt['NSN11']
     else:
         raise ValueError('unrecognised span!')
@@ -568,8 +570,9 @@ def vsm(
     # <<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>><<+>>
     currentspan = Cnt['SPN']
     Cnt['SPN'] = 1
-    atto = np.zeros((txLUT['Naw'], Cnt['NSN1']), dtype=np.float32)
-    petprj.fprj(atto, mu_sctonly, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
+    atto = cu.zeros((txLUT['Naw'], Cnt['NSN1']), dtype=np.float32)
+    petprj.fprj(atto.cuvec,
+                cu.asarray(mu_sctonly).cuvec, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
     atto = mmraux.putgaps(atto, txLUT, Cnt)
     # --------------------------------------------------------------
     # > get norm components setting the geometry and axial to ones

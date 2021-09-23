@@ -100,11 +100,11 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
                           const int zoff, const short nil2r_c) {
   int ixz = threadIdx.x + zoff; // axial (z)
 
-  //if (ixz < NLI2R) { 
+  // if (ixz < NLI2R) {
 
-  //> get the number of linear indices of direct and oblique sinograms 
+  //> get the number of linear indices of direct and oblique sinograms
   if (ixz < nil2r_c) {
-    
+
     int ixt = subs[blockIdx.x]; // transaxial index
 
     //-------------------------------------------------
@@ -206,7 +206,7 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
 }
 
 //--------------------------------------------------------------------------------------------------
-void gpu_fprj(float *prjout, float *im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
+void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
               int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
               char att) {
   int dev_id;
@@ -273,34 +273,20 @@ void gpu_fprj(float *prjout, float *im, float *li2rng, short *li2sn, char *li2no
   //-----------------------------------------------------------------
 
   //--- FULLY 3D
-  float *d_sn;
-  HANDLE_ERROR(cudaMalloc(&d_sn, Nprj * snno * sizeof(float)));
   HANDLE_ERROR(cudaMemset(d_sn, 0, Nprj * snno * sizeof(float)));
-
-  // allocate for image to be forward projected on the device
-  float *d_im;
-  HANDLE_ERROR(cudaMalloc(&d_im, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
 
   // when rings are reduced expand the image to account for whole axial FOV
   if (nvz < SZ_IMZ) {
-    // first the reduced image into the device
-    float *d_imr;
-    HANDLE_ERROR(cudaMalloc(&d_imr, SZ_IMX * SZ_IMY * nvz * sizeof(float)));
-    HANDLE_ERROR(
-        cudaMemcpy(d_imr, im, SZ_IMX * SZ_IMY * nvz * sizeof(float), cudaMemcpyHostToDevice));
+    float *d_imr = d_im; // save old pointer to reduced image input
+    // reallocate full size
+    HANDLE_ERROR(cudaMalloc(&d_im, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
     // put zeros in the gaps of unused voxels
     HANDLE_ERROR(cudaMemset(d_im, 0, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
-    // number of axial row for max threads
     int nar = NIPET_CU_THREADS / nvz;
     dim3 THRD(nvz, nar, 1);
     dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
     imExpand<<<BLCK, THRD>>>(d_im, d_imr, vz0, nvz);
     HANDLE_ERROR(cudaGetLastError());
-    cudaFree(d_imr);
-  } else {
-    // copy to GPU memory
-    HANDLE_ERROR(
-        cudaMemcpy(d_im, im, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float), cudaMemcpyHostToDevice));
   }
 
   // float *d_li2rng;  HANDLE_ERROR( cudaMalloc(&d_li2rng, N0li*N1li*sizeof(float)) );
@@ -328,48 +314,40 @@ void gpu_fprj(float *prjout, float *im, float *li2rng, short *li2sn, char *li2no
   gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
   //-----------------------------------------------------------------------
 
-
   //============================================================================
   fprj_drct<<<Nprj, nrng_c>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
-
   int zoff = nrng_c;
   //> number of oblique sinograms
   int Noblq = (nrng_c - 1) * nrng_c / 2;
-  int Nz = ((Noblq+127)/128)*128;
+  int Nz = ((Noblq + 127) / 128) * 128;
 
   //============================================================================
-  fprj_oblq<<<Nprj, Nz/2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
 
-  zoff += Nz/2;
-  fprj_oblq<<<Nprj, Nz/2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
+  zoff += Nz / 2;
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
+  // cudaDeviceSynchronize();
   float elapsedTime;
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
   if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
-  cudaDeviceSynchronize();
-
-  HANDLE_ERROR(cudaMemcpy(prjout, d_sn, Nprj * snno * sizeof(float), cudaMemcpyDeviceToHost));
-
-  cudaFree(d_sn);
-  cudaFree(d_im);
-  cudaFree(d_tt);
-  cudaFree(d_tv);
-  cudaFree(d_subs);
+  if (nvz < SZ_IMZ) HANDLE_ERROR(cudaFree(d_im));
+  HANDLE_ERROR(cudaFree(d_tt));
+  HANDLE_ERROR(cudaFree(d_tv));
+  HANDLE_ERROR(cudaFree(d_subs));
   HANDLE_ERROR(cudaFree(d_crs));
   HANDLE_ERROR(cudaFree(d_s2c));
-
-  return;
 }
 
 //=======================================================================
@@ -400,16 +378,15 @@ void rec_fprj(float *d_sino, float *d_img, int *d_sub, int Nprj,
     snno = NSINOS11;
 
   //> number of oblique sinograms
-  int Noblq = (NRINGS*(NRINGS-1)-12)/2;
+  int Noblq = (NRINGS * (NRINGS - 1) - 12) / 2;
   //> number of threads (in the axial direction)
-  int Nz = ((Noblq+127)/128)*128;
+  int Nz = ((Noblq + 127) / 128) * 128;
 
   cudaEvent_t start, stop;
   cudaEventCreate(&start);
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
   if (Cnt.LOG <= LOGDEBUG) printf("i> subset forward projection (Nprj=%d)... ", Nprj);
-
 
   //============================================================================
   fprj_drct<<<Nprj, NRINGS>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0);
@@ -418,16 +395,15 @@ void rec_fprj(float *d_sino, float *d_img, int *d_sub, int Nprj,
 
   int zoff = NRINGS;
   //============================================================================
-  fprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
-  zoff += Nz/2;
+  zoff += Nz / 2;
   //============================================================================
-  fprj_oblq<<<Nprj, Nz/2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
-
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
