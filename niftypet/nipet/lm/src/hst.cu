@@ -3,7 +3,7 @@ CUDA C extension for Python
 Provides functionality for histogramming and processing list-mode data.
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2021
 ------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -13,17 +13,10 @@ Copyrights: 2018
 #include "hst.h"
 #include <curand.h>
 
-#define nhNSN1 4084
-#define nSEG 11 // number of segments, in span-11
-
 // #define CURAND_ERR(x) do { if((x)!=CURAND_STATUS_SUCCESS) { \
 //     printf("Error at %s:%d\n",__FILE__,__LINE__);\
 //     return EXIT_FAILURE;}} while(0)
 
-// put the info about sino segemnts to constant memory
-__constant__ short c_ssrb[nhNSN1];
-// span-1 to span-11
-__constant__ short c_li2span11[nhNSN1];
 
 //============== RANDOM NUMBERS FROM CUDA =============================
 __global__ void setup_rand(curandState *state) {
@@ -33,7 +26,7 @@ __global__ void setup_rand(curandState *state) {
 
 //=====================================================================
 __global__ void hst(
-    int *lm,
+    unsigned char *lm,
     unsigned int *psino,
     unsigned int *ssrb,
     unsigned int *rdlyd,
@@ -45,7 +38,8 @@ __global__ void hst(
 
     //> inputs:
     int *c2sF,
-    short2 *sn1_rno,
+    short *Msn,
+    short *Mssrb,
     const int ele4thrd,
     const int elm,
     const int off,
@@ -67,10 +61,10 @@ __global__ void hst(
   // weight for number of events, only for parametric bootstrap it can be different than 1.
   unsigned int Nevnt = 1;
 
-  int i_start, i_stop;
-  if (idx == (BTHREADS * NTHREADS - 1)) {
+  unsigned int i_start, i_stop;
+  if (idx == (TOTHRDS - 1)) {
     i_stop = off + elm;
-    i_start = off + (BTHREADS * NTHREADS - 1) * ele4thrd;
+    i_start = off + (TOTHRDS - 1) * ele4thrd;
   } else {
     i_stop = off + (idx + 1) * ele4thrd;
     i_start = off + idx * ele4thrd;
@@ -94,7 +88,6 @@ __global__ void hst(
   //> crystal index
   short2 ci;
 
-
   // find the first time tag in this thread patch
   int itag; // integration time tag
   int i = i_start;
@@ -109,6 +102,14 @@ __global__ void hst(
 
     i++;
 
+    // // > for microPET checking the Gray code of each event packet
+    // if (idx==10){
+    //   x = lm[BPEV*i+5]>>4;
+    //   x_ = x;
+    //   while (x>>=1) x_ ^= x;
+    //   printf("i: %d; grey: %d; dgrey: %d\n", i, lm[BPEV*i+5]>>4, x_);
+    // }
+
     if (i >= i_stop) {
       printf("wc> couldn't find time tag from this position onwards: %d, \n    assuming the last "
              "one.\n",
@@ -117,7 +118,7 @@ __global__ void hst(
       break;
     }
   }
-  // printf("istart=%d, dt=%d, itag=%d\n",  i_start, i_stop-i_start, itag );
+  // printf("istart=%d, istop=%d, itag=%d, toff=%d\n",  i_start, i_stop, itag, toff);
   //===================================================================================
 
   for (int i = i_start; i < i_stop; i++) {
@@ -146,147 +147,162 @@ __global__ void hst(
     // } // <-----------------------------------------------------------------------------------------
 
 
+
     // read the data packet from global memory
     ptype = lm[i*BPEV+5]&0x0f;
 
-    if (ptype<8){
-      pd = ptype>>2;
+    if ((itag >= tstart) && (itag < tstop)) {
 
-      //> crystal locations
-      cl.x = ((lm[i*BPEV+2]&0x01)<<16) + ((lm[i*BPEV+1])<<8) + lm[i*BPEV];
-      cl.y = ((lm[i*BPEV+4]&0x0f)<<13) + ((lm[i*BPEV+3])<<5) + ((lm[i*BPEV+2]&0xf8)>>3);
+      if (ptype<8){
+        pd = ptype>>2;
 
-      //> ring and crystal of photon x
-      ri.x = cl.x/NCRSTLS;
-      ci.x = cl.x-ri.x*NCRSTLS;
+        //> crystal locations
+        cl.x = ((lm[i*BPEV+2]&0x01)<<16) + ((lm[i*BPEV+1])<<8) + lm[i*BPEV];
+        cl.y = ((lm[i*BPEV+4]&0x0f)<<13) + ((lm[i*BPEV+3])<<5) + ((lm[i*BPEV+2]&0xf8)>>3);
 
-      //> ring and crystal of photon y
-      ri.y = cl.y/NCRSTLS;
-      ci.y = cl.y-ri.y*NCRSTLS;
+        //> ring and crystal of photon x
+        ri.x = cl.x/NCRSTLS;
+        ci.x = cl.x-ri.x*NCRSTLS;
 
-      if (c2sF[ci.y, ci.x]>0){
-        if (pd==1){
-          atomicAdd(ssrb + c2sF[ci.y, ci.x], Nevnt);
-          atomicAdd(rprmt + itag, Nevnt);
+        //> ring and crystal of photon y
+        ri.y = cl.y/NCRSTLS;
+        ci.y = cl.y-ri.y*NCRSTLS;
+
+        if (c2sF[ci.y*NCRSTLS+ci.x]>0){
+          if (pd==1){
+            atomicAdd(psino + NSBINANG*Msn  [ri.y*NRINGS+ri.x] +c2sF[ci.y*NCRSTLS+ci.x], Nevnt);
+            atomicAdd(ssrb  + NSBINANG*Mssrb[ri.y*NRINGS+ri.x] +c2sF[ci.y*NCRSTLS+ci.x], Nevnt);
+            atomicAdd(rprmt + itag, Nevnt);
+
+            //-- centre of mass
+            atomicAdd(mass.zM + itag*SEG0 + Mssrb[ri.y*NRINGS+ri.x], Nevnt);
+            //atomicAdd(mass.zR + itag, Mssrb[ri.y*NRINGS+ri.x] +c2sF[ci.y*NCRSTLS+ci.x]);
+            //atomicAdd(mass.zM + itag, Nevnt);
+            //---
+          }
+          else{
+            atomicAdd(rdlyd + itag, Nevnt);
+            atomicAdd(psino + NSBINANG*Msn  [ri.y*NRINGS+ri.x] +c2sF[ci.y*NCRSTLS+ci.x], Nevnt << 16);
+          }
         }
-        // else{
-        //   atomicAdd(psino + c2sF[ci.y, ci.x], Nevnt << 16);
-        // }
       }
+
+      // > time tags
+      else if ( (ptype==0x0a) && (((lm[i*BPEV+4]&0xf0)>>4)==0) ){
+        itag = ((lm[BPEV*i+3]<<24) + (lm[BPEV*i+2]<<16) + ((lm[BPEV*i+1])<<8) + lm[BPEV*i])/5 - toff;
+        itag /= ITIME;
+      }
+
     }
-    else if ( (ptype==0x0a) && (((lm[i*BPEV+4]&0xf0)>>4)==0) ){
-      itag = ((lm[BPEV*i+3]<<24) + (lm[BPEV*i+2]<<16) + ((lm[BPEV*i+1])<<8) + lm[BPEV*i])/5 - toff;
-      itag /= ITIME;
-    }
 
 
 
-    // // by masking (ignore the first bits) extract the bin address or time
-    // val = word & 0x3fffffff;
+  //   // // by masking (ignore the first bits) extract the bin address or time
+  //   // val = word & 0x3fffffff;
 
-    // if ((itag >= tstart) && (itag < tstop)) {
+  //   // if ((itag >= tstart) && (itag < tstop)) {
 
-    //   if (word > 0) {
+  //   //   if (word > 0) {
 
-    //     if ((Nevnt > 0) && (Nevnt < 32)) {
+  //   //     if ((Nevnt > 0) && (Nevnt < 32)) {
 
-    //       si = val / NSBINANG;
-    //       aw = val - si * NSBINANG;
-    //       a = aw / NSBINS;
-    //       w = aw - a * NSBINS;
+  //   //       si = val / NSBINANG;
+  //   //       aw = val - si * NSBINANG;
+  //   //       a = aw / NSBINS;
+  //   //       w = aw - a * NSBINS;
 
-    //       // span-11 sinos
-    //       si11 = c_li2span11[si];
+  //   //       // span-11 sinos
+  //   //       si11 = c_li2span11[si];
 
-    //       // SSRB sino [127x252x344]
-    //       si_ssrb = c_ssrb[si];
+  //   //       // SSRB sino [127x252x344]
+  //   //       si_ssrb = c_ssrb[si];
 
-    //       // span-1
-    //       if (span == 1) addr = val;
-    //       // span-11
-    //       else if (span == 11)
-    //         addr = si11 * NSBINANG + aw;
-    //       // SSRB
-    //       else if (span == 0)
-    //         addr = si_ssrb * NSBINANG + aw;
+  //   //       // span-1
+  //   //       if (span == 1) addr = val;
+  //   //       // span-11
+  //   //       else if (span == 11)
+  //   //         addr = si11 * NSBINANG + aw;
+  //   //       // SSRB
+  //   //       else if (span == 0)
+  //   //         addr = si_ssrb * NSBINANG + aw;
 
-    //       P = (word >> 30);
+  //   //       P = (word >> 30);
 
-    //       //> prompts
-    //       if (P == 1) {
+  //   //       //> prompts
+  //   //       if (P == 1) {
 
-    //         atomicAdd(rprmt + itag, Nevnt);
+  //   //         atomicAdd(rprmt + itag, Nevnt);
 
-    //         //---SSRB
-    //         atomicAdd(ssrb + si_ssrb * NSBINANG + aw, Nevnt);
-    //         //---
+  //   //         //---SSRB
+  //   //         atomicAdd(ssrb + si_ssrb * NSBINANG + aw, Nevnt);
+  //   //         //---
 
-    //         //---sino
-    //         atomicAdd(psino + addr, Nevnt);
-    //         //---
+  //   //         //---sino
+  //   //         atomicAdd(psino + addr, Nevnt);
+  //   //         //---
 
-    //         //-- centre of mass
-    //         atomicAdd(mass.zR + itag, si_ssrb);
-    //         atomicAdd(mass.zM + itag, Nevnt);
-    //         //---
+  //   //         //-- centre of mass
+  //   //         atomicAdd(mass.zR + itag, si_ssrb);
+  //   //         atomicAdd(mass.zM + itag, Nevnt);
+  //   //         //---
 
-    //         //---motion projection view
-    //         a0 = a == 0;
-    //         a126 = a == 126;
-    //         if ((a0 || a126) && (itag < MXNITAG)) {
-    //           atomicAdd(snview + (itag >> VTIME) * SEG0 * NSBINS + si_ssrb * NSBINS + w,
-    //                     Nevnt << (a126 * 8));
-    //         }
+  //   //         //---motion projection view
+  //   //         a0 = a == 0;
+  //   //         a126 = a == 126;
+  //   //         if ((a0 || a126) && (itag < MXNITAG)) {
+  //   //           atomicAdd(snview + (itag >> VTIME) * SEG0 * NSBINS + si_ssrb * NSBINS + w,
+  //   //                     Nevnt << (a126 * 8));
+  //   //         }
 
-    //       }
+  //   //       }
 
-    //       //> delayeds
-    //       else {
-    //         //> use the same UINT32 sinogram for prompts after shifting delayeds
-    //         atomicAdd(psino + addr, Nevnt << 16);
+  //   //       //> delayeds
+  //   //       else {
+  //   //         //> use the same UINT32 sinogram for prompts after shifting delayeds
+  //   //         atomicAdd(psino + addr, Nevnt << 16);
 
-    //         //> delayeds head curve
-    //         atomicAdd(rdlyd + itag, Nevnt);
+  //   //         //> delayeds head curve
+  //   //         atomicAdd(rdlyd + itag, Nevnt);
 
-    //         //+++ fan-sums (for singles estimation) +++
-    //         atomicAdd(fansums + nCRS * sn1_rno[si].x + sn2crs[a + NSANGLES * w].x, Nevnt);
-    //         atomicAdd(fansums + nCRS * sn1_rno[si].y + sn2crs[a + NSANGLES * w].y, Nevnt);
-    //         //+++
-    //       }
-    //     }
-    //   }
+  //   //         //+++ fan-sums (for singles estimation) +++
+  //   //         atomicAdd(fansums + nCRS * sn1_rno[si].x + sn2crs[a + NSANGLES * w].x, Nevnt);
+  //   //         atomicAdd(fansums + nCRS * sn1_rno[si].y + sn2crs[a + NSANGLES * w].y, Nevnt);
+  //   //         //+++
+  //   //       }
+  //   //     }
+  //   //   }
 
-    //   else {
+  //   //   else {
 
-    //     //--time tags
-    //     if ((word >> 29) == -4) {
-    //       itag = (val - toff) / ITIME;
-    //       itagu = (val - toff) - itag * ITIME;
-    //     }
-    //     //--singles
-    //     else if (((word >> 29) == -3) && (itag >= tstart) && (itag < tstop)) {
+  //   //     //--time tags
+  //   //     if ((word >> 29) == -4) {
+  //   //       itag = (val - toff) / ITIME;
+  //   //       itagu = (val - toff) - itag * ITIME;
+  //   //     }
+  //   //     //--singles
+  //   //     else if (((word >> 29) == -3) && (itag >= tstart) && (itag < tstop)) {
 
-    //       // bucket index
-    //       unsigned short ibck = ((word & 0x1fffffff) >> 19);
+  //   //       // bucket index
+  //   //       unsigned short ibck = ((word & 0x1fffffff) >> 19);
 
-    //       // weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
-    //       if (ibck < NBUCKTS) {
-    //         atomicAdd(bucks + ibck + NBUCKTS * itag, (word & 0x0007ffff) << 3);
-    //         // how many reads greater than zeros per one sec
-    //         // the last two bits are used for the number of reports per second
-    //         atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, ((word & 0x0007ffff) > 0)
-    //                                                                        << 30);
+  //   //       // weirdly the bucket index can be larger than NBUCKTS (the size)!  so checking for it...
+  //   //       if (ibck < NBUCKTS) {
+  //   //         atomicAdd(bucks + ibck + NBUCKTS * itag, (word & 0x0007ffff) << 3);
+  //   //         // how many reads greater than zeros per one sec
+  //   //         // the last two bits are used for the number of reports per second
+  //   //         atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, ((word & 0x0007ffff) > 0)
+  //   //                                                                        << 30);
 
-    //         //--get some more info about the time tag (mili seconds) for up to two singles reports
-    //         // per second
-    //         if (bucks[ibck + NBUCKTS * itag + NBUCKTS * nitag] == 0)
-    //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu);
-    //         else
-    //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu << 10);
-    //       }
-    //     }
-    //   }
-    //}
+  //   //         //--get some more info about the time tag (mili seconds) for up to two singles reports
+  //   //         // per second
+  //   //         if (bucks[ibck + NBUCKTS * itag + NBUCKTS * nitag] == 0)
+  //   //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu);
+  //   //         else
+  //   //           atomicAdd(bucks + ibck + NBUCKTS * itag + NBUCKTS * nitag, itagu << 10);
+  //   //       }
+  //   //     }
+  //   //   }
+  //   //}
 
   } // <--for
 
@@ -325,7 +341,7 @@ curandState *setup_curand() {
 //***** general variables used for streams
 int ichnk;   // indicator of how many chunks have been processed in the GPU.
 int nchnkrd; // indicator of how many chunks have been read from disk.
-int *lmbuff; // data buffer
+unsigned char *lmbuff; // data buffer
 bool dataready[NSTREAMS];
 
 FILE *open_lm() {
@@ -358,8 +374,8 @@ void get_lm_chunk(FILE *f, int stream_idx) {
 
   int n = lmprop.ele4chnk[nchnkrd];
 
-  size_t r = fread(&lmbuff[stream_idx * ELECHNK], lmprop.bpe, n, f);
-  if (r != n) {
+  size_t r = fread(&lmbuff[stream_idx * ELECHNK * lmprop.bpe], sizeof(unsigned char), lmprop.bpe*n, f);
+  if (r != lmprop.bpe*n) {
     printf("ele4chnk = %d, r = %zd\n", n, r);
     fputs("Reading error (CUDART callback)\n", stderr);
     fclose(f);
@@ -411,19 +427,13 @@ void gpu_hst(
     int tstart,
     int tstop,
     int *d_c2sF,
-    axialLUT axLUT,
+    short *d_Msn,
+    short *d_Mssrb,
     const Cnst Cnt) {
 
   LOG = Cnt.LOG;
   BTP = Cnt.BTP;
   BTPRT = (double)Cnt.BTPRT;
-
-  if (nhNSN1 != Cnt.NSN1) {
-    printf("e> defined number of sinos for constant memory, nhNSN1 = %d, does not match the one "
-           "given in the structure of constants %d.  please, correct that.\n",
-           nhNSN1, Cnt.NSN1);
-    exit(1);
-  }
 
   // check which device is going to be used
   int dev_id;
@@ -446,24 +456,12 @@ void gpu_hst(
   if (Cnt.BTP == 2) curandCreatePoissonDistribution(Cnt.BTPRT, &poisson_hst);
   //---
 
-  // single slice rebinning LUT to constant memory
-  cudaMemcpyToSymbol(c_ssrb, axLUT.sn1_ssrb, Cnt.NSN1 * sizeof(short));
-
-  // SPAN-1 to SPAN-11 conversion table in GPU constant memory
-  cudaMemcpyToSymbol(c_li2span11, axLUT.sn1_sn11, Cnt.NSN1 * sizeof(short));
-
-  short2 *d_sn1_rno;
-  HANDLE_ERROR(cudaMalloc((void **)&d_sn1_rno, Cnt.NSN1 * sizeof(short2)));
-  HANDLE_ERROR(
-      cudaMemcpy(d_sn1_rno, axLUT.sn1_rno, Cnt.NSN1 * sizeof(short2), cudaMemcpyHostToDevice));
-
-
   //> allocate memory for the chunks of list mode file
-  int *d_lmbuff;
+  unsigned char *d_lmbuff;
   //> host pinned memory
-  HANDLE_ERROR(cudaMallocHost((void **)&lmbuff, NSTREAMS * ELECHNK * sizeof(int)));
+  HANDLE_ERROR(cudaMallocHost((void **)&lmbuff, NSTREAMS * ELECHNK * Cnt.BPE * sizeof(unsigned char)));
   //> device memory
-  HANDLE_ERROR(cudaMalloc((void **)&d_lmbuff, NSTREAMS * ELECHNK * sizeof(int)));
+  HANDLE_ERROR(cudaMalloc((void **)&d_lmbuff, NSTREAMS * ELECHNK * Cnt.BPE * sizeof(unsigned char)));
 
   // Get the number of streams to be used
   int nstreams = MIN(NSTREAMS, lmprop.nchnk);
@@ -521,15 +519,38 @@ void gpu_hst(
     }
     //******
     dataready[si] = 0; // set a flag: stream[i] is busy now with processing the data.
-    HANDLE_ERROR(cudaMemcpyAsync(&d_lmbuff[si * ELECHNK], &lmbuff[si * ELECHNK], // lmprop.atag[n]
-                                 lmprop.ele4chnk[n] * sizeof(int), cudaMemcpyHostToDevice,
+    HANDLE_ERROR(cudaMemcpyAsync(&d_lmbuff[si * ELECHNK * lmprop.bpe], &lmbuff[si * ELECHNK * lmprop.bpe],
+                                 lmprop.ele4chnk[n] * lmprop.bpe, cudaMemcpyHostToDevice,
                                  stream[si]));
 
+    //printf("nitag: %d; toff: %d\n", lmprop.nitag, lmprop.toff);
+
     hst<<<BTHREADS, NTHREADS, 0, stream[si]>>>(
-        d_lmbuff, d_psino, d_ssrb, d_rdlyd, d_rprmt, d_fansums, d_bucks, d_mass, d_snview,
-        d_c2sF, d_sn1_rno,
-        lmprop.ele4thrd[n], lmprop.ele4chnk[n], si * ELECHNK, lmprop.toff,
-        lmprop.nitag, lmprop.span, BTP, BTPRT, tstart, tstop, d_prng_states, poisson_hst);
+        d_lmbuff,
+        d_psino,
+        d_ssrb,
+        d_rdlyd,
+        d_rprmt,
+        d_fansums,
+        d_bucks,
+        d_mass,
+        d_snview,
+        d_c2sF,
+        d_Msn,
+        d_Mssrb,
+        lmprop.ele4thrd[n],
+        lmprop.ele4chnk[n],
+        si * ELECHNK,
+        lmprop.toff,
+        lmprop.nitag,
+        lmprop.span,
+        BTP,
+        BTPRT,
+        tstart,
+        tstop,
+        d_prng_states,
+        poisson_hst);
+
 
     HANDLE_ERROR(cudaGetLastError());
     if (Cnt.LOG <= LOGDEBUG)
@@ -558,7 +579,8 @@ void gpu_hst(
 
   //***** close things down *****
   for (int i = 0; i < nstreams; ++i) {
-    // printf("--> checking stream[%d], %s\n",i, cudaGetErrorName( cudaStreamQuery(stream[i]) ));
+    if (Cnt.LOG <= LOGDEBUG)
+      printf("--> checking stream[%d], %s\n",i, cudaGetErrorName( cudaStreamQuery(stream[i]) ));
     HANDLE_ERROR(cudaStreamDestroy(stream[i]));
   }
 
@@ -566,7 +588,6 @@ void gpu_hst(
 
   cudaFreeHost(lmbuff);
   cudaFree(d_lmbuff);
-  cudaFree(d_sn1_rno);
 
   // destroy the histogram for parametric bootstrap
   if (Cnt.BTP == 2) curandDestroyDistribution(poisson_hst);

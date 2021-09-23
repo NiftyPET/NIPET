@@ -486,7 +486,7 @@ static PyObject *mmr_span11LUT(PyObject *self, PyObject *args) {
 
   /* Interpret the input objects as... */
   PyObject *pd_Naw = PyDict_GetItemString(o_mmrcnst, "Naw");
-  Cnt.aw = (int)PyLong_AsLong(pd_Naw);
+  Cnt.NAW = (int)PyLong_AsLong(pd_Naw);
   PyObject *pd_NSN1 = PyDict_GetItemString(o_mmrcnst, "NSN1");
   Cnt.NSN1 = (int)PyLong_AsLong(pd_NSN1);
   PyObject *pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");

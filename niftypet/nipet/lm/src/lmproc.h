@@ -30,7 +30,7 @@ typedef struct {
   unsigned int *hcd; // head curve delayeds
   unsigned int *fan; // fansums
   unsigned int *bck; // buckets (singles)
-  float *mss;        // centre of mass (axially)
+  unsigned int *mss;        // centre of mass (axially)
 
   unsigned int *ssr;      // SSRB sinogram
   unsigned short *psn;    // prompt sinogram

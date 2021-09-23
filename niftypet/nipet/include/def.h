@@ -30,16 +30,15 @@
 #define NIPET_CU_THREADS 1024
 #endif
 
-#define TOT_BINS_S1 354033792 // 344*252*4084
+//#define TOT_BINS_S1 354033792 // 344*252*4084
 
 // 344*252*837
-#define TOT_BINS 72557856
+//#define TOT_BINS 72557856
 
 #define NSTREAMS 32                    // # CUDA streams
-#define ELECHNK (402653184 / NSTREAMS) // Siemens Mmr: (402653184 = 2^28+2^27 => 1.5G), 536870912
-#define ELECHNK_S                                                                                 \
-  (268435456 /                                                                                    \
-   NSTREAMS) // GE Signa: 2^28 = 268435456 int elements to make up 1.6GB when 6bytes per event
+//#define ELECHNK (402653184 / NSTREAMS) // Siemens Mmr: (402653184 = 2^28+2^27 => 1.5G), 536870912
+#define ELECHNK (268435456 / NSTREAMS) 
+#define ELECHNK_S (268435456/NSTREAMS) // GE Signa: 2^28 = 268435456 int elements to make up 1.6GB when 6bytes per event
 
 // # bytes per event
 #define BPEV 6
@@ -50,15 +49,20 @@
 #define CFOR 20 // number of iterations for crystals transaxially
 
 #define SPAN 11
-#define NRINGS 64
+//#define NRINGS 64
 #define nCRS 504
 #define nCRSR 448 // number of active crystals
 #define NSBINS 344
 #define NSANGLES 252
-#define NSBINANG 86688 // NSBINS*NSANGLES
-#define NSINOS 4084
+//#define NSBINANG 86688 // NSBINS*NSANGLES
+//#define NSINOS 4084
+#define TOT_BINS_S1 131072000
+#define NRINGS 80
+#define NSINOS 6400
+#define NSBINANG 20480 // NSBINS*NSANGLES
+#define SEG0 159
 #define NSINOS11 837
-#define SEG0 127
+//#define SEG0 127
 #define NBUCKTS 224 // purposely too large (should be 224 = 28*8)
 #define AW 68516    // number of active bins in 2D sino
 #define NLI2R 2074

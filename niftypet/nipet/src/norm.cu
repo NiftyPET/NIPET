@@ -177,7 +177,7 @@ void norm_from_components(float *sino,    // output norm sino
   Cnt.Cbt = 18;
   Cnt.Cba = 8;
 
-  // printf(">>>> W=%d, AW=%d, C=%d, R=%d, D=%d, B=%d\n", cnt.W, cnt.aw, cnt.C, cnt.R, cnt.D,
+  // printf(">>>> W=%d, AW=%d, C=%d, R=%d, D=%d, B=%d\n", Cnt.W, Cnt.NAW, cnt.C, cnt.R, cnt.D,
   // cnt.B);
 
   // CUDA grid size (in blocks)

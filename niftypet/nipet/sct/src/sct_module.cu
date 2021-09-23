@@ -95,7 +95,7 @@ static PyObject *vsm_scatter(PyObject *self, PyObject *args) {
 
   /* Interpret the input objects as numpy arrays. */
   PyObject *pd_aw = PyDict_GetItemString(o_mmrcnst, "Naw");
-  Cnt.aw = (int)PyLong_AsLong(pd_aw);
+  Cnt.NAW = (int)PyLong_AsLong(pd_aw);
   PyObject *pd_A = PyDict_GetItemString(o_mmrcnst, "NSANGLES");
   Cnt.A = (int)PyLong_AsLong(pd_A);
   PyObject *pd_W = PyDict_GetItemString(o_mmrcnst, "NSBINS");

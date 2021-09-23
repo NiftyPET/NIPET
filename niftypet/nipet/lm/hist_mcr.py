@@ -10,7 +10,7 @@ import scipy.ndimage as ndi
 
 from niftypet import nimpa
 
-from .. import mmraux
+from .. import mcraux
 
 # CUDA extension module
 #from . import mmr_lmproc
@@ -42,7 +42,6 @@ def hist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=F
     axLUT = scanner_params['axLUT']
 
     if Cnt['SPN'] == 1: nsinos = Cnt['NSN1']
-    elif Cnt['SPN'] == 11: nsinos = Cnt['NSN11']
     elif Cnt['SPN'] == 0: nsinos = Cnt['NSEG0']
 
     log.debug('histogramming with span {}.'.format(Cnt['SPN']))
@@ -59,7 +58,7 @@ def hist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=F
         nele, ttags, tpos = lmproc_mcr.lminfo(datain['lm_bf'], Cnt)
 
         # > multiply time tags by 200 microsecond - the reported time increments in list data
-        nitag = int((0.2*(ttags[1] - ttags[0]) + 999) / 1000)
+        nitag = int((ttags[1] - ttags[0] + 999) / 1000)
         log.debug('acquisition duration by integrating time tags is {} sec.'.format(nitag))
 
         # adjust frame time if outside the limit
@@ -81,17 +80,17 @@ def hist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=F
         pvs = np.zeros((tn, Cnt['NSEG0'], Cnt['NSBINS']), dtype=np.uint32)
         phc = np.zeros((nitag), dtype=np.uint32)
         dhc = np.zeros((nitag), dtype=np.uint32)
-        mss = np.zeros((nitag), dtype=np.float32)
+        mss = np.zeros((nitag, Cnt['NSEG0']), dtype=np.uint32)
 
         bck = np.zeros((2, nitag, Cnt['NBCKT']), dtype=np.uint32)
         fan = np.zeros((Cnt['NRNG'], Cnt['NCRS']), dtype=np.uint32)
 
         # > prompt and delayed sinograms
-        psino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
-        dsino = np.zeros((nsinos, Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint16)
+        psino = np.zeros((nsinos, Cnt['NSBINS'], Cnt['NSANGLES']), dtype=np.uint16)
+        dsino = np.zeros((nsinos, Cnt['NSBINS'], Cnt['NSANGLES']), dtype=np.uint16)
 
-        # > single slice rebinned prompots
-        ssr = np.zeros((Cnt['NSEG0'], Cnt['NSANGLES'], Cnt['NSBINS']), dtype=np.uint32)
+        # > single slice rebinned prompts
+        ssr = np.zeros((Cnt['NSEG0'], Cnt['NSBINS'], Cnt['NSANGLES']), dtype=np.uint32)
 
         hstout = {
             'phc': phc, 'dhc': dhc, 'mss': mss, 'pvs': pvs, 'bck': bck, 'fan': fan, 'psn': psino,
@@ -118,35 +117,45 @@ def hist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=F
         log.error('input list-mode data is not defined.')
         return
 
-    # short (interval) projection views
-    pvs_sgtl = np.right_shift(hstout['pvs'], 8).astype(np.float32)
-    pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
-    cmass = Cnt['SO_VXZ'] * ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
-    log.debug(
-        'centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'
-        .format(cmass_sig))
+    activ = hstout['mss']>0
+    ssrb_idxs = np.arange(Cnt['NSEG0'])
+    cmass = np.zeros(nitag, dtype=np.float32)
+    for i in range(nitag):
+        cmass[i] = np.sum((hstout['mss'][i,activ[i]] * ssrb_idxs[activ[i]]) / np.sum(hstout['mss'][i,:]))
+    cmass = Cnt['AXR']*Cnt['NRNG']/Cnt['NSEG0'] * ndi.filters.gaussian_filter(cmass, cmass_sig, mode='mirror')
 
-    # ========================= BUCKET SINGLES =========================
-    # > number of single rates reported for the given second
-    # > the last two bits are used for the number of reports
-    nsr = (hstout['bck'][1, :, :] >> 30)
+    # cmass = Cnt['SO_VXZ'] * ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
+    # log.debug(
+    #     'centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'
+    #     .format(cmass_sig))
 
-    # > average in a second period
-    hstout['bck'][0, nsr > 0] = hstout['bck'][0, nsr > 0] / nsr[nsr > 0]
+    # # short (interval) projection views
+    # pvs_sgtl = np.right_shift(hstout['pvs'], 8).astype(np.float32)
+    # pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
-    # > time indeces when single rates given
-    tmsk = np.sum(nsr, axis=1) > 0
-    single_rate = np.copy(hstout['bck'][0, tmsk, :])
 
-    # > time
-    t = np.arange(nitag)
-    t = t[tmsk]
 
-    # > get the average bucket singles:
-    buckets = np.int32(np.sum(single_rate, axis=0) / single_rate.shape[0])
-    log.debug('dynamic and static buckets single rates:  COMPLETED.')
-    # ==================================================================
+    # # ========================= BUCKET SINGLES =========================
+    # # > number of single rates reported for the given second
+    # # > the last two bits are used for the number of reports
+    # nsr = (hstout['bck'][1, :, :] >> 30)
+
+    # # > average in a second period
+    # hstout['bck'][0, nsr > 0] = hstout['bck'][0, nsr > 0] / nsr[nsr > 0]
+
+    # # > time indeces when single rates given
+    # tmsk = np.sum(nsr, axis=1) > 0
+    # single_rate = np.copy(hstout['bck'][0, tmsk, :])
+
+    # # > time
+    # t = np.arange(nitag)
+    # t = t[tmsk]
+
+    # # > get the average bucket singles:
+    # buckets = np.int32(np.sum(single_rate, axis=0) / single_rate.shape[0])
+    # log.debug('dynamic and static buckets single rates:  COMPLETED.')
+    # # ==================================================================
 
     # account for the fact that when t0==t1 that means that full dataset is processed
     if t0 == t1: t1 = t0 + nitag
@@ -158,16 +167,19 @@ def hist(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stored=F
         'phc': hstout['phc'],     # prompts head curve
         'dhc': hstout['dhc'],     # delayeds head curve
         'cmass': cmass,           # centre of mass of the radiodistribution in axial direction
-        'pvs_sgtl': pvs_sgtl,     # sagittal projection views in short intervals
-        'pvs_crnl': pvs_crnl,     # coronal projection views in short intervals
-        'fansums': hstout['fan'], # fan sums of delayeds for variance reduction of randoms
-        'sngl_rate': single_rate, # bucket singles over time
-        'tsngl': t,               # time points of singles measurements in list-mode data
-        'buckets': buckets,       # average bucket singles
-        'psino': hstout['psn'].astype(np.uint16), # prompt sinogram
-        'dsino': hstout['dsn'].astype(np.uint16), # delayeds sinogram
-        'pssr': hstout['ssr']     # single-slice rebinned sinogram of prompts
-    }  # yapf: disable
+        #'pvs_sgtl': pvs_sgtl,     # sagittal projection views in short intervals
+        #'pvs_crnl': pvs_crnl,     # coronal projection views in short intervals
+        #'fansums': hstout['fan'], # fan sums of delayeds for variance reduction of randoms
+        #'sngl_rate': single_rate, # bucket singles over time
+        #'tsngl': t,               # time points of singles measurements in list-mode data
+        #'buckets': buckets,       # average bucket singles
+        'psino': hstout['psn'],    # prompt sinogram
+        'dsino': hstout['dsn'],    # delayeds sinogram
+        'pssr': hstout['ssr'],     # single-slice rebinned sinogram of prompts
+        'mss':hstout['mss']
+    }
+
+    return hstout
 
 
 # ==============================================================================

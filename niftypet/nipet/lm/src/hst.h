@@ -24,7 +24,8 @@ void gpu_hst(
     int tstart,
     int tstop,
     int *d_c2sF,
-    axialLUT axLUT,
+    short *d_Msn,
+    short *d_Mssrb,
     const Cnst Cnt);
 
 #endif

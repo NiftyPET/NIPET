@@ -11,9 +11,9 @@ struct Cnst {
   int BPE;   // bytes per single event
   int LMOFF; // offset for the LM file (e.g., offsetting for header)
 
-  int A;  // sino angles
-  int W;  // sino bins for any angular index
-  int aw; // sino bins (active only)
+  int A;  // number of sino angles
+  int W;  // number of sino bins for any angular index
+  int NAW; // number of TX sino bins (active only)
 
   int NCRS;  // number of crystals
   int NCRSR; // reduced number of crystals by gaps
@@ -110,8 +110,8 @@ typedef struct {
 } span11LUT;
 
 typedef struct {
-  int *zR; // sum of z indx
-  int *zM; // total mass for SEG0
+  unsigned int *zR; // sum of z index
+  unsigned int *zM; // total mass for SEG0
 } mMass;   // structure for motion centre of Mass
 
 struct LORcc {
@@ -141,9 +141,9 @@ struct txLUTs {
 
 // structure for axial look up tables (Siemens mMR)
 struct axialLUT {
-  int *li2rno; // linear indx to ring indx
-  int *li2sn;  // linear michelogram index (along diagonals) to sino index
-  int *li2nos; // linear indx to no of sinos in span-11
+  int *li2rno; // linear index to ring index
+  int *li2sn;  // linear Michelogram index (along diagonals) to sino index
+  int *li2nos; // linear index to no of sinos in span-11
   short *sn1_rno;
   short *sn1_sn11;
   short *sn1_ssrb;
@@ -151,6 +151,8 @@ struct axialLUT {
   int Nli2rno[2]; // array sizes
   int Nli2sn[2];
   int Nli2nos;
+  short *Msn;   // Michelogram
+  short *Mssrb; // Michelogram for SSRB sinograms
 };
 
 // structure for 2D sino lookup tables (GE Signa)
