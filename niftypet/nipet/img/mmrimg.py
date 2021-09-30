@@ -1267,7 +1267,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 
     if os.path.isfile(datain['pCT']):
         # reconstruct PET image with default settings to be used to alight pCT mu-map
-        params = mmraux.mMR_params()
+        params = mmraux.get_mmrparams()
         Cnt_ = params['Cnt']
         txLUT_ = params['txLUT']
         axLUT_ = params['axLUT']
