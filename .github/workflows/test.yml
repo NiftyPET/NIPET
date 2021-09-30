@@ -1,44 +1,58 @@
 name: Test
-on:
-- push
+on: [push, pull_request]
 jobs:
   check:
+    if: github.event_name != 'pull_request' || github.repository_owner != 'NiftyPET'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: [3.6, 3.9]
-    name: Check py${{ matrix.python }}
+    name: Check
     steps:
     - uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
     - uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
     - name: set PYSHA
       run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
     - uses: actions/cache@v1
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
-    - run: pip install -U pre-commit twine setuptools wheel setuptools_scm[toml] ninst scikit-build
-    - run: HMUDIR=$HOME python setup.py sdist
-    - run: twine check dist/*
+    - name: dependencies
+      run: |
+        pip install -U pre-commit
+        sudo apt-get install -yqq clang-format
+    - uses: reviewdog/action-setup@v1
+    - if: github.event_name == 'push' || github.event_name == 'pull_request'
+      name: comment
+      run: |
+        if [[ $EVENT == pull_request ]]; then
+          REPORTER=github-pr-review
+        else
+          REPORTER=github-check
+        fi
+        pre-commit run -a todo | reviewdog -efm="%f:%l: %m" -name=TODO -tee -reporter=$REPORTER -filter-mode nofilter
+        pre-commit run -a flake8 | reviewdog -f=pep8 -name=flake8 -tee -reporter=$REPORTER -filter-mode nofilter
+      env:
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        EVENT: ${{ github.event_name }}
     - run: pre-commit run -a --show-diff-on-failure
   test:
-    runs-on: [self-hosted, cuda]
-    name: Test
+    if: github.event_name != 'pull_request' || github.repository_owner != 'NiftyPET'
+    name: Test py${{ matrix.python }}
+    runs-on: [self-hosted, python, cuda, matlab]
+    strategy:
+      matrix:
+        python: [3.6, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - run: pip install -U -e .[dev]
+    - name: Run setup-python
+      run: setup-python -p${{ matrix.python }}
+    - run: pip install -U --no-binary nimpa -e .[dev]
     - run: pytest
-    - run: codecov
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    - uses: codecov/codecov-action@v1
+    - name: Post Run setup-python
+      run: setup-python -p${{ matrix.python }} -Dr
+      if: ${{ always() }}
   deploy:
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags')
     needs: [check, test]
     name: PyPI Deploy
     runs-on: ubuntu-latest
@@ -47,35 +61,30 @@ jobs:
       with:
         fetch-depth: 0
     - uses: actions/setup-python@v2
+    - id: dist
+      uses: casperdcl/deploy-pypi@v2
       with:
-        python-version: '3.x'
-    - run: pip install -U twine setuptools wheel setuptools_scm[toml] ninst scikit-build
-    - run: HMUDIR=$HOME python setup.py sdist
-    - run: twine upload dist/*
+        requirements: twine setuptools wheel setuptools_scm[toml] ninst scikit-build
+        build: sdist
+        gpg_key: ${{ secrets.GPG_KEY }}
+        password: ${{ secrets.PYPI_TOKEN }}
+        upload: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags') }}
       env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        skip_existing: true
-    - id: collect_assets
-      name: Collect assets
+        PATHTOOLS: ${{ github.workspace }}/NiftyPET_tools
+        HMUDIR: ${{ github.workspace }}
+    - id: meta
+      name: Changelog
       run: |
-        echo "::set-output name=asset_path::$(ls dist/*.tar.gz)"
-        echo "::set-output name=asset_name::$(basename dist/*.tar.gz)"
+        echo ::set-output name=tag::${GITHUB_REF#refs/tags/}
         git log --pretty='format:%d%n- %s%n%b---' $(git tag --sort=v:refname | tail -n2 | head -n1)..HEAD > _CHANGES.md
-    - id: create_release
-      uses: actions/create-release@v1
+    - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: ninst ${{ github.ref }} beta
+        name: nipet ${{ steps.meta.outputs.tag }} stable
         body_path: _CHANGES.md
         draft: true
-    - uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ steps.collect_assets.outputs.asset_path }}
-        asset_name: ${{ steps.collect_assets.outputs.asset_name }}
-        asset_content_type: application/gzip
+        files: |
+          dist/${{ steps.dist.outputs.targz }}
+          dist/${{ steps.dist.outputs.targz_asc }}

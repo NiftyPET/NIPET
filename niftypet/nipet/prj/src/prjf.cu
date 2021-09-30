@@ -6,467 +6,414 @@ reconstruction.
 author: Pawel Markiewicz
 Copyrights: 2018
 ------------------------------------------------------------------------*/
-#include "prjf.h"
 #include "auxmath.h"
+#include "prjf.h"
 #include "tprj.h"
 
 __constant__ float2 c_li2rng[NLI2R];
 __constant__ short2 c_li2sn[NLI2R];
-__constant__ char   c_li2nos[NLI2R];
+__constant__ char c_li2nos[NLI2R];
 
 //===============================================================
-//copy the smaller axially image to the one with full axial extension
-__global__
-void imExpand(float * im,
-	float * imr,
-	int vz0,
-	int nvz)
-{
-	int iz = vz0 + threadIdx.x;
-	int iy = SZ_IMZ*threadIdx.y + SZ_IMZ*blockDim.y*blockIdx.x;
-	if (iy<SZ_IMY*SZ_IMZ) {
-		int idx = SZ_IMZ*SZ_IMY*blockIdx.y + iy + iz;
-		int idxr = threadIdx.x + (nvz*threadIdx.y + nvz*blockDim.y*blockIdx.x) + nvz*SZ_IMY*blockIdx.y;
-		//copy to the axially smaller image
-		im[idx] = imr[idxr];
-	}
+// copy the smaller axially image to the one with full axial extension
+__global__ void imExpand(float *im, float *imr, int vz0, int nvz) {
+  int iz = vz0 + threadIdx.x;
+  int iy = SZ_IMZ * threadIdx.y + SZ_IMZ * blockDim.y * blockIdx.x;
+  if (iy < SZ_IMY * SZ_IMZ) {
+    int idx = SZ_IMZ * SZ_IMY * blockIdx.y + iy + iz;
+    int idxr = threadIdx.x + (nvz * threadIdx.y + nvz * blockDim.y * blockIdx.x) +
+               nvz * SZ_IMY * blockIdx.y;
+    // copy to the axially smaller image
+    im[idx] = imr[idxr];
+  }
 }
 //===============================================================
 
 //**************** DIRECT ***********************************
-__global__ void fprj_drct(float * sino,
-	const float * im,
-	const float * tt,
-	const unsigned char * tv,
-	const int * subs,
-	const short snno,
-	const char span,
-	const char att)
-{
-	int ixt = subs[blockIdx.x]; // transaxial indx
-	int ixz = threadIdx.x; // axial (z)
+__global__ void fprj_drct(float *sino, const float *im, const float *tt, const unsigned char *tv,
+                          const int *subs, const short snno, const char span, const char att) {
+  int ixt = subs[blockIdx.x]; // transaxial indx
+  int ixz = threadIdx.x;      // axial (z)
 
-	float z = c_li2rng[ixz].x + .5*SZ_RING;
-	int w = (floorf(.5*SZ_IMZ + SZ_VOXZi*z));
+  float z = c_li2rng[ixz].x + .5 * SZ_RING;
+  int w = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
 
-	// if(ixz==33 && ixt==5301){
-	//   printf("\n*** li2rng[ixz] = %f | li2sn[ixz] = %d, li2nos[ixz] = %d\n", li2rng[ixz], li2sn[ixz], li2nos[ixz]);
-	// }
+  // if(ixz==33 && ixt==5301){
+  //   printf("\n*** li2rng[ixz] = %f | li2sn[ixz] = %d, li2nos[ixz] = %d\n", li2rng[ixz],
+  //   li2sn[ixz], li2nos[ixz]);
+  // }
 
-	//-------------------------------------------------
-	/*** accumulation ***/
-	// vector a (at) component signs
-	int sgna0 = tv[N_TV*ixt] - 1;
-	int sgna1 = tv[N_TV*ixt + 1] - 1;
-	bool rbit = tv[N_TV*ixt + 2] & 0x01;  //row bit
+  //-------------------------------------------------
+  /*** accumulation ***/
+  // vector a (at) component signs
+  int sgna0 = tv[N_TV * ixt] - 1;
+  int sgna1 = tv[N_TV * ixt + 1] - 1;
+  bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-	int u = (int)tt[N_TT*ixt + 8];
-	int v = (u >> UV_SHFT);
-	int uv = SZ_IMZ*((u & 0x000001ff) + SZ_IMX*v);
+  int u = (int)tt[N_TT * ixt + 8];
+  int v = (u >> UV_SHFT);
+  int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
 
-	//if((ixz==0) && (u>SZ_IMX || v>SZ_IMY)) printf("\n!!! u,v = %d,%d\n", u,v );
+  // if((ixz==0) && (u>SZ_IMX || v>SZ_IMY)) printf("\n!!! u,v = %d,%d\n", u,v );
 
-	//next voxel (skipping the first fractional one)
-	uv += !rbit * sgna0*SZ_IMZ;
-	uv -= rbit * sgna1*SZ_IMZ*SZ_IMX;
+  // next voxel (skipping the first fractional one)
+  uv += !rbit * sgna0 * SZ_IMZ;
+  uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
 
-	float dtr = tt[N_TT*ixt + 2];
-	float dtc = tt[N_TT*ixt + 3];
+  float dtr = tt[N_TT * ixt + 2];
+  float dtc = tt[N_TT * ixt + 3];
 
-	float trc = tt[N_TT*ixt] + rbit*dtr;
-	float tcc = tt[N_TT*ixt + 1] + dtc * !rbit;
-	rbit = tv[N_TV*ixt + 3] & 0x01;
+  float trc = tt[N_TT * ixt] + rbit * dtr;
+  float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
+  rbit = tv[N_TV * ixt + 3] & 0x01;
 
-	float tn = trc * rbit + tcc * !rbit; // next t
-	float tp = tt[N_TT*ixt + 5]; //previous t
+  float tn = trc * rbit + tcc * !rbit; // next t
+  float tp = tt[N_TT * ixt + 5];       // previous t
 
-	float lt, acc = 0;
-	//-------------------------------------------------
+  float lt, acc = 0;
+  //-------------------------------------------------
 
+  for (int k = 3; k < (int)tt[N_TT * ixt + 9]; k++) { //<<<< k=3, was k=2
+    lt = tn - tp;
+    acc += lt * im[w + uv];
+    trc += dtr * rbit;
+    tcc += dtc * !rbit;
+    uv += !rbit * sgna0 * SZ_IMZ;
+    uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
+    tp = tn;
+    rbit = tv[N_TV * ixt + k + 1] & 0x01;
+    tn = trc * rbit + tcc * !rbit;
+  }
 
-	for (int k = 3; k<(int)tt[N_TT*ixt + 9]; k++) {//<<<< k=3, was k=2
-		lt = tn - tp;
-		acc += lt*im[w + uv];
-		trc += dtr * rbit;
-		tcc += dtc * !rbit;
-		uv += !rbit * sgna0*SZ_IMZ;
-		uv -= rbit * sgna1*SZ_IMZ*SZ_IMX;
-		tp = tn;
-		rbit = tv[N_TV*ixt + k + 1] & 0x01;
-		tn = trc * rbit + tcc * !rbit;
-	}
-
-	if (att == 1) {
-		if (span == 1)
-			sino[c_li2sn[ixz].x + blockIdx.x*snno] = expf(-acc);
-		else if (span == 11)
-			atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x*snno, expf(-acc) / (float)c_li2nos[ixz]);
-	}
-	else if (att == 0)  atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x*snno, acc);
-
+  if (att == 1) {
+    if (span == 1)
+      sino[c_li2sn[ixz].x + blockIdx.x * snno] = expf(-acc);
+    else if (span == 11)
+      atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, expf(-acc) / (float)c_li2nos[ixz]);
+  } else if (att == 0)
+    atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, acc);
 }
 
 //************** OBLIQUE **************************************************
-__global__ void fprj_oblq(float * sino,
-	const float * im,
-	const float * tt,
-	const unsigned char * tv,
-	const int * subs,
-	const short snno,
-	const char span,
-	const char att,
-	const int zoff)
-{
-	int ixz = threadIdx.x + zoff; // axial (z)
-	if (ixz<NLI2R) {
-		int ixt = subs[blockIdx.x]; // transaxial indx
+__global__ void fprj_oblq(float *sino, const float *im, const float *tt, const unsigned char *tv,
+                          const int *subs, const short snno, const char span, const char att,
+                          const int zoff, const short nil2r_c) {
+  int ixz = threadIdx.x + zoff; // axial (z)
 
-									//-------------------------------------------------
-									/*** accumulation ***/
-									// vector a (at) component signs
-		int sgna0 = tv[N_TV*ixt] - 1;
-		int sgna1 = tv[N_TV*ixt + 1] - 1;
-		bool rbit = tv[N_TV*ixt + 2] & 0x01;  //row bit
+  // if (ixz < NLI2R) {
 
-		int u = (int)tt[N_TT*ixt + 8];
-		int v = (u >> UV_SHFT);
-		int uv = SZ_IMZ*((u & 0x000001ff) + SZ_IMX*v);
-		//next voxel (skipping the first fractional one)
-		uv += !rbit * sgna0*SZ_IMZ;
-		uv -= rbit * sgna1*SZ_IMZ*SZ_IMX;
+  //> get the number of linear indices of direct and oblique sinograms
+  if (ixz < nil2r_c) {
 
-		float dtr = tt[N_TT*ixt + 2];
-		float dtc = tt[N_TT*ixt + 3];
+    int ixt = subs[blockIdx.x]; // transaxial index
 
-		float trc = tt[N_TT*ixt] + rbit*dtr;
-		float tcc = tt[N_TT*ixt + 1] + dtc * !rbit;
-		rbit = tv[N_TV*ixt + 3] & 0x01;
+    //-------------------------------------------------
+    /*** accumulation ***/
+    // vector a (at) component signs
+    int sgna0 = tv[N_TV * ixt] - 1;
+    int sgna1 = tv[N_TV * ixt + 1] - 1;
+    bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-		float tn = trc * rbit + tcc * !rbit; // next t
-		float tp = tt[N_TT*ixt + 5]; //previous t
-									 //--------------------------------------------------
+    int u = (int)tt[N_TT * ixt + 8];
+    int v = (u >> UV_SHFT);
+    int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
+    // next voxel (skipping the first fractional one)
+    uv += !rbit * sgna0 * SZ_IMZ;
+    uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
 
-									 //**** AXIAL *****
-		float atn = tt[N_TT*ixt + 7];
-		float az = c_li2rng[ixz].y - c_li2rng[ixz].x;
-		float az_atn = az / atn;
-		float s_az_atn = sqrtf(az_atn*az_atn + 1);
-		int sgnaz;
-		if (az >= 0)sgnaz = 1; else sgnaz = -1;
+    float dtr = tt[N_TT * ixt + 2];
+    float dtc = tt[N_TT * ixt + 3];
 
-		float pz = c_li2rng[ixz].x + .5*SZ_RING;
-		float z = pz + az_atn * tp; //here was t1 = tt[N_TT*ixt+4]<<<<<<<<
-		int w = (floorf(.5*SZ_IMZ + SZ_VOXZi*z));
-		float lz1 = (ceilf(.5*SZ_IMZ + SZ_VOXZi*z))*SZ_VOXZ - .5*SZ_IMZ*SZ_VOXZ; //w is like in matlab by one greater
+    float trc = tt[N_TT * ixt] + rbit * dtr;
+    float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
+    rbit = tv[N_TV * ixt + 3] & 0x01;
 
-		z = c_li2rng[ixz].y + .5*SZ_RING - az_atn * tp;//here was t1 = tt[N_TT*ixt+4]<<<<<<<<<
-		int w_ = (floorf(.5*SZ_IMZ + SZ_VOXZi*z));
-		z = pz + az_atn*tt[N_TT*ixt + 6]; //t2
-		float lz2 = (floorf(.5*SZ_IMZ + SZ_VOXZi*z))*SZ_VOXZ - .5*SZ_IMZ*SZ_VOXZ;
-		int nz = fabsf(lz2 - lz1) / SZ_VOXZ; //rintf
-		float tz1 = (lz1 - pz) / az_atn; //first ray interaction with a row
-		float tz2 = (lz2 - pz) / az_atn; //last ray interaction with a row
-		float dtz = (tz2 - tz1) / nz;
-		float tzc = tz1;
-		//****************
+    float tn = trc * rbit + tcc * !rbit; // next t
+    float tp = tt[N_TT * ixt + 5];       // previous t
+                                         //--------------------------------------------------
 
-		float fr, lt, acc = 0, acc_ = 0;
-		for (int k = 3; k<tt[N_TT*ixt + 9]; k++) {//<<< k=3 as 0 and 1 are for sign and 2 is skipped
-			lt = tn - tp;
-			if ((tn - tzc)>0) {
-				fr = (tzc - tp) / lt;
-				acc += fr*lt*s_az_atn * im[w + uv];
-				acc_ += fr*lt*s_az_atn * im[w_ + uv];
-				w += sgnaz;
-				w_ -= sgnaz;
-				acc += (1 - fr)*lt*s_az_atn * im[w + uv];
-				acc_ += (1 - fr)*lt*s_az_atn * im[w_ + uv];
-				tzc += dtz;
-			}
-			else {
-				acc += lt*s_az_atn * im[w + uv];
-				acc_ += lt*s_az_atn * im[w_ + uv];
-			}
+    //**** AXIAL *****
+    float atn = tt[N_TT * ixt + 7];
+    float az = c_li2rng[ixz].y - c_li2rng[ixz].x;
+    float az_atn = az / atn;
+    float s_az_atn = sqrtf(az_atn * az_atn + 1);
+    int sgnaz;
+    if (az >= 0)
+      sgnaz = 1;
+    else
+      sgnaz = -1;
 
-			trc += dtr * rbit;
-			tcc += dtc * !rbit;
+    float pz = c_li2rng[ixz].x + .5 * SZ_RING;
+    float z = pz + az_atn * tp; // here was t1 = tt[N_TT*ixt+4]<<<<<<<<
+    int w = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
+    float lz1 = (ceilf(.5 * SZ_IMZ + SZ_VOXZi * z)) * SZ_VOXZ -
+                .5 * SZ_IMZ * SZ_VOXZ; // w is like in matlab by one greater
 
-			uv += !rbit * sgna0*SZ_IMZ;
-			uv -= rbit * sgna1*SZ_IMZ*SZ_IMY;
+    z = c_li2rng[ixz].y + .5 * SZ_RING - az_atn * tp; // here was t1 = tt[N_TT*ixt+4]<<<<<<<<<
+    int w_ = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
+    z = pz + az_atn * tt[N_TT * ixt + 6]; // t2
+    float lz2 = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z)) * SZ_VOXZ - .5 * SZ_IMZ * SZ_VOXZ;
+    int nz = fabsf(lz2 - lz1) / SZ_VOXZ; // rintf
+    float tz1 = (lz1 - pz) / az_atn;     // first ray interaction with a row
+    float tz2 = (lz2 - pz) / az_atn;     // last ray interaction with a row
+    float dtz = (tz2 - tz1) / nz;
+    float tzc = tz1;
+    //****************
 
-			tp = tn;
-			rbit = tv[N_TV*ixt + k + 1] & 0x01;
-			tn = trc * rbit + tcc * !rbit;
-		}
+    float fr, lt, acc = 0, acc_ = 0;
+    for (int k = 3; k < tt[N_TT * ixt + 9];
+         k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
+      lt = tn - tp;
+      if ((tn - tzc) > 0) {
+        fr = (tzc - tp) / lt;
+        acc += fr * lt * s_az_atn * im[w + uv];
+        acc_ += fr * lt * s_az_atn * im[w_ + uv];
+        w += sgnaz;
+        w_ -= sgnaz;
+        acc += (1 - fr) * lt * s_az_atn * im[w + uv];
+        acc_ += (1 - fr) * lt * s_az_atn * im[w_ + uv];
+        tzc += dtz;
+      } else {
+        acc += lt * s_az_atn * im[w + uv];
+        acc_ += lt * s_az_atn * im[w_ + uv];
+      }
 
+      trc += dtr * rbit;
+      tcc += dtc * !rbit;
 
-		// blockIdx.x is the transaxial bin index
-		if (att == 1) {
-			if (span == 1) {
-				sino[c_li2sn[ixz].x + blockIdx.x*snno] = expf(-acc);
-				sino[c_li2sn[ixz].y + blockIdx.x*snno] = expf(-acc_);
-			}
-			else if (span == 11) {
-				atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x*snno, expf(-acc) / (float)c_li2nos[ixz]);
-				atomicAdd(sino + c_li2sn[ixz].y + blockIdx.x*snno, expf(-acc_) / (float)c_li2nos[ixz]);
-			}
-		}
-		else if (att == 0) {
-			atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x*snno, acc);
-			atomicAdd(sino + c_li2sn[ixz].y + blockIdx.x*snno, acc_);
-		}
+      uv += !rbit * sgna0 * SZ_IMZ;
+      uv -= rbit * sgna1 * SZ_IMZ * SZ_IMY;
 
-	}
+      tp = tn;
+      rbit = tv[N_TV * ixt + k + 1] & 0x01;
+      tn = trc * rbit + tcc * !rbit;
+    }
+
+    // blockIdx.x is the transaxial bin index
+    if (att == 1) {
+      if (span == 1) {
+        sino[c_li2sn[ixz].x + blockIdx.x * snno] = expf(-acc);
+        sino[c_li2sn[ixz].y + blockIdx.x * snno] = expf(-acc_);
+      } else if (span == 11) {
+        atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, expf(-acc) / (float)c_li2nos[ixz]);
+        atomicAdd(sino + c_li2sn[ixz].y + blockIdx.x * snno, expf(-acc_) / (float)c_li2nos[ixz]);
+      }
+    } else if (att == 0) {
+      atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, acc);
+      atomicAdd(sino + c_li2sn[ixz].y + blockIdx.x * snno, acc_);
+    }
+  }
 }
-
 
 //--------------------------------------------------------------------------------------------------
-void gpu_fprj(float * prjout,
-	float * im,
-	float * li2rng,
-	short * li2sn,
-	char * li2nos,
-	short *s2c,
-	int *aw2ali,
-	float *crs,
-	int *subs,
-	int Nprj,
-	int Naw,
-	int N0crs,
-	Cnst Cnt, char att)
-{
-	int dev_id;
-	cudaGetDevice(&dev_id);
-	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
+void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
+              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
+              char att) {
+  int dev_id;
+  cudaGetDevice(&dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
-	//--- TRANSAXIAL COMPONENT
-	float4 *d_crs;  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
-	HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
+  //--- TRANSAXIAL COMPONENT
+  float4 *d_crs;
+  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+  HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
 
-	short2 *d_s2c;  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
-	HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
+  short2 *d_s2c;
+  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
+  HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
 
-	float *d_tt;  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT*AW * sizeof(float)));
+  float *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
 
-	unsigned char *d_tv;  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV*AW * sizeof(unsigned char)));
-	HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV*AW * sizeof(unsigned char)));
+  unsigned char *d_tv;
+  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
+  HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV * AW * sizeof(unsigned char)));
 
-	// array of subset projection bins
-	int *d_subs;  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
-	HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
-	//---
+  // array of subset projection bins
+  int *d_subs;
+  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
+  HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
+  //---
 
-	//-----------------------------------------------------------------
-	//RINGS: either all or a subset of rings can be used (span-1 feature only)
-	//-----------------------------------------------------------------
-	// number of rings customised and the resulting size of LUTs and voxels
-	int nrng_c, nil2r_c, vz0, vz1, nvz;
-	//number of sinos
-	short snno = -1;
-	if (Cnt.SPN == 1) {
-		// number of direct rings considered
-		nrng_c = Cnt.RNG_END - Cnt.RNG_STRT;
-		// number of "positive" michelogram elements used for projection (can be smaller than the maximum)
-		nil2r_c = (nrng_c + 1)*nrng_c / 2;
-		snno = nrng_c*nrng_c;
-		//correct for the max. ring difference in the full axial extent (don't use ring range (1,63) as for this case no correction)
-		if (nrng_c == NRINGS) {
-			snno -= 12;
-			nil2r_c -= 6;
-		}
-	}
-	else if (Cnt.SPN == 11) {
-		snno = NSINOS11;
-		nrng_c = NRINGS;
-		nil2r_c = NLI2R;
-	}
-	// voxels in axial direction
-	vz0 = 2 * Cnt.RNG_STRT;
-	vz1 = 2 * (Cnt.RNG_END - 1);
-	nvz = 2 * nrng_c - 1;
-	if (Cnt.LOG <= LOGDEBUG) {
-		printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT, Cnt.RNG_END, snno);
-		printf("   corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
-	}
+  //-----------------------------------------------------------------
+  // RINGS: either all or a subset of rings can be used (span-1 feature only)
+  //-----------------------------------------------------------------
+  // number of rings customised and the resulting size of LUTs and voxels
+  short nrng_c, nil2r_c, vz0, vz1, nvz;
+  // number of sinos
+  short snno = -1;
+  if (Cnt.SPN == 1) {
+    // number of direct rings considered
+    nrng_c = Cnt.RNG_END - Cnt.RNG_STRT;
+    // number of "positive" michelogram elements used for projection (can be smaller than the
+    // maximum)
+    nil2r_c = (nrng_c + 1) * nrng_c / 2;
+    snno = nrng_c * nrng_c;
+    // correct for the max. ring difference in the full axial extent (don't use ring range (1,63)
+    // as for this case no correction)
+    if (nrng_c == NRINGS) {
+      snno -= 12;
+      nil2r_c -= 6;
+    }
+  } else if (Cnt.SPN == 11) {
+    snno = NSINOS11;
+    nrng_c = NRINGS;
+    nil2r_c = NLI2R;
+  }
+  // voxels in axial direction
+  vz0 = 2 * Cnt.RNG_STRT;
+  vz1 = 2 * (Cnt.RNG_END - 1);
+  nvz = 2 * nrng_c - 1;
+  if (Cnt.LOG <= LOGDEBUG) {
+    printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT,
+           Cnt.RNG_END, snno);
+    printf("   corresponding voxels: [%d, %d] => number of voxels: %d\n", vz0, vz1, nvz);
+  }
 
-	//-----------------------------------------------------------------
+  //-----------------------------------------------------------------
 
-	//--- FULLY 3D
-	float *d_sn; HANDLE_ERROR(cudaMalloc(&d_sn, Nprj*snno * sizeof(float)));
-	HANDLE_ERROR(cudaMemset(d_sn, 0, Nprj*snno * sizeof(float)));
+  //--- FULLY 3D
+  HANDLE_ERROR(cudaMemset(d_sn, 0, Nprj * snno * sizeof(float)));
 
-	//allocate for image to be forward projected on the device
-	float *d_im;   HANDLE_ERROR(cudaMalloc(&d_im, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
+  // when rings are reduced expand the image to account for whole axial FOV
+  if (nvz < SZ_IMZ) {
+    float *d_imr = d_im; // save old pointer to reduced image input
+    // reallocate full size
+    HANDLE_ERROR(cudaMalloc(&d_im, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
+    // put zeros in the gaps of unused voxels
+    HANDLE_ERROR(cudaMemset(d_im, 0, SZ_IMX * SZ_IMY * SZ_IMZ * sizeof(float)));
+    int nar = NIPET_CU_THREADS / nvz;
+    dim3 THRD(nvz, nar, 1);
+    dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
+    imExpand<<<BLCK, THRD>>>(d_im, d_imr, vz0, nvz);
+    HANDLE_ERROR(cudaGetLastError());
+  }
 
+  // float *d_li2rng;  HANDLE_ERROR( cudaMalloc(&d_li2rng, N0li*N1li*sizeof(float)) );
+  // HANDLE_ERROR( cudaMemcpy( d_li2rng, li2rng, N0li*N1li*sizeof(float), cudaMemcpyHostToDevice)
+  // );
 
-	// when rings are reduced expand the image to account for whole axial FOV
-	if (nvz<SZ_IMZ) {
-		// first the reduced image into the device
-		float *d_imr;   HANDLE_ERROR(cudaMalloc(&d_imr, SZ_IMX*SZ_IMY*nvz * sizeof(float)));
-		HANDLE_ERROR(cudaMemcpy(d_imr, im, SZ_IMX*SZ_IMY*nvz * sizeof(float), cudaMemcpyHostToDevice));
-		//put zeros in the gaps of unused voxels
-		HANDLE_ERROR(cudaMemset(d_im, 0, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float)));
-		// number of axial row for max threads
-		int nar = MXTHRD / nvz;
-		dim3 THRD(nvz, nar, 1);
-		dim3 BLCK((SZ_IMY + nar - 1) / nar, SZ_IMX, 1);
-		imExpand <<<BLCK, THRD >>>(d_im, d_imr, vz0, nvz);
-		HANDLE_ERROR(cudaGetLastError());
-		cudaFree(d_imr);
-	}
-	else {
-		//copy to GPU memory
-		HANDLE_ERROR(cudaMemcpy(d_im, im, SZ_IMX*SZ_IMY*SZ_IMZ * sizeof(float), cudaMemcpyHostToDevice));
-	}
+  // int *d_li2sn;  HANDLE_ERROR(cudaMalloc(&d_li2sn, N0li*N1li*sizeof(int)) );
+  // HANDLE_ERROR( cudaMemcpy( d_li2sn, li2sn, N0li*N1li*sizeof(int), cudaMemcpyHostToDevice) );
 
-	// float *d_li2rng;  HANDLE_ERROR( cudaMalloc(&d_li2rng, N0li*N1li*sizeof(float)) );
-	// HANDLE_ERROR( cudaMemcpy( d_li2rng, li2rng, N0li*N1li*sizeof(float), cudaMemcpyHostToDevice) );
+  // int *d_li2nos;  HANDLE_ERROR( cudaMalloc(&d_li2nos, N1li*sizeof(int)) );
+  // HANDLE_ERROR( cudaMemcpy( d_li2nos, li2nos, N1li*sizeof(int), cudaMemcpyHostToDevice) );
 
-	// int *d_li2sn;  HANDLE_ERROR(cudaMalloc(&d_li2sn, N0li*N1li*sizeof(int)) );
-	// HANDLE_ERROR( cudaMemcpy( d_li2sn, li2sn, N0li*N1li*sizeof(int), cudaMemcpyHostToDevice) );
+  cudaMemcpyToSymbol(c_li2rng, li2rng, nil2r_c * sizeof(float2));
+  cudaMemcpyToSymbol(c_li2sn, li2sn, nil2r_c * sizeof(short2));
+  cudaMemcpyToSymbol(c_li2nos, li2nos, nil2r_c * sizeof(char));
 
-	// int *d_li2nos;  HANDLE_ERROR( cudaMalloc(&d_li2nos, N1li*sizeof(int)) );
-	// HANDLE_ERROR( cudaMemcpy( d_li2nos, li2nos, N1li*sizeof(int), cudaMemcpyHostToDevice) );
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
-	cudaMemcpyToSymbol(c_li2rng, li2rng, nil2r_c * sizeof(float2));
-	cudaMemcpyToSymbol(c_li2sn, li2sn, nil2r_c * sizeof(short2));
-	cudaMemcpyToSymbol(c_li2nos, li2nos, nil2r_c * sizeof(char));
+  if (Cnt.LOG <= LOGDEBUG) printf("i> calculating sinograms via forward projection...");
 
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
+  //------------DO TRANSAXIAL CALCULATIONS---------------------------------
+  gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
+  //-----------------------------------------------------------------------
 
-	if (Cnt.LOG <= LOGDEBUG)
-		printf("i> calculating sinograms via forward projection...");
+  //============================================================================
+  fprj_drct<<<Nprj, nrng_c>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-	//------------DO TRANSAXIAL CALCULATIONS---------------------------------
-	gpu_siddon_tx(d_crs, d_s2c, d_tt, d_tv);
-	//-----------------------------------------------------------------------
+  int zoff = nrng_c;
+  //> number of oblique sinograms
+  int Noblq = (nrng_c - 1) * nrng_c / 2;
+  int Nz = ((Noblq + 127) / 128) * 128;
 
-	//============================================================================
-	fprj_drct <<<Nprj, nrng_c >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att);
-	HANDLE_ERROR(cudaGetLastError());
-	// ============================================================================
+  //============================================================================
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
+  HANDLE_ERROR(cudaGetLastError());
 
-	int zoff = nrng_c;
-	//number of oblique sinograms
-	int Noblq = (nrng_c - 1)*nrng_c / 2;
+  zoff += Nz / 2;
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-	//first for reduced number of detector rings
-	if (Cnt.SPN == 1 && Noblq <= 1024 && Noblq>0){
-		fprj_oblq <<< Nprj, Noblq >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		HANDLE_ERROR(cudaGetLastError());
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  // cudaDeviceSynchronize();
+  float elapsedTime;
+  cudaEventElapsedTime(&elapsedTime, start, stop);
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+  if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
-	}
-	else {
-		fprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		HANDLE_ERROR(cudaGetLastError());
-
-		zoff += NSINOS / 4;
-		fprj_oblq <<<Nprj, NSINOS / 4 >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff);
-		HANDLE_ERROR(cudaGetLastError());
-
-	}
-
-
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	float elapsedTime;
-	cudaEventElapsedTime(&elapsedTime, start, stop);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
-	if (Cnt.LOG <= LOGDEBUG)
-		printf("DONE in %fs.\n", 0.001*elapsedTime);
-
-	cudaDeviceSynchronize();
-
-	HANDLE_ERROR(cudaMemcpy(prjout, d_sn, Nprj*snno * sizeof(float), cudaMemcpyDeviceToHost));
-
-	cudaFree(d_sn);
-	cudaFree(d_im);
-	cudaFree(d_tt);
-	cudaFree(d_tv);
-	cudaFree(d_subs);
-	HANDLE_ERROR(cudaFree(d_crs));
-	HANDLE_ERROR(cudaFree(d_s2c));
-
-	return;
+  if (nvz < SZ_IMZ) HANDLE_ERROR(cudaFree(d_im));
+  HANDLE_ERROR(cudaFree(d_tt));
+  HANDLE_ERROR(cudaFree(d_tv));
+  HANDLE_ERROR(cudaFree(d_subs));
+  HANDLE_ERROR(cudaFree(d_crs));
+  HANDLE_ERROR(cudaFree(d_s2c));
 }
 
-
-
-
-
-
-
-
-
 //=======================================================================
-void rec_fprj(float *d_sino,
-	float *d_img,
-	int *d_sub,
-	int Nprj,
+void rec_fprj(float *d_sino, float *d_img, int *d_sub, int Nprj,
 
-	float *d_tt,
-	unsigned char *d_tv,
+              float *d_tt, unsigned char *d_tv,
 
-	float *li2rng,
-	short *li2sn,
-	char  *li2nos,
+              float *li2rng, short *li2sn, char *li2nos,
 
-	Cnst Cnt)
+              Cnst Cnt)
 
 {
 
-	int dev_id;
-	cudaGetDevice(&dev_id);
-	if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
+  int dev_id;
+  cudaGetDevice(&dev_id);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
 
-	//get the axial LUTs in constant memory
-	cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
-	cudaMemcpyToSymbol(c_li2sn, li2sn, NLI2R * sizeof(short2));
-	cudaMemcpyToSymbol(c_li2nos, li2nos, NLI2R * sizeof(char));
+  // get the axial LUTs in constant memory
+  cudaMemcpyToSymbol(c_li2rng, li2rng, NLI2R * sizeof(float2));
+  cudaMemcpyToSymbol(c_li2sn, li2sn, NLI2R * sizeof(short2));
+  cudaMemcpyToSymbol(c_li2nos, li2nos, NLI2R * sizeof(char));
 
-	//number of sinos
-	short snno = -1;
-	if (Cnt.SPN == 1)   snno = NSINOS;
-	else if (Cnt.SPN == 11)  snno = NSINOS11;
+  // number of sinos
+  short snno = -1;
+  if (Cnt.SPN == 1)
+    snno = NSINOS;
+  else if (Cnt.SPN == 11)
+    snno = NSINOS11;
 
-	cudaEvent_t start, stop;
-	cudaEventCreate(&start);
-	cudaEventCreate(&stop);
-	cudaEventRecord(start, 0);
-	if (Cnt.LOG <= LOGDEBUG) printf("i> subset forward projection (Nprj=%d)... ", Nprj);
+  //> number of oblique sinograms
+  int Noblq = (NRINGS * (NRINGS - 1) - 12) / 2;
+  //> number of threads (in the axial direction)
+  int Nz = ((Noblq + 127) / 128) * 128;
 
-	//============================================================================
-	fprj_drct << <Nprj, NRINGS >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0);
-	// HANDLE_ERROR(cudaGetLastError());
-	//============================================================================
+  cudaEvent_t start, stop;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+  if (Cnt.LOG <= LOGDEBUG) printf("i> subset forward projection (Nprj=%d)... ", Nprj);
 
-	int zoff = NRINGS;
-	//============================================================================
-	fprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff);
-	// HANDLE_ERROR(cudaGetLastError());
-	//============================================================================
+  //============================================================================
+  fprj_drct<<<Nprj, NRINGS>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-	zoff += NSINOS / 4;
-	//============================================================================
-	fprj_oblq << <Nprj, NSINOS / 4 >> >(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff);
-	// HANDLE_ERROR(cudaGetLastError());
-	//============================================================================
+  int zoff = NRINGS;
+  //============================================================================
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-	cudaEventRecord(stop, 0);
-	cudaEventSynchronize(stop);
-	float elapsedTime;
-	cudaEventElapsedTime(&elapsedTime, start, stop);
-	cudaEventDestroy(start);
-	cudaEventDestroy(stop);
-	if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001*elapsedTime);
+  zoff += Nz / 2;
+  //============================================================================
+  fprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_img, d_tt, d_tv, d_sub, snno, Cnt.SPN, 0, zoff, NLI2R);
+  HANDLE_ERROR(cudaGetLastError());
+  //============================================================================
 
-	cudaDeviceSynchronize();
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  float elapsedTime;
+  cudaEventElapsedTime(&elapsedTime, start, stop);
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+  if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
 
+  cudaDeviceSynchronize();
 
-	return;
-
+  return;
 }

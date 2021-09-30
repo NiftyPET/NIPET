@@ -4,12 +4,9 @@
 #ifndef AUXMATH_H
 #define AUXMATH_H
 
-
 extern LMprop lmprop;
 
-
-void var_online(float * M1, float * M2, float * X, int b, size_t nele);
-
+void var_online(float *M1, float *M2, float *X, int b, size_t nele);
 
 // //sinos out in a structure
 // struct sctOUT {
