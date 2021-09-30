@@ -2,17 +2,12 @@ name: Test
 on: [push, pull_request]
 jobs:
   check:
-    if: github.event_name != 'pull_request' || github.head_ref != 'devel'
+    if: github.event_name != 'pull_request' || github.repository_owner != 'NiftyPET'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python: [3.6, 3.9]
-    name: Check py${{ matrix.python }}
+    name: Check
     steps:
     - uses: actions/checkout@v2
     - uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python }}
     - name: set PYSHA
       run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
     - uses: actions/cache@v1
@@ -24,7 +19,7 @@ jobs:
         pip install -U pre-commit
         sudo apt-get install -yqq clang-format
     - uses: reviewdog/action-setup@v1
-    - if: github.event_name != 'schedule'
+    - if: github.event_name == 'push' || github.event_name == 'pull_request'
       name: comment
       run: |
         if [[ $EVENT == pull_request ]]; then
@@ -39,20 +34,23 @@ jobs:
         EVENT: ${{ github.event_name }}
     - run: pre-commit run -a --show-diff-on-failure
   test:
-    if: github.event_name != 'pull_request' || github.head_ref != 'devel'
+    if: github.event_name != 'pull_request' || github.repository_owner != 'NiftyPET'
+    name: Test py${{ matrix.python }}
     runs-on: [self-hosted, python, cuda, matlab]
-    name: Test
+    strategy:
+      matrix:
+        python: [3.6, 3.9]
     steps:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
     - name: Run setup-python
-      run: setup-python -p3.7
+      run: setup-python -p${{ matrix.python }}
     - run: pip install -U --no-binary nimpa -e .[dev]
     - run: pytest
-    - run: codecov
+    - uses: codecov/codecov-action@v1
     - name: Post Run setup-python
-      run: setup-python -p3.7 -Dr
+      run: setup-python -p${{ matrix.python }} -Dr
       if: ${{ always() }}
   deploy:
     needs: [check, test]
