@@ -143,7 +143,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
@@ -152,6 +152,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
             transaxial and axial look up tables (LUT).
         isub -- array of transaxial indices of all sinograms (angles x bins) used for subsets;
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
+        output(CuVec, optional) -- output image.
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
@@ -199,7 +200,14 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
         nvz = Cnt['rSZ_IMZ']
     else:
         nvz = Cnt['SZ_IMZ']
-    bimg = cu.zeros((Cnt['SZ_IMX'], Cnt['SZ_IMY'], nvz), dtype=np.float32)
+
+    out_shape = Cnt['SZ_IMX'], Cnt['SZ_IMY'], nvz
+    if output is None:
+        bimg = cu.zeros(out_shape, dtype=np.float32)
+    else:
+        bimg = cu.asarray(output)
+        assert bimg.shape == out_shape
+        assert bimg.dtype == np.dtype('float32')
 
     # > run back-projection
     petprj.bprj(bimg.cuvec, cu.asarray(sinog).cuvec, txLUT, axLUT, isub, Cnt)
