@@ -8,7 +8,8 @@
 
 // used from Python
 void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt);
+              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
+              float *_d_div_sino = nullptr);
 
 // to be used within CUDA C reconstruction
 void rec_bprj(float *d_bimg, float *d_sino, int *sub, int Nprj,

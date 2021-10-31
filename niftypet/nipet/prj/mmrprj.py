@@ -143,7 +143,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=None, output=None):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
@@ -152,6 +152,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None
             transaxial and axial look up tables (LUT).
         isub -- array of transaxial indices of all sinograms (angles x bins) used for subsets;
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
+        div_sino -- if specificed, backprojects `sino[isub]/div_sino` instead of `sino`.
         output(CuVec, optional) -- output image.
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
@@ -176,6 +177,10 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None
 
     # > check first the Siemens default sinogram;
     # > for this default shape only full sinograms are expected--no subsets.
+    orig_sino = sino
+    if div_sino is not None:
+        sino = sino[isub, :]
+        div_sino = cu.asarray(div_sino).cuvec
     if len(sino.shape) == 3:
         if sino.shape[0] != nsinos or sino.shape[1] != Cnt['NSANGLES'] or sino.shape[2] != Cnt[
                 'NSBINS']:
@@ -210,7 +215,9 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None
         assert bimg.dtype == np.dtype('float32')
 
     # > run back-projection
-    petprj.bprj(bimg.cuvec, cu.asarray(sinog).cuvec, txLUT, axLUT, isub, Cnt)
+    petprj.bprj(bimg.cuvec,
+                cu.asarray(sinog if div_sino is None else orig_sino).cuvec, txLUT, axLUT, isub,
+                Cnt, div_sino=div_sino)
 
     if not dev_out:
         # > change from GPU optimised image dimensions to the standard Siemens shape

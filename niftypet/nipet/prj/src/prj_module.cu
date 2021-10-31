@@ -29,7 +29,7 @@ Copyrights: 2019
 //--- Available functions
 static PyObject *trnx_prj(PyObject *self, PyObject *args);
 static PyObject *frwd_prj(PyObject *self, PyObject *args);
-static PyObject *back_prj(PyObject *self, PyObject *args);
+static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs);
 static PyObject *osem_rec(PyObject *self, PyObject *args);
 //---
 
@@ -37,7 +37,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args);
 static PyMethodDef petprj_methods[] = {
     {"tprj", trnx_prj, METH_VARARGS, "Transaxial projector."},
     {"fprj", frwd_prj, METH_VARARGS, "PET forward projector."},
-    {"bprj", back_prj, METH_VARARGS, "PET back projector."},
+    {"bprj", (PyCFunction)back_prj, METH_VARARGS | METH_KEYWORDS, "PET back projector."},
     {"osem", osem_rec, METH_VARARGS, "OSEM reconstruction of PET data."},
     {NULL, NULL, 0, NULL} // Sentinel
 };
@@ -396,7 +396,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
 //==============================================================================
 // B A C K   P R O J E C T O R
 //------------------------------------------------------------------------------
-static PyObject *back_prj(PyObject *self, PyObject *args) {
+static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   // Structure of constants
   Cnst Cnt;
@@ -419,10 +419,16 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   // output backprojected image
   PyCuVec<float> *o_bimg;
 
+  // sinogram divisor
+  PyCuVec<float> *o_div_sino = NULL;
+
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOOOO", (PyObject **)&o_bimg, (PyObject **)&o_sino, &o_txLUT,
-                        &o_axLUT, &o_subs, &o_mmrcnst))
+
+  static const char *kwds[] = {"bimg", "sino", "txLUT", "axLUT", "subs", "cnst", "div_sino", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOO|O", (char **)kwds, (PyObject **)&o_bimg,
+                                   (PyObject **)&o_sino, &o_txLUT, &o_axLUT, &o_subs, &o_mmrcnst,
+                                   (PyObject **)&o_div_sino))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -493,6 +499,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
 
     return NULL;
   }
+  if (Py_None == (PyObject *)o_div_sino) o_div_sino = NULL;
 
   int *subs_ = (int *)PyArray_DATA(p_subs);
   short *s2c = (short *)PyArray_DATA(p_s2c);
@@ -535,7 +542,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
 
   //<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
   gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt);
+           Nprj, Naw, N0crs, Cnt, o_div_sino ? o_div_sino->vec.data() : nullptr);
   //<><><><><><><><><><><>><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 
   // Clean up

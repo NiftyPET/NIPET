@@ -30,12 +30,18 @@ __global__ void imReduce(float *imr, float *im, int vz0, int nvz) {
 //===============================================================
 
 //**************** DIRECT ***********************************
-__global__ void bprj_drct(const float *sino, float *im, const float *tt, const unsigned char *tv,
-                          const int *subs, const short snno) {
+__global__ void bprj_drct(const float *sino, float *im, float *div_sino, const float *tt,
+                          const unsigned char *tv, const int *subs, const short snno) {
   int ixt = subs[blockIdx.x]; // transaxial indx
   int ixz = threadIdx.x;      // axial (z)
 
-  float bin = sino[c_li2sn[ixz].x + blockIdx.x * snno];
+  float bin;
+  if (div_sino) {
+    // using full sino with subset divisor (divisor may be smaller)
+    bin = sino[c_li2sn[ixz].x + ixt * snno] / div_sino[c_li2sn[ixz].x + blockIdx.x * snno];
+  } else {
+    bin = sino[c_li2sn[ixz].x + blockIdx.x * snno];
+  }
 
   float z = c_li2rng[ixz].x + .5 * SZ_RING;
   int w = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
@@ -83,8 +89,9 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
 }
 
 //************** OBLIQUE **************************************************
-__global__ void bprj_oblq(const float *sino, float *im, const float *tt, const unsigned char *tv,
-                          const int *subs, const short snno, const int zoff, const short nil2r_c) {
+__global__ void bprj_oblq(const float *sino, float *im, float *div_sino, const float *tt,
+                          const unsigned char *tv, const int *subs, const short snno,
+                          const int zoff, const short nil2r_c) {
 
   int ixz = threadIdx.x + zoff; // axial (z)
 
@@ -92,8 +99,16 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
 
     int ixt = subs[blockIdx.x]; // blockIdx.x is the transaxial bin index
                                 // bin values to be back projected
-    float bin = sino[c_li2sn[ixz].x + snno * blockIdx.x];
-    float bin_ = sino[c_li2sn[ixz].y + snno * blockIdx.x];
+
+    float bin, bin_;
+    if (div_sino) {
+      // using full sino with subset divisor (divisor may be smaller)
+      bin = sino[c_li2sn[ixz].x + snno * ixt] / div_sino[c_li2sn[ixz].x + snno * blockIdx.x];
+      bin_ = sino[c_li2sn[ixz].y + snno * ixt] / div_sino[c_li2sn[ixz].y + snno * blockIdx.x];
+    } else {
+      bin = sino[c_li2sn[ixz].x + snno * blockIdx.x];
+      bin_ = sino[c_li2sn[ixz].y + snno * blockIdx.x];
+    }
 
     //-------------------------------------------------
     /*** accumulation ***/
@@ -188,8 +203,8 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
 
 //--------------------------------------------------------------------------------------------------
 void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt) {
-
+              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
+              float *_d_div_sino) {
   int dev_id;
   cudaGetDevice(&dev_id);
   if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
@@ -277,7 +292,7 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
   //-----------------------------------------------------------------------
 
   //============================================================================
-  bprj_drct<<<Nprj, nrng_c>>>(d_sino, d_imf, d_tt, d_tv, d_subs, snno);
+  bprj_drct<<<Nprj, nrng_c>>>(d_sino, d_imf, _d_div_sino, d_tt, d_tv, d_subs, snno);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
@@ -287,11 +302,11 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
   int Nz = ((Noblq + 127) / 128) * 128;
 
   //============================================================================
-  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_imf, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_imf, _d_div_sino, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
 
   zoff += Nz / 2;
-  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_imf, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_imf, _d_div_sino, d_tt, d_tv, d_subs, snno, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
@@ -363,19 +378,19 @@ void rec_bprj(float *d_bimg, float *d_sino, int *d_sub, int Nprj, float *d_tt, u
   if (Cnt.LOG <= LOGDEBUG) printf("i> subset back projection (Nprj=%d)... ", Nprj);
 
   //============================================================================
-  bprj_drct<<<Nprj, NRINGS>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno);
+  bprj_drct<<<Nprj, NRINGS>>>(d_sino, d_bimg, nullptr, d_tt, d_tv, d_sub, snno);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   int zoff = NRINGS;
   //============================================================================
-  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, nullptr, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   zoff += Nz / 2;
   //============================================================================
-  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
+  bprj_oblq<<<Nprj, Nz / 2>>>(d_sino, d_bimg, nullptr, d_tt, d_tv, d_sub, snno, zoff, NLI2R);
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
