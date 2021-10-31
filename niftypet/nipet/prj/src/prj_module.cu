@@ -28,7 +28,7 @@ Copyrights: 2019
 
 //--- Available functions
 static PyObject *trnx_prj(PyObject *self, PyObject *args);
-static PyObject *frwd_prj(PyObject *self, PyObject *args);
+static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs);
 static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs);
 static PyObject *osem_rec(PyObject *self, PyObject *args);
 //---
@@ -36,7 +36,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args);
 //> Module Method Table
 static PyMethodDef petprj_methods[] = {
     {"tprj", trnx_prj, METH_VARARGS, "Transaxial projector."},
-    {"fprj", frwd_prj, METH_VARARGS, "PET forward projector."},
+    {"fprj", (PyCFunction)frwd_prj, METH_VARARGS | METH_KEYWORDS, "PET forward projector."},
     {"bprj", (PyCFunction)back_prj, METH_VARARGS | METH_KEYWORDS, "PET back projector."},
     {"osem", osem_rec, METH_VARARGS, "OSEM reconstruction of PET data."},
     {NULL, NULL, 0, NULL} // Sentinel
@@ -229,7 +229,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
 // F O R W A R D   P R O J E C T O R
 //------------------------------------------------------------------------------
 
-static PyObject *frwd_prj(PyObject *self, PyObject *args) {
+static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // Structure of constants
   Cnst Cnt;
 
@@ -254,10 +254,15 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
   // flag for attenuation factors to be found based on mu-map; if 0 normal emission projection is
   // used
   int att;
+
+  bool SYNC = true; // whether to ensure deviceToHost copy on return
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOOOOi", (PyObject **)&o_prjout, (PyObject **)&o_im, &o_txLUT,
-                        &o_axLUT, &o_subs, &o_mmrcnst, &att))
+  static const char *kwds[] = {"sino", "im",  "txLUT", "axLUT", "subs",
+                               "cnst", "att", "sync",  NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOOi|b", (char **)kwds,
+                                   (PyObject **)&o_prjout, (PyObject **)&o_im, &o_txLUT, &o_axLUT,
+                                   &o_subs, &o_mmrcnst, &att, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -373,7 +378,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
 
   //<><><><><><><<><><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
   gpu_fprj(o_prjout->vec.data(), o_im->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt, att);
+           Nprj, Naw, N0crs, Cnt, att, SYNC);
   //<><><><><><><><<><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
 
   // Clean up
@@ -422,13 +427,15 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // sinogram divisor
   PyCuVec<float> *o_div_sino = NULL;
 
+  bool SYNC = true; // whether to ensure deviceToHost copy on return
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
 
-  static const char *kwds[] = {"bimg", "sino", "txLUT", "axLUT", "subs", "cnst", "div_sino", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOO|O", (char **)kwds, (PyObject **)&o_bimg,
+  static const char *kwds[] = {"bimg", "sino",     "txLUT", "axLUT", "subs",
+                               "cnst", "div_sino", "sync",  NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOO|Ob", (char **)kwds, (PyObject **)&o_bimg,
                                    (PyObject **)&o_sino, &o_txLUT, &o_axLUT, &o_subs, &o_mmrcnst,
-                                   (PyObject **)&o_div_sino))
+                                   (PyObject **)&o_div_sino, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -542,7 +549,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   //<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
   gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt, o_div_sino ? o_div_sino->vec.data() : nullptr);
+           Nprj, Naw, N0crs, Cnt, o_div_sino ? o_div_sino->vec.data() : nullptr, SYNC);
   //<><><><><><><><><><><>><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 
   // Clean up

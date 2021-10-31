@@ -44,7 +44,7 @@ def trnx_prj(scanner_params, sino=None, im=None):
 
 
 def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False,
-             fullsino_out=True, output=None):
+             fullsino_out=True, output=None, sync=True):
     """
     Calculate forward projection (a set of sinograms) for the provided input image.
     Arguments:
@@ -60,6 +60,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
         output(CuVec, optional) -- output sinogram.
+        sync(bool) -- whether to `cudaDeviceSynchronize()` after.
     """
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
@@ -121,7 +122,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
         assert sinog.shape == out_shape
         assert sinog.dtype == np.dtype('float32')
     # --------------------
-    petprj.fprj(sinog.cuvec, cu.asarray(ims).cuvec, txLUT, axLUT, isub, Cnt, att)
+    petprj.fprj(sinog.cuvec, cu.asarray(ims).cuvec, txLUT, axLUT, isub, Cnt, att, sync=sync)
     # --------------------
 
     # get the sinogram bins in a full sinogram if requested
@@ -143,7 +144,8 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=None, output=None):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=None, output=None,
+             sync=True):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
@@ -154,6 +156,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
         div_sino -- if specificed, backprojects `sino[isub]/div_sino` instead of `sino`.
         output(CuVec, optional) -- output image.
+        sync(bool) -- whether to `cudaDeviceSynchronize()` after.
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
@@ -217,7 +220,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
     # > run back-projection
     petprj.bprj(bimg.cuvec,
                 cu.asarray(sinog if div_sino is None else orig_sino).cuvec, txLUT, axLUT, isub,
-                Cnt, div_sino=div_sino)
+                Cnt, div_sino=div_sino, sync=sync)
 
     if not dev_out:
         # > change from GPU optimised image dimensions to the standard Siemens shape
