@@ -539,8 +539,35 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
   //<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
-  gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt, o_div_sino ? o_div_sino->vec.data() : nullptr, SYNC);
+  float4 *d_crs;
+  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+  HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
+
+  short2 *d_s2c;
+  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
+  HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
+
+  float *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
+
+  unsigned char *d_tv;
+  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
+  HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV * AW * sizeof(unsigned char)));
+
+  // array of subset projection bins
+  int *d_subs;
+  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
+  HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
+
+  gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, (short2 *)d_s2c,
+           (float4 *)d_crs, d_subs, d_tt, d_tv, Nprj, Cnt,
+           o_div_sino ? o_div_sino->vec.data() : nullptr, SYNC);
+
+  HANDLE_ERROR(cudaFree(d_subs));
+  HANDLE_ERROR(cudaFree(d_tv));
+  HANDLE_ERROR(cudaFree(d_tt));
+  HANDLE_ERROR(cudaFree(d_s2c));
+  HANDLE_ERROR(cudaFree(d_crs));
   //<><><><><><><><><><><>><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 
   // Clean up

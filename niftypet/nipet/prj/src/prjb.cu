@@ -202,34 +202,12 @@ __global__ void bprj_oblq(const float *sino, float *im, float *div_sino, const f
 }
 
 //--------------------------------------------------------------------------------------------------
-void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt, float *_d_div_sino,
-              bool _sync) {
+void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2nos, short2 *d_s2c,
+              float4 *d_crs, int *d_subs, float *d_tt, unsigned char *d_tv, int Nprj, Cnst Cnt,
+              float *_d_div_sino, bool _sync) {
   int dev_id;
   cudaGetDevice(&dev_id);
   if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
-
-  //--- TRANSAXIAL COMPONENT
-  float4 *d_crs;
-  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
-  HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
-
-  short2 *d_s2c;
-  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
-  HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
-
-  float *d_tt;
-  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
-
-  unsigned char *d_tv;
-  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
-  HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV * AW * sizeof(unsigned char)));
-
-  // array of subset projection bins
-  int *d_subs;
-  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
-  HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
-  //---
 
   //-----------------------------------------------------------------
   // RINGS: either all or a subset of rings can be used for fast calc.
@@ -342,12 +320,6 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
   } else {
     if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
   }
-
-  HANDLE_ERROR(cudaFree(d_tt));
-  HANDLE_ERROR(cudaFree(d_tv));
-  HANDLE_ERROR(cudaFree(d_subs));
-  HANDLE_ERROR(cudaFree(d_crs));
-  HANDLE_ERROR(cudaFree(d_s2c));
 }
 
 //=======================================================================
