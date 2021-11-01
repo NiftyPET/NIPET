@@ -203,8 +203,8 @@ __global__ void bprj_oblq(const float *sino, float *im, float *div_sino, const f
 
 //--------------------------------------------------------------------------------------------------
 void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
-              float *_d_div_sino, bool _sync) {
+              float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt, float *_d_div_sino,
+              bool _sync) {
   int dev_id;
   cudaGetDevice(&dev_id);
   if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
