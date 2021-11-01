@@ -122,7 +122,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
         assert sinog.shape == out_shape
         assert sinog.dtype == np.dtype('float32')
     # --------------------
-    petprj.fprj(sinog.cuvec, cu.asarray(ims).cuvec, txLUT, axLUT, isub, Cnt, att, sync=sync)
+    petprj.fprj(sinog, cu.asarray(ims), txLUT, axLUT, isub, Cnt, att, sync=sync)
     # --------------------
 
     # get the sinogram bins in a full sinogram if requested
@@ -183,7 +183,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
     orig_sino = sino
     if div_sino is not None:
         sino = sino[isub, :]
-        div_sino = cu.asarray(div_sino).cuvec
+        div_sino = cu.asarray(div_sino)
     if len(sino.shape) == 3:
         if sino.shape[0] != nsinos or sino.shape[1] != Cnt['NSANGLES'] or sino.shape[2] != Cnt[
                 'NSBINS']:
@@ -218,8 +218,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
         assert bimg.dtype == np.dtype('float32')
 
     # > run back-projection
-    petprj.bprj(bimg.cuvec,
-                cu.asarray(sinog if div_sino is None else orig_sino).cuvec, txLUT, axLUT, isub,
+    petprj.bprj(bimg, cu.asarray(sinog if div_sino is None else orig_sino), txLUT, axLUT, isub,
                 Cnt, div_sino=div_sino, sync=sync)
 
     if not dev_out:

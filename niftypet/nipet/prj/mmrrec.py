@@ -232,8 +232,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
             log.info('using provided attenuation factor sinogram')
         else:
             asng = cu.zeros(psng.shape, dtype=np.float32)
-            petprj.fprj(asng.cuvec,
-                        cu.asarray(mus).cuvec, txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt,
+            petprj.fprj(asng, cu.asarray(mus), txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt,
                         1)
     # > combine attenuation and normalisation
     ansng = asng * nsng
@@ -294,8 +293,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
         sinoTIdx[n, 0] = Nprj
         sinoTIdx[n, 1:], s = get_subsets14(n, scanner_params)
         # sensitivity image
-        petprj.bprj(tmpsens.cuvec,
-                    cu.asarray(ansng[sinoTIdx[n, 1:], :]).cuvec, txLUT, axLUT, sinoTIdx[n, 1:],
+        petprj.bprj(tmpsens, cu.asarray(ansng[sinoTIdx[n, 1:], :]), txLUT, axLUT, sinoTIdx[n, 1:],
                     Cnt)
         imgsens[n] = tmpsens
     del tmpsens

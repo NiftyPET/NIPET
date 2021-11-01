@@ -243,13 +243,13 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *o_txLUT;
 
   // input image to be forward projected  (reshaped for GPU execution)
-  PyCuVec<float> *o_im;
+  PyCuVec<float> *o_im = NULL;
 
   // subsets for OSEM, first the default
   PyObject *o_subs;
 
   // output projection sino
-  PyCuVec<float> *o_prjout;
+  PyCuVec<float> *o_prjout = NULL;
 
   // flag for attenuation factors to be found based on mu-map; if 0 normal emission projection is
   // used
@@ -260,9 +260,9 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   /* Parse the input tuple */
   static const char *kwds[] = {"sino", "im",  "txLUT", "axLUT", "subs",
                                "cnst", "att", "sync",  NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOOi|b", (char **)kwds,
-                                   (PyObject **)&o_prjout, (PyObject **)&o_im, &o_txLUT, &o_axLUT,
-                                   &o_subs, &o_mmrcnst, &att, &SYNC))
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOOi|b", (char **)kwds, &asPyCuVec_f,
+                                   &o_prjout, &asPyCuVec_f, &o_im, &o_txLUT, &o_axLUT, &o_subs,
+                                   &o_mmrcnst, &att, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -416,13 +416,13 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyObject *o_txLUT;
 
   // sino to be back projected to image (both reshaped for GPU execution)
-  PyCuVec<float> *o_sino;
+  PyCuVec<float> *o_sino = NULL;
 
   // subsets for OSEM, first the default
   PyObject *o_subs;
 
   // output backprojected image
-  PyCuVec<float> *o_bimg;
+  PyCuVec<float> *o_bimg = NULL;
 
   // sinogram divisor
   PyCuVec<float> *o_div_sino = NULL;
@@ -433,9 +433,9 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   static const char *kwds[] = {"bimg", "sino",     "txLUT", "axLUT", "subs",
                                "cnst", "div_sino", "sync",  NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "OOOOOO|Ob", (char **)kwds, (PyObject **)&o_bimg,
-                                   (PyObject **)&o_sino, &o_txLUT, &o_axLUT, &o_subs, &o_mmrcnst,
-                                   (PyObject **)&o_div_sino, &SYNC))
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOO|O&b", (char **)kwds, &asPyCuVec_f,
+                                   &o_bimg, &asPyCuVec_f, &o_sino, &o_txLUT, &o_axLUT, &o_subs,
+                                   &o_mmrcnst, &asPyCuVec_f, &o_div_sino, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -500,7 +500,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
     return NULL;
   }
-  if (Py_None == (PyObject *)o_div_sino) o_div_sino = NULL;
 
   int *subs_ = (int *)PyArray_DATA(p_subs);
   short *s2c = (short *)PyArray_DATA(p_s2c);
