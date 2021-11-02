@@ -32,6 +32,8 @@ __all__ = [
     'back_prj', 'frwd_prj', 'simulate_recon', 'simulate_sino',
     # sct
     'vsm',
+    # signa
+    'aux_sig', 'lm_sig', 'lminfo_sig',
     # optional
     'video_dyn', 'video_frm', 'xnat']  # yapf: disable
 from pkg_resources import resource_filename
@@ -72,9 +74,7 @@ else:
     xnat = None
 
 # > GE Signa
-from . import aux_sig
-
-from . import lm_sig
+from . import aux_sig, lm_sig
 from .lm_sig.hst_sig import lminfo_sig
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`

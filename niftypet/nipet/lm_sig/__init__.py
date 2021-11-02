@@ -1,3 +1,2 @@
-# init the package folder
-from . import lmproc_sig
-from . import hst_sig
+__all__ = ['hst_sig', 'lmproc_sig']
+from . import hst_sig, lmproc_sig
