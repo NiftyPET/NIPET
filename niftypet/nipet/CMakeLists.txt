@@ -6,6 +6,7 @@ project(mmr_auxe)
 file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
 include_directories(src)
 include_directories(${Python3_INCLUDE_DIRS})
+include_directories(${CUVEC_INCLUDE_DIRS})
 include_directories(${Python3_NumPy_INCLUDE_DIRS})
 
 add_library(${PROJECT_NAME} SHARED ${SRC})
@@ -19,6 +20,7 @@ if(SKBUILD)
 python_extension_module(${PROJECT_NAME})
 endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
+  CXX_STANDARD 11
   #VERSION ${CMAKE_PROJECT_VERSION} SOVERSION ${CMAKE_PROJECT_VERSION_MAJOR}
   PREFIX ""  # remove shared lib prefix to make importable
   INTERFACE_${PROJECT_NAME}_MAJOR_VERSION ${CMAKE_PROJECT_VERSION_MAJOR})
