@@ -155,9 +155,8 @@ def getinterfile_off(fmu, Cnt, Offst=OFFSET_DEFAULT):
     accounting for image offset (does slow interpolation).
     '''
     # pead the image file
-    f = open(fmu, 'rb')
-    mu = np.fromfile(f, np.float32)
-    f.close()
+    with open(fmu, 'rb') as f:
+        mu = np.fromfile(f, np.float32)
 
     # save_im(mur, Cnt, os.path.dirname(fmu) + '/mur.nii')
     # -------------------------------------------------------------------------
@@ -179,9 +178,8 @@ def getinterfile_off(fmu, Cnt, Offst=OFFSET_DEFAULT):
 def getinterfile(fim, Cnt):
     '''Return the floating point image file in an array from an Interfile file.'''
     # pead the image file
-    f = open(fim, 'rb')
-    im = np.fromfile(f, np.float32)
-    f.close()
+    with open(fim, 'rb') as f:
+        im = np.fromfile(f, np.float32)
 
     # pumber of voxels
     nvx = im.shape[0]
@@ -1016,9 +1014,8 @@ def hmu_offset(hdr):
 
 def rd_hmu(fh):
     # --read hdr file--
-    f = open(fh, 'r')
-    hdr = f.read()
-    f.close()
+    with open(fh, 'r') as f:
+        hdr = f.read()
     # -----------------
     # pegular expression to find the file name
     p = re.compile(r'(?<=:=)\s*\w*[.]\w*')
@@ -1026,9 +1023,8 @@ def rd_hmu(fh):
     i1 = i0 + hdr[i0:].find('\n')
     fbin = p.findall(hdr[i0:i1])[0]
     # --read img file--
-    f = open(os.path.join(os.path.dirname(fh), fbin.strip()), 'rb')
-    im = np.fromfile(f, np.float32)
-    f.close()
+    with open(os.path.join(os.path.dirname(fh), fbin.strip()), 'rb') as f:
+        im = np.fromfile(f, np.float32)
     # -----------------
     return hdr, im
 

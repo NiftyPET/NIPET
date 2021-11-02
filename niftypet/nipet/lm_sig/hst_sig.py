@@ -17,152 +17,150 @@ def lminfo_sig(datain, Cnt, t0=0, t1=0):
     if not os.path.isfile(datain['lm_h5']):
         raise IOError('LM HDF5 file not found!')
 
-    f = h5py.File(datain['lm_h5'], 'r')
+    with h5py.File(datain['lm_h5'], 'r') as f:
 
-    if (f['HeaderData']['ListHeader']['isListCompressed'][0]) > 0:
-        raise IOError('The list mode data is compressed \
-            and has to be first decompressed using GE proprietary software!')
+        if (f['HeaderData']['ListHeader']['isListCompressed'][0]) > 0:
+            raise IOError('The list mode data is compressed \
+                and has to be first decompressed using GE proprietary software!')
 
-    else:
-        log.debug('the list mode is decompressed [OK]')
+        else:
+            log.debug('the list mode is decompressed [OK]')
 
-    lm = f['ListData']['listData']
+        lm = f['ListData']['listData']
 
-    # find first time marker by reading first k=1 time markers
-    # event offset
-    eoff = 0
-    # direction of time search: 1-forward
-    dsearch = 1
-    # how many t-markers forward?
-    k_markers = 1
+        # find first time marker by reading first k=1 time markers
+        # event offset
+        eoff = 0
+        # direction of time search: 1-forward
+        dsearch = 1
+        # how many t-markers forward?
+        k_markers = 1
 
-    # first time marker
-    eoff_start, tstart, _ = lmproc_sig.nxtmrkr(datain['lm_h5'], Cnt['BPE'], eoff, k_markers,
-                                               dsearch)
+        # first time marker
+        eoff_start, tstart, _ = lmproc_sig.nxtmrkr(datain['lm_h5'], Cnt['BPE'], eoff, k_markers,
+                                                   dsearch)
 
-    # last time marker
-    eoff_end, tend, _ = lmproc_sig.nxtmrkr(datain['lm_h5'], Cnt['BPE'],
-                                           (lm.shape[0] // Cnt['BPE']) - Cnt['BPE'], 1, -1)
+        # last time marker
+        eoff_end, tend, _ = lmproc_sig.nxtmrkr(datain['lm_h5'], Cnt['BPE'],
+                                               (lm.shape[0] // Cnt['BPE']) - Cnt['BPE'], 1, -1)
 
-    # total number of elements in the list mode data
-    totele = lm.shape[0] // Cnt['BPE']
+        # total number of elements in the list mode data
+        totele = lm.shape[0] // Cnt['BPE']
 
-    # offset for first events
-    eoff_first = 0
+        # offset for first events
+        eoff_first = 0
 
-    # last event offset
-    eoff_last = totele - 1
+        # last event offset
+        eoff_last = totele - 1
 
-    if not t0 == t1 == 0:
+        if not t0 == t1 == 0:
 
-        # update the times by the offset if it is greater than 0
-        t1 += tstart // Cnt['ITIME']
-        t0 += tstart // Cnt['ITIME']
+            # update the times by the offset if it is greater than 0
+            t1 += tstart // Cnt['ITIME']
+            t0 += tstart // Cnt['ITIME']
 
-        if (t1 * Cnt['ITIME']) > tend:
-            t1 = (tend + Cnt['ITIME'] - 1) // Cnt['ITIME']
+            if (t1 * Cnt['ITIME']) > tend:
+                t1 = (tend + Cnt['ITIME'] - 1) // Cnt['ITIME']
 
-        if (t0 * Cnt['ITIME']) <= tstart:
-            t0 = tstart // Cnt['ITIME']
+            if (t0 * Cnt['ITIME']) <= tstart:
+                t0 = tstart // Cnt['ITIME']
 
-        log.debug('t0 = {}, t1 = {}'.format(t0, t1))
+            log.debug('t0 = {}, t1 = {}'.format(t0, t1))
 
-        def find_tmark(t, tstart, tend, eoff_start, eoff_end, lmpth, bpe):
-            '''
-            find the event offsets for time index t
-            to be used for list mode data processing
-            '''
+            def find_tmark(t, tstart, tend, eoff_start, eoff_end, lmpth, bpe):
+                '''
+                find the event offsets for time index t
+                to be used for list mode data processing
+                '''
 
-            trgt = int(t * Cnt['ITIME'])
+                trgt = int(t * Cnt['ITIME'])
 
-            if trgt < tstart:
-                trgt = tstart
+                if trgt < tstart:
+                    trgt = tstart
 
-            if trgt > tend:
-                trgt = tend
+                if trgt > tend:
+                    trgt = tend
 
-            log.debug('target t_marker: {}'.format(trgt))
+                log.debug('target t_marker: {}'.format(trgt))
 
-            k_markers = 100
-            eoff, tmrk, counts = lmproc_sig.nxtmrkr(lmpth, bpe, 0, k_markers, 1)
+                k_markers = 100
+                eoff, tmrk, counts = lmproc_sig.nxtmrkr(lmpth, bpe, 0, k_markers, 1)
 
-            # average recorded events per ms
-            epm = eoff / k_markers
+                # average recorded events per ms
+                epm = eoff / k_markers
 
-            flg_done = False
-            while (abs(tmrk - trgt) > 10) or flg_done:
+                flg_done = False
+                while (abs(tmrk - trgt) > 10) or flg_done:
 
-                skip_off = int(eoff + (trgt-tmrk) * epm) # + eoff_start
-                if skip_off >= eoff_end:
-                    skip_off = int(totele - 0.25*epm*bpe)
-                    log.debug('corrected offset to: {}'.format(skip_off))
+                    skip_off = int(eoff + (trgt-tmrk) * epm) # + eoff_start
+                    if skip_off >= eoff_end:
+                        skip_off = int(totele - 0.25*epm*bpe)
+                        log.debug('corrected offset to: {}'.format(skip_off))
 
-                if skip_off < eoff_start:
-                    skip_off = int(eoff_start + bpe)
-                    log.debug('corrected offset to: {}'.format(skip_off))
+                    if skip_off < eoff_start:
+                        skip_off = int(eoff_start + bpe)
+                        log.debug('corrected offset to: {}'.format(skip_off))
 
-                eoff_n, tmrk_n, _ = lmproc_sig.nxtmrkr(lmpth, bpe, skip_off, 1,
-                                                       np.sign(trgt - tmrk))
+                    eoff_n, tmrk_n, _ = lmproc_sig.nxtmrkr(lmpth, bpe, skip_off, 1,
+                                                           np.sign(trgt - tmrk))
 
-                if (tmrk_n == tmrk):
-                    flg_done = True
-                else:
-                    epm = (eoff_n-eoff) / (tmrk_n-tmrk)
+                    if (tmrk_n == tmrk):
+                        flg_done = True
+                    else:
+                        epm = (eoff_n-eoff) / (tmrk_n-tmrk)
 
-                eoff = eoff_n
-                tmrk = tmrk_n
+                    eoff = eoff_n
+                    tmrk = tmrk_n
 
-                log.debug('t_mark: {}'.format(tmrk))
+                    log.debug('t_mark: {}'.format(tmrk))
 
-            # import pdb; pdb.set_trace()
-            if tmrk != trgt:
-                eoff, tmrk, _ = lmproc_sig.nxtmrkr(lmpth, bpe, eoff, abs(trgt - tmrk),
-                                                   np.sign(trgt - tmrk))               # +1*((trgt-tmrk)<0)
+                # import pdb; pdb.set_trace()
+                if tmrk != trgt:
+                    eoff, tmrk, _ = lmproc_sig.nxtmrkr(lmpth, bpe, eoff, abs(trgt - tmrk),
+                                                       np.sign(trgt - tmrk))               # +1*((trgt-tmrk)<0)
 
-            return eoff, tmrk
+                return eoff, tmrk
 
-        # start
-        eoff0, tmrk0 = find_tmark(t0, tstart, tend, eoff_start, eoff_end, datain['lm_h5'],
-                                  Cnt['BPE'])
-        # stop
-        eoff1, tmrk1 = find_tmark(t1, tstart, tend, eoff_start, eoff_end, datain['lm_h5'],
-                                  Cnt['BPE'])
+            # start
+            eoff0, tmrk0 = find_tmark(t0, tstart, tend, eoff_start, eoff_end, datain['lm_h5'],
+                                      Cnt['BPE'])
+            # stop
+            eoff1, tmrk1 = find_tmark(t1, tstart, tend, eoff_start, eoff_end, datain['lm_h5'],
+                                      Cnt['BPE'])
 
-        # number of elements to be considered in the list mode data
-        ele = eoff1 - eoff0
+            # number of elements to be considered in the list mode data
+            ele = eoff1 - eoff0
 
-    else:
+        else:
 
-        eoff0 = eoff_first
-        eoff1 = eoff_last
+            eoff0 = eoff_first
+            eoff1 = eoff_last
 
-        tmrk0 = tstart
-        tmrk1 = tend
+            tmrk0 = tstart
+            tmrk1 = tend
 
-        # number of elements to be considered in the list mode data
-        ele = totele
+            # number of elements to be considered in the list mode data
+            ele = totele
 
-    # integration time tags (+1 for the end)
-    nitag = ((tmrk1-tmrk0) + Cnt['ITIME'] - 1) // Cnt['ITIME']
+        # integration time tags (+1 for the end)
+        nitag = ((tmrk1-tmrk0) + Cnt['ITIME'] - 1) // Cnt['ITIME']
 
-    # update real time markers in seconds
-    t0 = tmrk0 // Cnt['ITIME']
-    t1 = tmrk1 // Cnt['ITIME']
+        # update real time markers in seconds
+        t0 = tmrk0 // Cnt['ITIME']
+        t1 = tmrk1 // Cnt['ITIME']
 
-    log.info(
-        dedent('''\
-        -----------------------------------------------
-        > the first time is: {}s at event address: {}
-        > the last  time is: {}s at event address: {}
-        ------------------------------------------------
-        > the start time is: {}s at event address: {} (used as offset)
-        > the stop  time is: {}s at event address: {}
-        > the number of report itags is: {}
-        > -----------------------------------------------
-        '''.format(tstart / Cnt['ITIME'], eoff_start, tend / Cnt['ITIME'], eoff_end,
-                   tmrk0 / Cnt['ITIME'], eoff0, tmrk1 / Cnt['ITIME'], eoff1, nitag)))
-
-    f.close()
+        log.info(
+            dedent('''\
+            -----------------------------------------------
+            > the first time is: {}s at event address: {}
+            > the last  time is: {}s at event address: {}
+            ------------------------------------------------
+            > the start time is: {}s at event address: {} (used as offset)
+            > the stop  time is: {}s at event address: {}
+            > the number of report itags is: {}
+            > -----------------------------------------------
+            '''.format(tstart / Cnt['ITIME'], eoff_start, tend / Cnt['ITIME'], eoff_end,
+                       tmrk0 / Cnt['ITIME'], eoff0, tmrk1 / Cnt['ITIME'], eoff1, nitag)))
 
     return {
         'nitag': nitag, 'nele': ele, 'totele': totele, 'tm0': tmrk0, 'tm1': tmrk1,

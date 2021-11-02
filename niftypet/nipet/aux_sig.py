@@ -9,51 +9,50 @@ log = logging.getLogger(__name__)
 
 
 def constants_h5(pthfn):
-    # open the HDF5 file
-    f = h5py.File(pthfn, 'r')
-    # coincidence event mode
-    cncdmd = f['HeaderData']['AcqParameters']['EDCATParameters']['coinOutputMode'][0]
-    if cncdmd == 802:
-        # bytes per event in this mode:
-        bpe = 6
-        log.info("list-mode data in NOMINAL mode (6 bytes per event)")
-    elif cncdmd == 803:
-        bpe = 16
-        log.error(
-            "list-mode data in CALIBRATION mode (16 bytes per event) not currently supported")
-    elif cncdmd == 805:
-        bpe = 8
-        log.error("the ist-mode data in ENERGY mode (8 bytes per event) not currently supported")
-    else:
-        bpe = 0
-        log.error("list-mode data in UNKNOWN mode")
+    with h5py.File(pthfn, 'r') as f:
+        # coincidence event mode
+        cncdmd = f['HeaderData']['AcqParameters']['EDCATParameters']['coinOutputMode'][0]
+        if cncdmd == 802:
+            # bytes per event in this mode:
+            bpe = 6
+            log.info("list-mode data in NOMINAL mode (6 bytes per event)")
+        elif cncdmd == 803:
+            bpe = 16
+            log.error(
+                "list-mode data in CALIBRATION mode (16 bytes per event) not currently supported")
+        elif cncdmd == 805:
+            bpe = 8
+            log.error(
+                "the ist-mode data in ENERGY mode (8 bytes per event) not currently supported")
+        else:
+            bpe = 0
+            log.error("list-mode data in UNKNOWN mode")
 
-    # toff: scan start time marker (used as offset)
-    CntH5 = {
-        'toff': f['HeaderData']['AcqStats']['frameStartCoincTStamp'][0],
-        'Deff': f['HeaderData']['SystemGeometry']['effectiveRingDiameter'][0],
-        'TFOV': f['HeaderData']['AcqParameters']['EDCATParameters']['transAxialFOV'][0],
-        'cpitch': f['HeaderData']['SystemGeometry']['interCrystalPitch'][0],
-        'bpitch': f['HeaderData']['SystemGeometry']['interBlockPitch'][0],
-        'exLOR': f['HeaderData']['AcqParameters']['RxScanParameters']['extraRsForTFOV'][0],
-        'axCB': f['HeaderData']['SystemGeometry']['axialCrystalsPerBlock'][0],
-        'axBU': f['HeaderData']['SystemGeometry']['axialBlocksPerUnit'][0],
-        'axUM': f['HeaderData']['SystemGeometry']['axialUnitsPerModule'][0],
-        'axMno': f['HeaderData']['SystemGeometry']['axialModulesPerSystem'][0],
-        'txCB': f['HeaderData']['SystemGeometry']['radialCrystalsPerBlock'][0],
-        'txBU': f['HeaderData']['SystemGeometry']['radialBlocksPerUnit'][0],
-        'txUM': f['HeaderData']['SystemGeometry']['radialUnitsPerModule'][0],
-        'txMno': f['HeaderData']['SystemGeometry']['radialModulesPerSystem'][0],
-        'MRD': f['HeaderData']['AcqParameters']['BackEndAcqFilters']['maxRingDiff'][0],
-        'tau0': f['HeaderData']['AcqParameters']['EDCATParameters']['negCoincidenceWindow'][0],
-        'tau1': f['HeaderData']['AcqParameters']['EDCATParameters']['posCoincidenceWindow'][0],
-        'tauP': f['HeaderData']['AcqParameters']['EDCATParameters']['coincTimingPrecision'][0],
-        'TOFC': f['HeaderData']['AcqParameters']['RxScanParameters']['tofCompressionFactor'][0],
-        'LLD': f['HeaderData']['AcqParameters']['EDCATParameters']['lower_energy_limit'][0],
-        'ULD': f['HeaderData']['AcqParameters']['EDCATParameters']['upper_energy_limit'][0],
-        'BPE': bpe}
-
-    f.close()
+        # toff: scan start time marker (used as offset)
+        CntH5 = {
+            'toff': f['HeaderData']['AcqStats']['frameStartCoincTStamp'][0],
+            'Deff': f['HeaderData']['SystemGeometry']['effectiveRingDiameter'][0],
+            'TFOV': f['HeaderData']['AcqParameters']['EDCATParameters']['transAxialFOV'][0],
+            'cpitch': f['HeaderData']['SystemGeometry']['interCrystalPitch'][0],
+            'bpitch': f['HeaderData']['SystemGeometry']['interBlockPitch'][0],
+            'exLOR': f['HeaderData']['AcqParameters']['RxScanParameters']['extraRsForTFOV'][0],
+            'axCB': f['HeaderData']['SystemGeometry']['axialCrystalsPerBlock'][0],
+            'axBU': f['HeaderData']['SystemGeometry']['axialBlocksPerUnit'][0],
+            'axUM': f['HeaderData']['SystemGeometry']['axialUnitsPerModule'][0],
+            'axMno': f['HeaderData']['SystemGeometry']['axialModulesPerSystem'][0],
+            'txCB': f['HeaderData']['SystemGeometry']['radialCrystalsPerBlock'][0],
+            'txBU': f['HeaderData']['SystemGeometry']['radialBlocksPerUnit'][0],
+            'txUM': f['HeaderData']['SystemGeometry']['radialUnitsPerModule'][0],
+            'txMno': f['HeaderData']['SystemGeometry']['radialModulesPerSystem'][0],
+            'MRD': f['HeaderData']['AcqParameters']['BackEndAcqFilters']['maxRingDiff'][0],
+            'tau0': f['HeaderData']['AcqParameters']['EDCATParameters']['negCoincidenceWindow'][0],
+            'tau1': f['HeaderData']['AcqParameters']['EDCATParameters']['posCoincidenceWindow'][0],
+            'tauP': f['HeaderData']['AcqParameters']['EDCATParameters']['coincTimingPrecision'][0],
+            'TOFC': f['HeaderData']['AcqParameters']['RxScanParameters']['tofCompressionFactor']
+            [0],
+            'LLD': f['HeaderData']['AcqParameters']['EDCATParameters']['lower_energy_limit'][0],
+            'ULD': f['HeaderData']['AcqParameters']['EDCATParameters']['upper_energy_limit'][0],
+            'BPE': bpe}
     return CntH5
 
 
