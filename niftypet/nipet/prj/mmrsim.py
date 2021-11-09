@@ -259,8 +259,7 @@ def simulate_recon(
             sinoTIdx[n, 1:], s = mmrrec.get_subsets14(n, scanner_params)
 
             # > sensitivity image
-            petprj.bprj(tmpsim.cuvec,
-                        cu.asarray(attsino[sinoTIdx[n, 1:], :]).cuvec, txLUT, axLUT,
+            petprj.bprj(tmpsim, cu.asarray(attsino[sinoTIdx[n, 1:], :]), txLUT, axLUT,
                         sinoTIdx[n, 1:], Cnt)
             sim[n] = tmpsim
         del tmpsim

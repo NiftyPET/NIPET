@@ -10,12 +10,13 @@ Copyrights: 2018
 #define PY_SSIZE_T_CLEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION // NPY_API_VERSION
 
+#include "Python.h"
 #include "auxmath.h"
 #include "def.h"
 #include "norm.h"
+#include "numpy/arrayobject.h"
+#include "pycuvec.cuh"
 #include "scanner_0.h"
-#include <Python.h>
-#include <numpy/arrayobject.h>
 #include <stdlib.h>
 
 //=== START PYTHON INIT ===
@@ -386,26 +387,15 @@ static PyObject *mmr_pgaps(PyObject *self, PyObject *args) {
 
 //====================================================================================================
 static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
-
-  // output sino with gaps removed
-  PyObject *o_sng;
-
-  // transaxial LUT dictionary (e.g., 2D sino where dead bins are out).
-  PyObject *o_txLUT;
-
-  // Dictionary of scanner constants
-  PyObject *o_mmrcnst;
-
-  // input sino to be reformated with gaps removed
-  PyObject *o_sino;
-
-  // Structure of constants
-  Cnst Cnt;
-
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOO", &o_sng, &o_sino, &o_txLUT, &o_mmrcnst)) return NULL;
-  //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  PyCuVec<float> *o_sng = NULL;  // output sino with gaps removed
+  PyCuVec<float> *o_sino = NULL; // input sino to be reformated with gaps removed
+  PyObject *o_txLUT;   // transaxial LUT dictionary (e.g., 2D sino where dead bins are out).
+  PyObject *o_mmrcnst; // Dictionary of scanner constants
+  Cnst Cnt;            // Structure of constants
+  if (!PyArg_ParseTuple(args, "O&O&OO", &asPyCuVec_f, &o_sng, &asPyCuVec_f, &o_sino, &o_txLUT,
+                        &o_mmrcnst))
+    return NULL;
+  if (!o_sng || !o_sino) return NULL;
 
   /* Interpret the input objects as... PyLong_AsLong*/
   PyObject *pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
@@ -427,45 +417,23 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
   PyObject *pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
   // input sino and the above 2D LUT
-  PyArrayObject *p_sino = NULL;
-  p_sino = (PyArrayObject *)PyArray_FROM_OTF(o_sino, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
   PyArrayObject *p_aw2ali = NULL;
   p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
+  if (p_aw2ali == NULL) { Py_XDECREF(p_aw2ali); }
+  int *aw2ali = (int *)PyArray_DATA(p_aw2ali);
 
   // number of sinogram from the shape of the sino (can be any number especially when using reduced
   // ring number)
-  int snno = (int)PyArray_DIM(p_sino, 0);
-
-  // output sino
-  PyArrayObject *p_sng = NULL;
-  p_sng = (PyArrayObject *)PyArray_FROM_OTF(o_sng, NPY_FLOAT32, NPY_ARRAY_INOUT_ARRAY2);
-
-  if (p_sino == NULL || p_aw2ali == NULL || p_sino == NULL) {
-    Py_XDECREF(p_aw2ali);
-    Py_XDECREF(p_sino);
-
-    PyArray_DiscardWritebackIfCopy(p_sng);
-    Py_XDECREF(p_sng);
-  }
-
-  int *aw2ali = (int *)PyArray_DATA(p_aw2ali);
-  float *sino = (float *)PyArray_DATA(p_sino);
-  float *sng = (float *)PyArray_DATA(p_sng);
-
-  // sets the device on which to calculate
-  HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
+  int snno = o_sino->shape[0];
 
   //<><><><><><><><><><><><><><><><><><><><><><>
+  HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
   // Run the conversion to GPU sinos
-  remove_gaps(sng, sino, snno, aw2ali, Cnt);
+  remove_gaps(o_sng->vec.data(), o_sino->vec.data(), snno, aw2ali, Cnt);
   //<><><><><><><><><><><><><><><><><><><><><><>
 
   // Clean up
   Py_DECREF(p_aw2ali);
-  Py_DECREF(p_sino);
-
-  PyArray_ResolveWritebackIfCopy(p_sng);
-  Py_DECREF(p_sng);
 
   Py_INCREF(Py_None);
   return Py_None;
