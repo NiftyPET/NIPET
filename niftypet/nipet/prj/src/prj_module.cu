@@ -315,8 +315,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   /* If that didn't work, throw an exception. */
   if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-      p_aw2ali == NULL || p_s2c == NULL || !o_im || p_crs == NULL || p_subs == NULL || !o_prjout ||
-      p_li2rng == NULL) {
+      p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL || p_subs == NULL || p_li2rng == NULL) {
     // axLUTs
     Py_XDECREF(p_li2rno);
     Py_XDECREF(p_li2sn);
@@ -480,7 +479,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   /* If that didn't work, throw an exception. */
   if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-      p_s2c == NULL || !o_sino || p_crs == NULL || p_subs == NULL || p_li2rng == NULL || !o_bimg) {
+      p_s2c == NULL || p_crs == NULL || p_subs == NULL || p_li2rng == NULL) {
     // axLUTs
     Py_XDECREF(p_li2rno);
     Py_XDECREF(p_li2sn);

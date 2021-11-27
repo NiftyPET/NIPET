@@ -395,7 +395,6 @@ static PyObject *mmr_rgaps(PyObject *self, PyObject *args) {
   if (!PyArg_ParseTuple(args, "O&O&OO", &asPyCuVec_f, &o_sng, &asPyCuVec_f, &o_sino, &o_txLUT,
                         &o_mmrcnst))
     return NULL;
-  if (!o_sng || !o_sino) return NULL;
 
   /* Interpret the input objects as... PyLong_AsLong*/
   PyObject *pd_NSN11 = PyDict_GetItemString(o_mmrcnst, "NSN11");
