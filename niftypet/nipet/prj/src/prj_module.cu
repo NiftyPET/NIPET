@@ -424,18 +424,14 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // output backprojected image
   PyCuVec<float> *o_bimg = NULL;
 
-  // sinogram divisor
-  PyCuVec<float> *o_div_sino = NULL;
-
   bool SYNC = true; // whether to ensure deviceToHost copy on return
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
 
-  static const char *kwds[] = {"bimg", "sino",     "txLUT", "axLUT", "subs",
-                               "cnst", "div_sino", "sync",  NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOO|O&b", (char **)kwds, &asPyCuVec_f,
+  static const char *kwds[] = {"bimg", "sino", "txLUT", "axLUT", "subs", "cnst", "sync", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOO|b", (char **)kwds, &asPyCuVec_f,
                                    &o_bimg, &asPyCuVec_f, &o_sino, &o_txLUT, &o_axLUT, &o_subs,
-                                   &o_mmrcnst, &asPyCuVec_f, &o_div_sino, &SYNC))
+                                   &o_mmrcnst, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -560,8 +556,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
 
   gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, (short2 *)d_s2c,
-           (float4 *)d_crs, d_subs, d_tt, d_tv, Nprj, Cnt,
-           o_div_sino ? o_div_sino->vec.data() : nullptr, SYNC);
+           (float4 *)d_crs, d_subs, d_tt, d_tv, Nprj, Cnt, SYNC);
 
   HANDLE_ERROR(cudaFree(d_subs));
   HANDLE_ERROR(cudaFree(d_tv));
