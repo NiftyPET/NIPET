@@ -47,6 +47,8 @@ def mmrchain(
     trim_interp=0,          # interpolation for upsampling used in PVC
     trim_memlim=True,       # reduced use of memory for machines
                             # with limited memory (slow though)
+    trim_store=True,
+
     pvcroi=None,            # ROI used for PVC.  If undefined no PVC
                             # is performed.
     pvcreg_tool='niftyreg', # the registration tool used in PVC
@@ -406,8 +408,15 @@ def mmrchain(
         elif 'lm_ima' in datain:
             fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
-        petu = nimpa.imtrimup(dynim, affine=image_affine(datain, Cnt), scale=trim_scale,
-                              int_order=trim_interp, outpath=petimg, fname=fnm, fcomment=fcomment,
+        petu = nimpa.imtrimup(dynim,
+                              affine=image_affine(datain, Cnt),
+                              scale=trim_scale,
+                              int_order=trim_interp,
+                              outpath=petimg,
+                              fname=fnm,
+                              fcomment=fcomment,
+                              fcomment_pfx=fout+'_',
+                              store_img=trim_store, 
                               store_img_intrmd=store_img_intrmd, memlim=trim_memlim,
                               verbose=log.getEffectiveLevel())
 
