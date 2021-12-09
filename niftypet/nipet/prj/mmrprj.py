@@ -44,7 +44,7 @@ def trnx_prj(scanner_params, sino=None, im=None):
 
 
 def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=False,
-             fullsino_out=True, output=None):
+             fullsino_out=True, output=None, sync=True):
     """
     Calculate forward projection (a set of sinograms) for the provided input image.
     Arguments:
@@ -60,6 +60,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
             calculations (attenuation=True), the exponential of the negative of the integrated
             mu-values along LOR path is taken at the end.
         output(CuVec, optional) -- output sinogram.
+        sync(bool) -- whether to `cudaDeviceSynchronize()` after.
     """
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
@@ -121,7 +122,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
         assert sinog.shape == out_shape
         assert sinog.dtype == np.dtype('float32')
     # --------------------
-    petprj.fprj(sinog.cuvec, cu.asarray(ims).cuvec, txLUT, axLUT, isub, Cnt, att)
+    petprj.fprj(sinog, cu.asarray(ims), txLUT, axLUT, isub, Cnt, att, sync=sync)
     # --------------------
 
     # get the sinogram bins in a full sinogram if requested
@@ -143,7 +144,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 # ------------------------------------------------------------------------
 
 
-def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
+def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, output=None, sync=True):
     '''
     Calculate forward projection for the provided input image.
     Arguments:
@@ -152,6 +153,8 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
             transaxial and axial look up tables (LUT).
         isub -- array of transaxial indices of all sinograms (angles x bins) used for subsets;
             when the first element is negative, all transaxial bins are used (as in pure EM-ML).
+        output(CuVec, optional) -- output image.
+        sync(bool) -- whether to `cudaDeviceSynchronize()` after.
     '''
     # Get particular scanner parameters: Constants, transaxial and axial LUTs
     Cnt = scanner_params['Cnt']
@@ -199,10 +202,17 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False):
         nvz = Cnt['rSZ_IMZ']
     else:
         nvz = Cnt['SZ_IMZ']
-    bimg = cu.zeros((Cnt['SZ_IMX'], Cnt['SZ_IMY'], nvz), dtype=np.float32)
+
+    out_shape = Cnt['SZ_IMX'], Cnt['SZ_IMY'], nvz
+    if output is None:
+        bimg = cu.zeros(out_shape, dtype=np.float32)
+    else:
+        bimg = cu.asarray(output)
+        assert bimg.shape == out_shape
+        assert bimg.dtype == np.dtype('float32')
 
     # > run back-projection
-    petprj.bprj(bimg.cuvec, cu.asarray(sinog).cuvec, txLUT, axLUT, isub, Cnt)
+    petprj.bprj(bimg, cu.asarray(sinog), txLUT, axLUT, isub, Cnt, sync=sync)
 
     if not dev_out:
         # > change from GPU optimised image dimensions to the standard Siemens shape

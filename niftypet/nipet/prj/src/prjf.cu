@@ -207,8 +207,8 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
 
 //--------------------------------------------------------------------------------------------------
 void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
-              char att) {
+              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt, char att,
+              bool _sync) {
   int dev_id;
   cudaGetDevice(&dev_id);
   if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
@@ -304,9 +304,11 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
   cudaMemcpyToSymbol(c_li2nos, li2nos, nil2r_c * sizeof(char));
 
   cudaEvent_t start, stop;
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
-  cudaEventRecord(start, 0);
+  if (_sync) {
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+  }
 
   if (Cnt.LOG <= LOGDEBUG) printf("i> calculating sinograms via forward projection...");
 
@@ -333,14 +335,18 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
   HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
-  cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-  // cudaDeviceSynchronize();
-  float elapsedTime;
-  cudaEventElapsedTime(&elapsedTime, start, stop);
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
-  if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  if (_sync) {
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    // cudaDeviceSynchronize();
+    float elapsedTime;
+    cudaEventElapsedTime(&elapsedTime, start, stop);
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+    if (Cnt.LOG <= LOGDEBUG) printf("DONE in %fs.\n", 0.001 * elapsedTime);
+  } else {
+    if (Cnt.LOG <= LOGDEBUG) printf("DONE.\n");
+  }
 
   if (nvz < SZ_IMZ) HANDLE_ERROR(cudaFree(d_im));
   HANDLE_ERROR(cudaFree(d_tt));

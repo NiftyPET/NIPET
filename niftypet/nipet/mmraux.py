@@ -10,12 +10,12 @@ from os import fspath
 from pathlib import Path
 from textwrap import dedent
 
+import cuvec as cu
 import numpy as np
 import pydicom as dcm
 from miutil.fdio import hasext
 
 from niftypet import nimpa
-
 from niftypet.ninst import install_tools as tls
 
 from . import mmr_auxe, resources
@@ -917,7 +917,7 @@ def get_niifiles(dfile, datain):
         log.debug('NIfTI for bias corrected T1w of the object:\n{}'.format(fbc[0]))
 
     # T1-based labels after parcellation
-    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*giflabels.nii*'))
+    flbl = glob.glob(os.path.join(os.path.dirname(dfile), '*gif*labels.nii*'))
     if len(flbl) == 1:
         datain['T1lbl'] = flbl[0]
         log.debug('NIfTI for regional parcellations of the object:\n{}'.format(flbl[0]))
@@ -1143,18 +1143,21 @@ def putgaps(s, txLUT, Cnt, sino_no=0):
     return sino.astype(s.dtype)
 
 
-def remgaps(sino, txLUT, Cnt):
-
+def remgaps(sino, txLUT, Cnt, output=None):
     # number of sino planes (2D sinos) depends on the span used
     nsinos = sino.shape[0]
 
-    # preallocate output sino without gaps, always in float
-    s = np.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
+    # preallocate output sino without gaps
+    if output is None:
+        output = cu.zeros((txLUT['Naw'], nsinos), dtype=np.float32)
+    else:
+        assert output.shape == txLUT['Naw'], nsinos
+        assert output.dtype == np.dtype('float32')
     # fill the sino with gaps
-    mmr_auxe.rgaps(s, sino.astype(np.float32), txLUT, Cnt)
+    mmr_auxe.rgaps(output, cu.asarray(sino, dtype=np.float32), txLUT, Cnt)
 
     # return in the same data type as the input sino
-    return s.astype(sino.dtype)
+    return output.astype(sino.dtype)
 
 
 def mmrinit():
@@ -1202,5 +1205,4 @@ def get_mmrparams(hmu_dir=None):
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     log.info("hardware mu-maps have been located")
 
-    
     return {'Cnt': Cnt, 'txLUT': txLUT, 'axLUT': axLUT}

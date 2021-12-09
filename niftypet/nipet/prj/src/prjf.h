@@ -7,8 +7,8 @@
 #define PRJF_H
 
 void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt,
-              char att);
+              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt, char att,
+              bool _sync = true);
 
 void rec_fprj(float *d_sino, float *d_img, int *d_sub, int Nprj,
 

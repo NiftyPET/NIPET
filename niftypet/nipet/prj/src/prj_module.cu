@@ -28,16 +28,16 @@ Copyrights: 2019
 
 //--- Available functions
 static PyObject *trnx_prj(PyObject *self, PyObject *args);
-static PyObject *frwd_prj(PyObject *self, PyObject *args);
-static PyObject *back_prj(PyObject *self, PyObject *args);
+static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs);
+static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs);
 static PyObject *osem_rec(PyObject *self, PyObject *args);
 //---
 
 //> Module Method Table
 static PyMethodDef petprj_methods[] = {
     {"tprj", trnx_prj, METH_VARARGS, "Transaxial projector."},
-    {"fprj", frwd_prj, METH_VARARGS, "PET forward projector."},
-    {"bprj", back_prj, METH_VARARGS, "PET back projector."},
+    {"fprj", (PyCFunction)frwd_prj, METH_VARARGS | METH_KEYWORDS, "PET forward projector."},
+    {"bprj", (PyCFunction)back_prj, METH_VARARGS | METH_KEYWORDS, "PET back projector."},
     {"osem", osem_rec, METH_VARARGS, "OSEM reconstruction of PET data."},
     {NULL, NULL, 0, NULL} // Sentinel
 };
@@ -229,7 +229,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
 // F O R W A R D   P R O J E C T O R
 //------------------------------------------------------------------------------
 
-static PyObject *frwd_prj(PyObject *self, PyObject *args) {
+static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // Structure of constants
   Cnst Cnt;
 
@@ -243,21 +243,26 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
   PyObject *o_txLUT;
 
   // input image to be forward projected  (reshaped for GPU execution)
-  PyCuVec<float> *o_im;
+  PyCuVec<float> *o_im = NULL;
 
   // subsets for OSEM, first the default
   PyObject *o_subs;
 
   // output projection sino
-  PyCuVec<float> *o_prjout;
+  PyCuVec<float> *o_prjout = NULL;
 
   // flag for attenuation factors to be found based on mu-map; if 0 normal emission projection is
   // used
   int att;
+
+  bool SYNC = true; // whether to ensure deviceToHost copy on return
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOOOOi", (PyObject **)&o_prjout, (PyObject **)&o_im, &o_txLUT,
-                        &o_axLUT, &o_subs, &o_mmrcnst, &att))
+  static const char *kwds[] = {"sino", "im",  "txLUT", "axLUT", "subs",
+                               "cnst", "att", "sync",  NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOOi|b", (char **)kwds, &asPyCuVec_f,
+                                   &o_prjout, &asPyCuVec_f, &o_im, &o_txLUT, &o_axLUT, &o_subs,
+                                   &o_mmrcnst, &att, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -310,8 +315,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
 
   /* If that didn't work, throw an exception. */
   if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-      p_aw2ali == NULL || p_s2c == NULL || !o_im || p_crs == NULL || p_subs == NULL || !o_prjout ||
-      p_li2rng == NULL) {
+      p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL || p_subs == NULL || p_li2rng == NULL) {
     // axLUTs
     Py_XDECREF(p_li2rno);
     Py_XDECREF(p_li2sn);
@@ -373,7 +377,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
 
   //<><><><><><><<><><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
   gpu_fprj(o_prjout->vec.data(), o_im->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt, att);
+           Nprj, Naw, N0crs, Cnt, att, SYNC);
   //<><><><><><><><<><><><><><><><><><><><><><><><><<><><><><><><><><><><><><><><><><><><<><><><><><><><><><><>
 
   // Clean up
@@ -396,7 +400,7 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args) {
 //==============================================================================
 // B A C K   P R O J E C T O R
 //------------------------------------------------------------------------------
-static PyObject *back_prj(PyObject *self, PyObject *args) {
+static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   // Structure of constants
   Cnst Cnt;
@@ -411,18 +415,22 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   PyObject *o_txLUT;
 
   // sino to be back projected to image (both reshaped for GPU execution)
-  PyCuVec<float> *o_sino;
+  PyCuVec<float> *o_sino = NULL;
 
   // subsets for OSEM, first the default
   PyObject *o_subs;
 
   // output backprojected image
-  PyCuVec<float> *o_bimg;
+  PyCuVec<float> *o_bimg = NULL;
 
+  bool SYNC = true; // whether to ensure deviceToHost copy on return
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   /* Parse the input tuple */
-  if (!PyArg_ParseTuple(args, "OOOOOO", (PyObject **)&o_bimg, (PyObject **)&o_sino, &o_txLUT,
-                        &o_axLUT, &o_subs, &o_mmrcnst))
+
+  static const char *kwds[] = {"bimg", "sino", "txLUT", "axLUT", "subs", "cnst", "sync", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&OOOO|b", (char **)kwds, &asPyCuVec_f,
+                                   &o_bimg, &asPyCuVec_f, &o_sino, &o_txLUT, &o_axLUT, &o_subs,
+                                   &o_mmrcnst, &SYNC))
     return NULL;
   //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -448,7 +456,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   // transaxial sino LUTs:
   PyObject *pd_crs = PyDict_GetItemString(o_txLUT, "crs");
   PyObject *pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
-  PyObject *pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
   //-- get the arrays from the dictionaries
   // axLUTs
@@ -461,11 +468,9 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
   // sino to crystal, crystals
-  PyArrayObject *p_s2c = NULL, *p_crs = NULL, *p_aw2ali = NULL;
+  PyArrayObject *p_s2c = NULL, *p_crs = NULL;
   p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_ARRAY_IN_ARRAY);
   p_crs = (PyArrayObject *)PyArray_FROM_OTF(pd_crs, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
-
-  p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
 
   // subsets if using e.g., OSEM
   PyArrayObject *p_subs = NULL;
@@ -474,8 +479,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
 
   /* If that didn't work, throw an exception. */
   if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-      p_aw2ali == NULL || p_s2c == NULL || !o_sino || p_crs == NULL || p_subs == NULL ||
-      p_li2rng == NULL || !o_bimg) {
+      p_s2c == NULL || p_crs == NULL || p_subs == NULL || p_li2rng == NULL) {
     // axLUTs
     Py_XDECREF(p_li2rno);
     Py_XDECREF(p_li2sn);
@@ -483,8 +487,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
     Py_XDECREF(p_li2nos);
     Py_XDECREF(p_li2rng);
 
-    // 2D sino LUT
-    Py_XDECREF(p_aw2ali);
     // sino 2 crystals
     Py_XDECREF(p_s2c);
     Py_XDECREF(p_crs);
@@ -496,7 +498,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
 
   int *subs_ = (int *)PyArray_DATA(p_subs);
   short *s2c = (short *)PyArray_DATA(p_s2c);
-  int *aw2ali = (int *)PyArray_DATA(p_aw2ali);
   short *li2sn;
   if (Cnt.SPN == 11) {
     li2sn = (short *)PyArray_DATA(p_li2sn);
@@ -510,7 +511,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   int Nprj = PyArray_DIM(p_subs, 0);
   int N0crs = PyArray_DIM(p_crs, 0);
   int N1crs = PyArray_DIM(p_crs, 1);
-  int Naw = PyArray_DIM(p_aw2ali, 0);
 
   int *subs;
   if (subs_[0] == -1) {
@@ -534,8 +534,34 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
 
   //<><><<><><><><><><><><><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
-  gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, s2c, aw2ali, crs, subs,
-           Nprj, Naw, N0crs, Cnt);
+  float4 *d_crs;
+  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
+  HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
+
+  short2 *d_s2c;
+  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
+  HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
+
+  float *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
+
+  unsigned char *d_tv;
+  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
+  HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV * AW * sizeof(unsigned char)));
+
+  // array of subset projection bins
+  int *d_subs;
+  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
+  HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
+
+  gpu_bprj(o_bimg->vec.data(), o_sino->vec.data(), li2rng, li2sn, li2nos, (short2 *)d_s2c,
+           (float4 *)d_crs, d_subs, d_tt, d_tv, Nprj, Cnt, SYNC);
+
+  HANDLE_ERROR(cudaFree(d_subs));
+  HANDLE_ERROR(cudaFree(d_tv));
+  HANDLE_ERROR(cudaFree(d_tt));
+  HANDLE_ERROR(cudaFree(d_s2c));
+  HANDLE_ERROR(cudaFree(d_crs));
   //<><><><><><><><><><><>><><><><><><><><><<><><><><<><><><><><><><><><><><><><><><><><<><><><><><><>
 
   // Clean up
@@ -544,7 +570,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args) {
   Py_DECREF(p_li2sn);
   Py_DECREF(p_li2sn1);
   Py_DECREF(p_li2nos);
-  Py_DECREF(p_aw2ali);
   Py_DECREF(p_s2c);
   Py_DECREF(p_crs);
   Py_DECREF(p_subs);
@@ -619,7 +644,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   // transaxial sino LUTs:
   PyObject *pd_crs = PyDict_GetItemString(o_txLUT, "crs");
   PyObject *pd_s2c = PyDict_GetItemString(o_txLUT, "s2c");
-  PyObject *pd_aw2ali = PyDict_GetItemString(o_txLUT, "aw2ali");
 
   //-- get the arrays from the dictionaries
   // output back-projection image
@@ -659,10 +683,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_ARRAY_IN_ARRAY);
   p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
 
-  // 2D sino index LUT:
-  PyArrayObject *p_aw2ali = NULL;
-  p_aw2ali = (PyArrayObject *)PyArray_FROM_OTF(pd_aw2ali, NPY_INT32, NPY_ARRAY_IN_ARRAY);
-
   // sino to crystal, crystals
   PyArrayObject *p_s2c = NULL, *p_crs = NULL;
   p_s2c = (PyArrayObject *)PyArray_FROM_OTF(pd_s2c, NPY_INT16, NPY_ARRAY_IN_ARRAY);
@@ -673,7 +693,7 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   if (p_imgout == NULL || p_rcnmsk == NULL || p_subs == NULL || p_psng == NULL || p_rsng == NULL ||
       p_ssng == NULL || p_nsng == NULL || p_asng == NULL || p_imgsens == NULL ||
       p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
-      p_aw2ali == NULL || p_s2c == NULL || p_crs == NULL || p_krnl == NULL) {
+      p_s2c == NULL || p_crs == NULL || p_krnl == NULL) {
     //> output image
     PyArray_DiscardWritebackIfCopy(p_imgout);
     Py_XDECREF(p_imgout);
@@ -699,8 +719,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
     Py_XDECREF(p_li2sn);
     Py_XDECREF(p_li2sn1);
     Py_XDECREF(p_li2nos);
-    //> 2D sinogram LUT
-    Py_XDECREF(p_aw2ali);
     //> sinogram to crystal LUTs
     Py_XDECREF(p_s2c);
     Py_XDECREF(p_crs);
@@ -743,7 +761,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   float *li2rng = (float *)PyArray_DATA(p_li2rng);
   float *crs = (float *)PyArray_DATA(p_crs);
   short *s2c = (short *)PyArray_DATA(p_s2c);
-  int *aw2ali = (int *)PyArray_DATA(p_aw2ali);
 
   int N0crs = PyArray_DIM(p_crs, 0);
   int N1crs = PyArray_DIM(p_crs, 1);
@@ -787,7 +804,6 @@ static PyObject *osem_rec(PyObject *self, PyObject *args) {
   Py_DECREF(p_li2sn);
   Py_DECREF(p_li2sn1);
   Py_DECREF(p_li2nos);
-  Py_DECREF(p_aw2ali);
   Py_DECREF(p_s2c);
   Py_DECREF(p_crs);
 
