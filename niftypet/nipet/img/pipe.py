@@ -548,11 +548,11 @@ def mmrchain(
             if fout is None:
                 fpetu = os.path.join(
                     pettrim,
-                    os.path.basename(fpet) + f'_trimmed-upsampled-scale-{trim_scale}')
+                    os.path.basename(fpet) + f'_recon-trimmed-upsampled-scale-{trim_scale}')
             else:
                 fpetu = os.path.join(
                     pettrim,
-                    os.path.basename(fout) + f'_trimmed-upsampled-scale-{trim_scale}')
+                    os.path.basename(fout) + f'_recon-trimmed-upsampled-scale-{trim_scale}')
             # in case of PVC
             if pvcroi:
                 # itertive Yang (iY) added to NIfTI descritoption
