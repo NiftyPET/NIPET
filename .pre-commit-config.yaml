@@ -41,7 +41,7 @@ repos:
   - id: yapf
     args: [-i]
 - repo: https://github.com/PyCQA/isort
-  rev: 5.9.3
+  rev: 5.10.1
   hooks:
   - id: isort
 - repo: https://github.com/doublify/pre-commit-clang-format
