@@ -1101,7 +1101,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     nimpa.array2nii(np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32), B,
                     fref)
 
-    # pefine a dictionary of all positions/offsets of hardware mu-maps
+    # define a dictionary of all positions/offsets of hardware mu-maps
     hmupos = [None] * 5
     hmupos[0] = {
         'TabPosOrg': tpozyx, # prom DICOM of LM file
