@@ -279,15 +279,13 @@ def mudcm2nii(datain, Cnt):
     nimpa.array2nii(im, B, os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'))
     # -------------------------------------------------------------------------------------
     fmu = os.path.join(os.path.dirname(datain['mumapDCM']), 'mu_r.nii.gz')
-    if os.path.isfile(Cnt['RESPATH']):
-        run([
-            Cnt['RESPATH'], '-ref',
-            os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'), '-flo',
-            os.path.join(os.path.dirname(datain['mumapDCM']), 'mu.nii.gz'), '-res', fmu, '-pad',
-            '0'])
-    else:
-        log.error('path to resampling executable is incorrect!')
-        raise IOError('Error launching NiftyReg for image resampling.')
+
+    nimpa.resample_dipy(
+        os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'),
+        os.path.join(os.path.dirname(datain['mumapDCM']), 'mu.nii.gz'),
+        fimout=fmu,
+        intrp=1,
+        dtype_nifti=np.float32)
 
     return fmu
 
@@ -346,23 +344,21 @@ def obj_mumap(
     for d in resdcm:
         os.remove(d)
 
-    # convert the DICOM mu-map images to nii
+    # > convert the DICOM mu-map images to NIfTI
     run([Cnt['DCM2NIIX'], '-f', fnii + tstmp, '-o', fmudir, datain['mumapDCM']])
     # piles for the T1w, pick one:
     fmunii = glob.glob(os.path.join(fmudir, '*' + fnii + tstmp + '*.nii*'))[0]
     # fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
     # fmunii = fmunii[0]
 
-    # the converted nii image resample to the reference size
+    # > resampled the NIfTI converted image to the reference shape/size
     fmu = os.path.join(fmudir, comment + 'mumap_tmp.nii.gz')
-    if os.path.isfile(Cnt['RESPATH']):
-        cmd = [Cnt['RESPATH'], '-ref', fmuref, '-flo', fmunii, '-res', fmu, '-pad', '0']
-        if log.getEffectiveLevel() > logging.INFO:
-            cmd.append('-voff')
-        run(cmd)
-    else:
-        log.error('path to resampling executable is incorrect!')
-        raise IOError('Path to executable is incorrect!')
+    nimpa.resample_dipy(
+        fmuref,
+        fmunii,
+        fimout=fmu,
+        intrp=1,
+        dtype_nifti=np.float32)
 
     nim = nib.load(fmu)
     # get the affine transform
@@ -1034,9 +1030,7 @@ def rd_hmu(fh):
 
 
 def get_hmupos(datain, parts, Cnt, outpath=''):
-    # check if registration executable exists
-    if not os.path.isfile(Cnt['RESPATH']):
-        raise IOError('No registration executable found!')
+
     # ----- get positions from the DICOM list-mode file -----
     ihdr, csainfo = mmraux.hdr_lm(datain, Cnt)
     # pable position origin
@@ -1142,15 +1136,16 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
         A[2, 3] = -10 * ((s[0] - 1) * vs[0] - vpos[0])
         nimpa.array2nii(im[::-1, ::-1, :], A, hmupos[i]['niipath'])
 
-        # resample using nify.reg
+        # > resample using DIPY in nimpa
         fout = os.path.join(os.path.dirname(hmupos[0]['niipath']),
                             'r' + os.path.basename(hmupos[i]['niipath']).split('.')[0] + '.nii.gz')
-        cmd = [
-            Cnt['RESPATH'], '-ref', hmupos[0]['niipath'], '-flo', hmupos[i]['niipath'], '-res',
-            fout, '-pad', '0']
-        if log.getEffectiveLevel() > logging.INFO:
-            cmd.append('-voff')
-        run(cmd)
+
+        nimpa.resample_dipy(
+            hmupos[0]['niipath'],
+            hmupos[i]['niipath'],
+            fimout=fout,
+            intrp=1,
+            dtype_nifti=np.float32)
 
     return hmupos
 
