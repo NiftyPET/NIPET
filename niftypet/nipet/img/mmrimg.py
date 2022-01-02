@@ -278,15 +278,10 @@ def mudcm2nii(datain, Cnt):
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
     nimpa.array2nii(im, B, os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'))
     # -------------------------------------------------------------------------------------
-    fmu = os.path.join(os.path.dirname(datain['mumapDCM']), 'mu_r.nii.gz')
-
-    nimpa.resample_dipy(
-        os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'),
-        os.path.join(os.path.dirname(datain['mumapDCM']), 'mu.nii.gz'),
-        fimout=fmu,
-        intrp=1,
-        dtype_nifti=np.float32)
-
+    opth = os.path.dirname(datain['mumapDCM'])
+    fmu = os.path.join(opth, 'mu_r.nii.gz')
+    nimpa.resample_dipy(os.path.join(opth, 'muref.nii.gz'), os.path.join(opth, 'mu.nii.gz'),
+                        fimout=fmu, intrp=1, dtype_nifti=np.float32)
     return fmu
 
 
@@ -353,12 +348,7 @@ def obj_mumap(
 
     # > resampled the NIfTI converted image to the reference shape/size
     fmu = os.path.join(fmudir, comment + 'mumap_tmp.nii.gz')
-    nimpa.resample_dipy(
-        fmuref,
-        fmunii,
-        fimout=fmu,
-        intrp=1,
-        dtype_nifti=np.float32)
+    nimpa.resample_dipy(fmuref, fmunii, fimout=fmu, intrp=1, dtype_nifti=np.float32)
 
     nim = nib.load(fmu)
     # get the affine transform
@@ -1007,12 +997,8 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
         fout = os.path.join(os.path.dirname(hmupos[0]['niipath']),
                             'r' + os.path.basename(hmupos[i]['niipath']).split('.')[0] + '.nii.gz')
 
-        nimpa.resample_dipy(
-            hmupos[0]['niipath'],
-            hmupos[i]['niipath'],
-            fimout=fout,
-            intrp=1,
-            dtype_nifti=np.float32)
+        nimpa.resample_dipy(hmupos[0]['niipath'], hmupos[i]['niipath'], fimout=fout, intrp=1,
+                            dtype_nifti=np.float32)
 
     return hmupos
 
