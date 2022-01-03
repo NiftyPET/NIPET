@@ -12,12 +12,7 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
               bool _sync = true);
 
 // to be used within CUDA C reconstruction
-void rec_bprj(float *d_bimg, float *d_sino, int *sub, int Nprj,
-
-              float *d_tt, unsigned char *d_tv,
-
-              float *li2rng, short *li2sn, char *li2nos,
-
-              Cnst Cnt);
+void rec_bprj(float *d_bimg, float *d_sino, int *sub, int Nprj, float *d_tt, unsigned char *d_tv,
+              float *li2rng, short *li2sn, char *li2nos, Cnst Cnt);
 
 #endif
