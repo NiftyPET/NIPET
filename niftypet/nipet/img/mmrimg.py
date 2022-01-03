@@ -625,6 +625,8 @@ def align_mumap(
                 regdct = nimpa.coreg_spm(fpet, ft1w,
                                          outpath=os.path.join(outpath, 'PET', 'positioning'))
             elif reg_tool == 'niftyreg':
+                if not os.path.exists(Cnt['REGPATH']):
+                    raise ValueError('e> no valid NiftyReg executable')
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     ft1w,
