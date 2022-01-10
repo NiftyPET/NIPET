@@ -232,8 +232,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
             log.info('using provided attenuation factor sinogram')
         else:
             asng = cu.zeros(psng.shape, dtype=np.float32)
-            petprj.fprj(asng, cu.asarray(mus), txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt,
-                        1)
+            petprj.fprj(asng, cu.asarray(mus), txLUT, axLUT, np.array([-1], dtype=np.int32), Cnt, 1)
     # > combine attenuation and normalisation
     ansng = asng * nsng
     # ========================================================================

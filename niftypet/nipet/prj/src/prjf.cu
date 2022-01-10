@@ -206,34 +206,12 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
 }
 
 //--------------------------------------------------------------------------------------------------
-void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short *s2c,
-              int *aw2ali, float *crs, int *subs, int Nprj, int Naw, int N0crs, Cnst Cnt, char att,
-              bool _sync) {
+void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short2 *d_s2c,
+              int *aw2ali, float4 *d_crs, int *d_subs, float *d_tt, unsigned char *d_tv, int Nprj,
+              int Naw, Cnst Cnt, char att, bool _sync) {
   int dev_id;
   cudaGetDevice(&dev_id);
   if (Cnt.LOG <= LOGDEBUG) printf("i> using CUDA device #%d\n", dev_id);
-
-  //--- TRANSAXIAL COMPONENT
-  float4 *d_crs;
-  HANDLE_ERROR(cudaMalloc(&d_crs, N0crs * sizeof(float4)));
-  HANDLE_ERROR(cudaMemcpy(d_crs, crs, N0crs * sizeof(float4), cudaMemcpyHostToDevice));
-
-  short2 *d_s2c;
-  HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
-  HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
-
-  float *d_tt;
-  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
-
-  unsigned char *d_tv;
-  HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
-  HANDLE_ERROR(cudaMemset(d_tv, 0, N_TV * AW * sizeof(unsigned char)));
-
-  // array of subset projection bins
-  int *d_subs;
-  HANDLE_ERROR(cudaMalloc(&d_subs, Nprj * sizeof(int)));
-  HANDLE_ERROR(cudaMemcpy(d_subs, subs, Nprj * sizeof(int), cudaMemcpyHostToDevice));
-  //---
 
   //-----------------------------------------------------------------
   // RINGS: either all or a subset of rings can be used (span-1 feature only)
@@ -289,16 +267,6 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
     HANDLE_ERROR(cudaGetLastError());
   }
 
-  // float *d_li2rng;  HANDLE_ERROR( cudaMalloc(&d_li2rng, N0li*N1li*sizeof(float)) );
-  // HANDLE_ERROR( cudaMemcpy( d_li2rng, li2rng, N0li*N1li*sizeof(float), cudaMemcpyHostToDevice)
-  // );
-
-  // int *d_li2sn;  HANDLE_ERROR(cudaMalloc(&d_li2sn, N0li*N1li*sizeof(int)) );
-  // HANDLE_ERROR( cudaMemcpy( d_li2sn, li2sn, N0li*N1li*sizeof(int), cudaMemcpyHostToDevice) );
-
-  // int *d_li2nos;  HANDLE_ERROR( cudaMalloc(&d_li2nos, N1li*sizeof(int)) );
-  // HANDLE_ERROR( cudaMemcpy( d_li2nos, li2nos, N1li*sizeof(int), cudaMemcpyHostToDevice) );
-
   cudaMemcpyToSymbol(c_li2rng, li2rng, nil2r_c * sizeof(float2));
   cudaMemcpyToSymbol(c_li2sn, li2sn, nil2r_c * sizeof(short2));
   cudaMemcpyToSymbol(c_li2nos, li2nos, nil2r_c * sizeof(char));
@@ -349,11 +317,6 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
   }
 
   if (nvz < SZ_IMZ) HANDLE_ERROR(cudaFree(d_im));
-  HANDLE_ERROR(cudaFree(d_tt));
-  HANDLE_ERROR(cudaFree(d_tv));
-  HANDLE_ERROR(cudaFree(d_subs));
-  HANDLE_ERROR(cudaFree(d_crs));
-  HANDLE_ERROR(cudaFree(d_s2c));
 }
 
 //=======================================================================

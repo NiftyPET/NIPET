@@ -66,7 +66,7 @@ def muhdct(mMRpars, datain, tmp_path_factory, worker_id):
 
     opth = str(tmp_path.parent / "muhdct")
     flock = FileLock(opth + ".lock")
-    with flock.acquire(poll_intervall=0.5): # xdist, force auto-reuse via flock
+    with flock.acquire(poll_interval=0.5): # xdist, force auto-reuse via flock
         return nipet.hdw_mumap(datain, [1, 2, 4], mMRpars, outpath=opth, use_stored=True)
 
 
