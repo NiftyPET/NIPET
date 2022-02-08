@@ -340,11 +340,7 @@ def obj_mumap(
         os.remove(d)
 
     # > convert the DICOM mu-map images to NIfTI
-    run([Cnt['DCM2NIIX'], '-f', fnii + tstmp, '-o', fmudir, datain['mumapDCM']])
-    # piles for the T1w, pick one:
-    fmunii = glob.glob(os.path.join(fmudir, '*' + fnii + tstmp + '*.nii*'))[0]
-    # fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
-    # fmunii = fmunii[0]
+    fmunii = nimpa.dcm2nii(datain['mumapDCM'], fnii + tstmp, outpath=fmudir)
 
     # > resampled the NIfTI converted image to the reference shape/size
     fmu = os.path.join(fmudir, comment + 'mumap_tmp.nii.gz')
@@ -551,9 +547,7 @@ def align_mumap(
         if musrc == 'ute' and ute_name in datain and os.path.exists(datain[ute_name]):
             # change to NIfTI if the UTE sequence is in DICOM files (folder)
             if os.path.isdir(datain[ute_name]):
-                fnew = os.path.basename(datain[ute_name])
-                run([Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name]])
-                fute = glob.glob(os.path.join(datain[ute_name], fnew + '*nii*'))[0]
+                fute = nimpa.dcm2nii(datain[ute_name], os.path.basename(datain[ute_name]))
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
 
@@ -587,21 +581,13 @@ def align_mumap(
                     verbose=verbose)
 
             elif reg_tool == 'dipy':
-                regdct = nimpa.affine_dipy(
-                    fpet,
-                    fute,
-                    nbins=32,
-                    metric='MI',
-                    level_iters=[10000, 1000, 200],
-                    sigmas=[3.0, 1.0, 0.0],
-                    factors=[4, 2, 1],
-                    outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    faffine=None,
-                    pickname='ref',
-                    fcomment='',
-                    rfwhm=2.,
-                    ffwhm=2.,
-                    verbose=verbose)
+                regdct = nimpa.affine_dipy(fpet, fute, nbins=32, metric='MI',
+                                           level_iters=[10000, 1000,
+                                                        200], sigmas=[3.0, 1.0,
+                                                                      0.0], factors=[4, 2, 1],
+                                           outpath=os.path.join(outpath, 'PET', 'positioning'),
+                                           faffine=None, pickname='ref', fcomment='', rfwhm=2.,
+                                           ffwhm=2., verbose=verbose)
             else:
                 raise ValueError('unknown registration tool requested')
 
@@ -640,21 +626,13 @@ def align_mumap(
                     verbose=verbose)
 
             elif reg_tool == 'dipy':
-                regdct = nimpa.affine_dipy(
-                    fpet,
-                    ft1w,
-                    nbins=32,
-                    metric='MI',
-                    level_iters=[10000, 1000, 200],
-                    sigmas=[3.0, 1.0, 0.0],
-                    factors=[4, 2, 1],
-                    outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    faffine=None,
-                    pickname='ref',
-                    fcomment='',
-                    rfwhm=2.,
-                    ffwhm=2.,
-                    verbose=verbose)
+                regdct = nimpa.affine_dipy(fpet, ft1w, nbins=32, metric='MI',
+                                           level_iters=[10000, 1000,
+                                                        200], sigmas=[3.0, 1.0,
+                                                                      0.0], factors=[4, 2, 1],
+                                           outpath=os.path.join(outpath, 'PET', 'positioning'),
+                                           faffine=None, pickname='ref', fcomment='', rfwhm=2.,
+                                           ffwhm=2., verbose=verbose)
 
             else:
                 raise ValueError('unknown registration tool requested')
@@ -691,9 +669,7 @@ def align_mumap(
             # convert the DICOM mu-map images to nii
             if 'mumapDCM' not in datain:
                 raise IOError('DICOM with the UTE mu-map are not given.')
-            run([Cnt['DCM2NIIX'], '-f', fnii + tstmp, '-o', opth, datain['mumapDCM']])
-            # piles for the T1w, pick one:
-            fflo = glob.glob(os.path.join(opth, '*' + fnii + tstmp + '*.nii*'))[0]
+            fflo = nimpa.dcm2nii(datain['mumapDCM'], fnii + tstmp, outpath=opth)
         else:
             if os.path.isfile(datain['UTE']):
                 fflo = datain['UTE']
@@ -761,7 +737,6 @@ def align_mumap(
         shutil.rmtree(tmpdir)
 
     return mu_dct
-
 
 
 # ********************************************************************************
@@ -1132,10 +1107,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
             ft1w = datain['T1bc']
         elif os.path.isdir(datain['MRT1W']):
             # create file name for the converted NIfTI image
-            fnii = 'converted'
-            run([Cnt['DCM2NIIX'], '-f', fnii, datain['T1nii']])
-            ft1nii = glob.glob(os.path.join(datain['T1nii'], '*converted*.nii*'))
-            ft1w = ft1nii[0]
+            ft1w = nimpa.dcm2nii(datain['T1nii'], 'converted')
         else:
             raise IOError('Disaster: no T1w image!')
 
@@ -1169,13 +1141,9 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         return [muh, muo]
 
 
-
-
-
 # # ================================================================================
 # # PSEUDO CT MU-MAP
 # # --------------------------------------------------------------------------------
-
 
 # def pct_mumap(datain, scanner_params, hst=None, t0=0, t1=0, itr=2, petopt='ac', faff='', fpet='',
 #               fcomment='', outpath='', store_npy=False, store=False, verbose=False):
