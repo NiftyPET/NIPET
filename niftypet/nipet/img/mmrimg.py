@@ -555,13 +555,10 @@ def align_mumap(
                 regdct = nimpa.coreg_spm(fpet, fute,
                                          outpath=os.path.join(outpath, 'PET', 'positioning'))
             elif reg_tool == 'niftyreg':
-                if not os.path.exists(Cnt['REGPATH']):
-                    raise ValueError('e> no valid NiftyReg executable')
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     fute,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    executable=Cnt['REGPATH'],
                     omp=multiprocessing.cpu_count() / 2,                 # pcomment=fcomment,
                     rigOnly=True,
                     affDirect=False,
@@ -600,13 +597,10 @@ def align_mumap(
                 regdct = nimpa.coreg_spm(fpet, ft1w,
                                          outpath=os.path.join(outpath, 'PET', 'positioning'))
             elif reg_tool == 'niftyreg':
-                if not os.path.exists(Cnt['REGPATH']):
-                    raise ValueError('e> no valid NiftyReg executable')
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     ft1w,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    executable=Cnt['REGPATH'],
                     omp=multiprocessing.cpu_count() / 2,
                     rigOnly=True,
                     affDirect=False,
@@ -682,8 +676,7 @@ def align_mumap(
     elif reg_tool == 'dipy':
         nimpa.resample_dipy(fpet, fflo, faff=faff_mrpet, fimout=freg)
     else:
-        nimpa.resample_niftyreg(fpet, fflo, faff_mrpet, fimout=freg, executable=Cnt['RESPATH'],
-                                verbose=verbose)
+        nimpa.resample_niftyreg(fpet, fflo, faff_mrpet, fimout=freg, verbose=verbose)
 
     # -get the NIfTI of registered image
     nim = nib.load(freg)

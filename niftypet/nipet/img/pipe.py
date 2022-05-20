@@ -2,7 +2,6 @@
 import logging
 import os
 from numbers import Integral
-from subprocess import call
 from textwrap import dedent
 
 import numpy as np
@@ -330,16 +329,8 @@ def mmrchain(
             nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size
             fmu = os.path.join(fmureg, 'mumap_dyn_frm' + str(ifrm) + fcomment + '.nii.gz')
-            # command for resampling
-            if os.path.isfile(Cnt['RESPATH']):
-                cmd = [
-                    Cnt['RESPATH'], '-ref', fmuref, '-flo', muod['fim'], '-trans', faff_frms[ifrm],
-                    '-res', fmu, '-pad', '0']
-                if log.getEffectiveLevel() > log.INFO:
-                    cmd.append('-voff')
-                call(cmd)
-            else:
-                raise IOError('Incorrect path to NiftyReg (resampling) executable.')
+            # TODO: add `-pad 0`, drop `-inter 1`?
+            nimpa.resample_niftyreg(fmuref, muod['fim'], faff_frms[ifrm], fimout=fmu)
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
             muo = muodct['im']
