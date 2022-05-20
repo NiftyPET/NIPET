@@ -119,9 +119,8 @@ def mmrchain(
             # get total time and list of all time frames
             t_frms = dynamic_timings(frames)['timings'][1:]
         else:
-            log.error('osemdyn: frames definitions are not given\
-                in the correct list format: 1D [15,15,30,30,...]\
-                or 2D list [[2,15], [2,30], ...]')
+            log.error('osemdyn: frames definitions are not given in the correct list format:'
+                      ' 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')
     else:
         log.error(
             'provided dynamic frames definitions are incorrect (should be a list of definitions).')

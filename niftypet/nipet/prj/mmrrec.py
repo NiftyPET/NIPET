@@ -105,6 +105,7 @@ def psf_config(psf, Cnt):
         [x, y, z]: list or Numpy array of separate FWHM of the PSF for each direction
         ndarray: 3 x 2*RSZ_PSF_KRNL+1 Numpy array directly defining the kernel in each direction
     '''
+
     def _config(fwhm3, check_len=True):
         # resolution modelling by custom kernels
         if check_len:
@@ -222,12 +223,11 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
         asng = np.ones(psng.shape, dtype=np.float32)
     else:
         # > check if the attenuation sino is given as an array
-        if isinstance(attnsino, np.ndarray) \
-                and attnsino.shape==(Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
+        if isinstance(attnsino, np.ndarray) and attnsino.shape == (Cnt['NSN11'], Cnt['NSANGLES'],
+                                                                   Cnt['NSBINS']):
             asng = mmraux.remgaps(attnsino, txLUT, Cnt)
             log.info('using provided attenuation factor sinogram')
-        elif isinstance(attnsino, np.ndarray) \
-                and attnsino.shape==(Cnt['Naw'], Cnt['NSN11']):
+        elif isinstance(attnsino, np.ndarray) and attnsino.shape == (Cnt['Naw'], Cnt['NSN11']):
             asng = attnsino
             log.info('using provided attenuation factor sinogram')
         else:
@@ -241,8 +241,8 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     # ========================================================================
     # Randoms
     # -------------------------------------------------------------------------
-    if isinstance(randsino, np.ndarray) \
-            and randsino.shape==(Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
+    if isinstance(randsino,
+                  np.ndarray) and randsino.shape == (Cnt['NSN11'], Cnt['NSANGLES'], Cnt['NSBINS']):
         rsino = randsino
         rsng = mmraux.remgaps(randsino, txLUT, Cnt)
     else:

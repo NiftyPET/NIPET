@@ -442,9 +442,8 @@ def align_mumap(
     # ---------------------------------------------------------------------------
     # > used stored if requested
     if use_stored:
-        fmu_stored = fnm + '-aligned-to_t'\
-                     + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
-                     + fcomment
+        fmu_stored = fnm + '-aligned-to_t' + str(t0) + '-' + str(
+            t1) + '_' + petopt.upper() + fcomment
         fmupath = os.path.join(opth, fmu_stored + '.nii.gz')
 
         if os.path.isfile(fmupath):
@@ -478,8 +477,8 @@ def align_mumap(
             if 'txLUT' in scanner_params:
                 hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
             else:
-                raise ValueError('Full scanner are parameters not provided\
-                     but are required for histogramming.')
+                raise ValueError(
+                    'Full scanner are parameters not provided but are required for histogramming.')
 
     # ========================================================
     # -get hardware mu-map
@@ -715,9 +714,8 @@ def align_mumap(
     if store or store_npy:
         nimpa.create_dir(opth)
         if faff == '':
-            fname = fnm + '-aligned-to_t'\
-                    + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
-                    + fcomment
+            fname = fnm + '-aligned-to_t' + str(t0) + '-' + str(
+                t1) + '_' + petopt.upper() + fcomment
         else:
             fname = fnm + '-aligned-to-given-affine' + fcomment
     if store_npy:
