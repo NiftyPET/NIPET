@@ -559,7 +559,7 @@ def align_mumap(
                     fpet,
                     fute,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    omp=multiprocessing.cpu_count() / 2,                 # pcomment=fcomment,
+                    omp=multiprocessing.cpu_count() // 2,                # pcomment=fcomment,
                     rigOnly=True,
                     affDirect=False,
                     maxit=5,
@@ -601,7 +601,7 @@ def align_mumap(
                     fpet,
                     ft1w,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    omp=multiprocessing.cpu_count() / 2,
+                    omp=multiprocessing.cpu_count() // 2,
                     rigOnly=True,
                     affDirect=False,
                     maxit=5,
@@ -1108,6 +1108,36 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         faff = os.path.join(os.path.dirname(ft1w), fcomment + 'mr2pet_affine' + '.txt')
         # time.strftime('%d%b%y_%H.%M',time.gmtime())
         # > call the registration routine
+
+        # TODO: add `-pad 0`, drop `-inter 1`?
+        nimpa.affine_niftyreg(
+            recute.fpet,
+            ft1w,
+            rigOnly=True,
+            speed=True,
+            outpath=os.path.dirname(ft1w),
+            fname_aff=fcomment + 'mr2pet_affine' + '.txt',
+            pi=pi,
+            pv=pv,
+            smof=smof,
+            smor=smor,
+            maxit=10,
+            omp=multiprocessing.cpu_count() // 2,
+        )
+        # pickname='ref',
+        # fcomment='',
+        # executable=None,
+        # omp=1,
+        # affDirect=False,
+        # maxit=5,
+        # rmsk=True,
+        # fmsk=True,
+        # rfwhm=15.,
+        # rthrsh=0.05,
+        # ffwhm=15.,
+        # fthrsh=0.05,
+        # verbose=True,
+
         if os.path.isfile(Cnt['REGPATH']):
             cmd = [
                 Cnt['REGPATH'], '-ref', recute.fpet, '-flo', ft1w, '-rigOnly', '-speeeeed', '-aff',
@@ -1229,7 +1259,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 #                 ft1w,
 #                 outpath=os.path.join(outpath, 'PET', 'positioning'), # pcomment=fcomment,
 #                 executable=Cnt['REGPATH'],
-#                 omp=multiprocessing.cpu_count() / 2,
+#                 omp=multiprocessing.cpu_count() // 2,
 #                 rigOnly=True,
 #                 affDirect=False,
 #                 maxit=5,
