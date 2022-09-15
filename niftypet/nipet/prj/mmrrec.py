@@ -431,8 +431,8 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     im_smo = None
     fsmo = None
     if fwhm > 0:
-        im_smo = ndi.filters.gaussian_filter(im, fwhm2sig(fwhm, voxsize=Cnt['SZ_VOXY'] * 10),
-                                             mode='mirror')
+        im_smo = ndi.gaussian_filter(im, fwhm2sig(fwhm, voxsize=Cnt['SZ_VOXY'] * 10),
+                                     mode='mirror')
 
         if store_img:
             fsmo = fpet.split('.nii.gz')[0] + '_smo-' + str(fwhm).replace('.', '-') + 'mm.nii.gz'

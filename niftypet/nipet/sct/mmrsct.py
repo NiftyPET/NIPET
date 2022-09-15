@@ -445,8 +445,8 @@ def vsm(
 
     # -smooth for defining the sino scatter only regions
     if fwhm_input > 0.:
-        mu_sctonly = ndi.filters.gaussian_filter(mmrimg.convert2dev(muo, Cnt),
-                                                 fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        mu_sctonly = ndi.gaussian_filter(mmrimg.convert2dev(muo, Cnt), fwhm2sig(fwhm_input, Cnt),
+                                         mode='mirror')
     else:
         mu_sctonly = muo
 
@@ -466,8 +466,8 @@ def vsm(
 
     # > smooth before scaling/down-sampling the mu-map and emission images
     if fwhm_input > 0.:
-        muim = ndi.filters.gaussian_filter(muo + muh, fwhm2sig(fwhm_input, Cnt), mode='mirror')
-        emim = ndi.filters.gaussian_filter(em, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        muim = ndi.gaussian_filter(muo + muh, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        emim = ndi.gaussian_filter(em, fwhm2sig(fwhm_input, Cnt), mode='mirror')
     else:
         muim = muo + muh
         emim = em
@@ -478,7 +478,7 @@ def vsm(
     # -smooth the mu-map for mask creation.
     # the mask contains voxels for which attenuation ray LUT is found.
     if fwhm_input > 0.:
-        smomu = ndi.filters.gaussian_filter(muim, fwhm2sig(fwhm_input, Cnt), mode='mirror')
+        smomu = ndi.gaussian_filter(muim, fwhm2sig(fwhm_input, Cnt), mode='mirror')
         mumsk = np.int8(smomu > 0.003)
     else:
         mumsk = np.int8(muim > 0.001)
@@ -608,9 +608,9 @@ def vsm(
         eim = eim[:, ::-1, ::-1]
         eim = np.transpose(eim, (2, 1, 0))
 
-        em_sctonly = ndi.filters.gaussian_filter(eim, fwhm2sig(.6, Cnt), mode='mirror')
+        em_sctonly = ndi.gaussian_filter(eim, fwhm2sig(.6, Cnt), mode='mirror')
         msk = np.float32(em_sctonly > 0.07 * np.max(em_sctonly))
-        msk = ndi.filters.gaussian_filter(msk, fwhm2sig(.6, Cnt), mode='mirror')
+        msk = ndi.gaussian_filter(msk, fwhm2sig(.6, Cnt), mode='mirror')
         msk = np.float32(msk > 0.01)
         msksn = mmrprj.frwd_prj(msk, txLUT, axLUT, Cnt)
 
