@@ -6,11 +6,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Check
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
     - name: set PYSHA
       run: echo "PYSHA=$(python -VV | sha256sum | cut -d' ' -f1)" >> $GITHUB_ENV
-    - uses: actions/cache@v1
+    - uses: actions/cache@v3
       with:
         path: ~/.cache/pre-commit
         key: pre-commit|${{ env.PYSHA }}|${{ hashFiles('.pre-commit-config.yaml') }}
@@ -35,13 +35,13 @@ jobs:
     - run: pre-commit run -a --show-diff-on-failure
   test:
     if: github.event_name != 'pull_request' || !contains('OWNER,MEMBER,COLLABORATOR', github.event.pull_request.author_association)
-    name: Test py${{ matrix.python }}
     runs-on: [self-hosted, python, cuda, matlab]
     strategy:
       matrix:
-        python: [3.7, 3.9]
+        python: [3.7, '3.10']
+    name: Test py${{ matrix.python }}
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
     - name: Run setup-python
@@ -57,10 +57,10 @@ jobs:
     name: PyPI Deploy
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
     - id: dist
       uses: casperdcl/deploy-pypi@v2
       with:
