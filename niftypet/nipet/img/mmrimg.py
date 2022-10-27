@@ -1,5 +1,4 @@
 """Image functions for PET data reconstruction and processing."""
-
 import glob
 import logging
 import math
@@ -7,7 +6,6 @@ import multiprocessing
 import os
 import re
 import shutil
-from subprocess import run
 
 import nibabel as nib
 import numpy as np
@@ -1102,54 +1100,26 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         else:
             raise IOError('Disaster: no T1w image!')
 
-        # putput for the T1w in register with PET
-        ft1out = os.path.join(os.path.dirname(ft1w), 'T1w_r' + '.nii.gz')
-        # pext file fo rthe affine transform T1w->PET
-        faff = os.path.join(os.path.dirname(ft1w), fcomment + 'mr2pet_affine' + '.txt')
+        # > putput for the T1w in register with PET
+        # ft1out = os.path.join(os.path.dirname(ft1w), 'T1w_r' + '.nii.gz')
+        # > pext file fo rthe affine transform T1w->PET
+        # faff = os.path.join(os.path.dirname(ft1w), fcomment + 'mr2pet_affine' + '.txt')
         # time.strftime('%d%b%y_%H.%M',time.gmtime())
         # > call the registration routine
-
+        # cmd = [
+        #     Cnt['REGPATH'], '-ref', recute.fpet, '-flo', ft1w, '-rigOnly', '-speeeeed', '-aff',
+        #     faff, '-res', ft1out]
         # TODO: add `-pad 0`, drop `-inter 1`?
-        nimpa.affine_niftyreg(
-            recute.fpet,
-            ft1w,
-            rigOnly=True,
-            speed=True,
-            outpath=os.path.dirname(ft1w),
-            fname_aff=fcomment + 'mr2pet_affine' + '.txt',
-            pi=pi,
-            pv=pv,
-            smof=smof,
-            smor=smor,
-            maxit=10,
-            omp=multiprocessing.cpu_count() // 2,
-        )
-        # pickname='ref',
-        # fcomment='',
-        # executable=None,
-        # omp=1,
-        # affDirect=False,
+        # pi=50, pv=50, smof=0, smor=0,
         # maxit=5,
-        # rmsk=True,
-        # fmsk=True,
-        # rfwhm=15.,
-        # rthrsh=0.05,
-        # ffwhm=15.,
-        # fthrsh=0.05,
-        # verbose=True,
-
-        if os.path.isfile(Cnt['REGPATH']):
-            cmd = [
-                Cnt['REGPATH'], '-ref', recute.fpet, '-flo', ft1w, '-rigOnly', '-speeeeed', '-aff',
-                faff, '-res', ft1out]
-            if log.getEffectiveLevel() > logging.INFO:
-                cmd.append('-voff')
-            run(cmd)
-        else:
-            raise IOError('Path to registration executable is incorrect!')
+        regdct = nimpa.affine_niftyreg(recute.fpet, ft1w, rigOnly=True, speed=True,
+                                       outpath=os.path.dirname(ft1w),
+                                       fname_aff=fcomment + 'mr2pet_affine' + '.txt',
+                                       omp=multiprocessing.cpu_count() // 2,
+                                       verbose=log.getEffectiveLevel() <= logging.INFO)
 
         # pet the pCT mu-map with the above faff
-        pmudic = pct_mumap(datain, txLUT_, axLUT_, Cnt, faff=faff, fpet=recute.fpet,
+        pmudic = pct_mumap(datain, txLUT_, axLUT_, Cnt, faff=regdct['faff'], fpet=recute.fpet,
                            fcomment=fcomment)
         mup = pmudic['im']
 
