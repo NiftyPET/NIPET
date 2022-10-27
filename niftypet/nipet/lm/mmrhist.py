@@ -132,7 +132,7 @@ def hist(
     pvs_sgtl = np.right_shift(hstout['pvs'], 8).astype(np.float32)
     pvs_crnl = np.bitwise_and(hstout['pvs'], 255).astype(np.float32)
 
-    cmass = Cnt['SO_VXZ'] * ndi.filters.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
+    cmass = Cnt['SO_VXZ'] * ndi.gaussian_filter(hstout['mss'], cmass_sig, mode='mirror')
     log.debug(
         'centre of mass of axial radiodistribution (filtered with Gaussian of SD ={}):  COMPLETED.'
         .format(cmass_sig))

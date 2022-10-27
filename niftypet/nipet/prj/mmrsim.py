@@ -43,8 +43,7 @@ def simulate_sino(
         raise ValueError('The shapes of the PET and CT images are inconsistent.')
 
     if simulate_3d:
-        if petim.ndim != 3 \
-                or petim.shape != (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if petim.ndim != 3 or petim.shape != (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             raise ValueError('The input image shape does not match the scanner image size.')
         if petim.max() > 200:
             log.warning('the PET image may have too large intensities for robust simulation.')
@@ -152,8 +151,7 @@ def simulate_recon(
     psfkernel = mmrrec.psf_config(psf, Cnt)
 
     if simulate_3d:
-        if ctim.ndim!=3 \
-                or ctim.shape!=(Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
+        if ctim.ndim != 3 or ctim.shape != (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']):
             raise ValueError('The CT/mu-map image does not match the scanner image shape.')
     else:
         # > 2D case with reduced rings
@@ -259,8 +257,7 @@ def simulate_recon(
             sinoTIdx[n, 1:], s = mmrrec.get_subsets14(n, scanner_params)
 
             # > sensitivity image
-            petprj.bprj(tmpsim.cuvec,
-                        cu.asarray(attsino[sinoTIdx[n, 1:], :]).cuvec, txLUT, axLUT,
+            petprj.bprj(tmpsim, cu.asarray(attsino[sinoTIdx[n, 1:], :]), txLUT, axLUT,
                         sinoTIdx[n, 1:], Cnt)
             sim[n] = tmpsim
         del tmpsim
