@@ -1023,7 +1023,7 @@ def get_dicoms(dfile, datain, Cnt):
         else:
             f0 = csahdr.find('RadionuclideCodeSequence')
             if f0 < 0:
-                print('w> could not find isotope name.  enter manually into Cnt[' 'ISOTOPE' ']')
+                log.warning("Could not find isotope name. Enter manually into Cnt['ISOTOPE']")
                 return None
             istp_coded = re.search(r'(?<=CodeValue:)\S*', csahdr[f0:f0 + 100]).group()
             if istp_coded == 'C-111A1': Cnt['ISOTOPE'] = 'F18'
@@ -1032,7 +1032,7 @@ def get_dicoms(dfile, datain, Cnt):
             elif istp_coded == 'C-128A2': Cnt['ISOTOPE'] = 'Ge68'
             elif istp_coded == 'C-131A3': Cnt['ISOTOPE'] = 'Ga68'
             else:
-                print('w> could not find isotope name.  enter manually into Cnt[' 'ISOTOPE' ']')
+                log.warning("Could not find isotope name. Enter manually into Cnt['ISOTOPE']")
                 return None
         # ---
 

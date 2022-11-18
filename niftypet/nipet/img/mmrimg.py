@@ -1,5 +1,4 @@
 """Image functions for PET data reconstruction and processing."""
-
 import glob
 import logging
 import math
@@ -7,7 +6,6 @@ import multiprocessing
 import os
 import re
 import shutil
-from subprocess import run
 
 import nibabel as nib
 import numpy as np
@@ -278,15 +276,10 @@ def mudcm2nii(datain, Cnt):
     im = np.zeros((Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX']), dtype=np.float32)
     nimpa.array2nii(im, B, os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'))
     # -------------------------------------------------------------------------------------
-    fmu = os.path.join(os.path.dirname(datain['mumapDCM']), 'mu_r.nii.gz')
-
-    nimpa.resample_dipy(
-        os.path.join(os.path.dirname(datain['mumapDCM']), 'muref.nii.gz'),
-        os.path.join(os.path.dirname(datain['mumapDCM']), 'mu.nii.gz'),
-        fimout=fmu,
-        intrp=1,
-        dtype_nifti=np.float32)
-
+    opth = os.path.dirname(datain['mumapDCM'])
+    fmu = os.path.join(opth, 'mu_r.nii.gz')
+    nimpa.resample_dipy(os.path.join(opth, 'muref.nii.gz'), os.path.join(opth, 'mu.nii.gz'),
+                        fimout=fmu, intrp=1, dtype_nifti=np.float32)
     return fmu
 
 
@@ -345,20 +338,11 @@ def obj_mumap(
         os.remove(d)
 
     # > convert the DICOM mu-map images to NIfTI
-    run([Cnt['DCM2NIIX'], '-f', fnii + tstmp, '-o', fmudir, datain['mumapDCM']])
-    # piles for the T1w, pick one:
-    fmunii = glob.glob(os.path.join(fmudir, '*' + fnii + tstmp + '*.nii*'))[0]
-    # fmunii = glob.glob( os.path.join(datain['mumapDCM'], '*converted*.nii*') )
-    # fmunii = fmunii[0]
+    fmunii = nimpa.dcm2nii(datain['mumapDCM'], fnii + tstmp, outpath=fmudir)
 
     # > resampled the NIfTI converted image to the reference shape/size
     fmu = os.path.join(fmudir, comment + 'mumap_tmp.nii.gz')
-    nimpa.resample_dipy(
-        fmuref,
-        fmunii,
-        fimout=fmu,
-        intrp=1,
-        dtype_nifti=np.float32)
+    nimpa.resample_dipy(fmuref, fmunii, fimout=fmu, intrp=1, dtype_nifti=np.float32)
 
     nim = nib.load(fmu)
     # get the affine transform
@@ -456,9 +440,8 @@ def align_mumap(
     # ---------------------------------------------------------------------------
     # > used stored if requested
     if use_stored:
-        fmu_stored = fnm + '-aligned-to_t'\
-                     + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
-                     + fcomment
+        fmu_stored = fnm + '-aligned-to_t' + str(t0) + '-' + str(
+            t1) + '_' + petopt.upper() + fcomment
         fmupath = os.path.join(opth, fmu_stored + '.nii.gz')
 
         if os.path.isfile(fmupath):
@@ -492,8 +475,8 @@ def align_mumap(
             if 'txLUT' in scanner_params:
                 hst = mmrhist(datain, scanner_params, t0=t0, t1=t1)
             else:
-                raise ValueError('Full scanner are parameters not provided\
-                     but are required for histogramming.')
+                raise ValueError(
+                    'Full scanner are parameters not provided but are required for histogramming.')
 
     # ========================================================
     # -get hardware mu-map
@@ -561,9 +544,7 @@ def align_mumap(
         if musrc == 'ute' and ute_name in datain and os.path.exists(datain[ute_name]):
             # change to NIfTI if the UTE sequence is in DICOM files (folder)
             if os.path.isdir(datain[ute_name]):
-                fnew = os.path.basename(datain[ute_name])
-                run([Cnt['DCM2NIIX'], '-f', fnew, datain[ute_name]])
-                fute = glob.glob(os.path.join(datain[ute_name], fnew + '*nii*'))[0]
+                fute = nimpa.dcm2nii(datain[ute_name], os.path.basename(datain[ute_name]))
             elif os.path.isfile(datain[ute_name]):
                 fute = datain[ute_name]
 
@@ -572,14 +553,11 @@ def align_mumap(
                 regdct = nimpa.coreg_spm(fpet, fute,
                                          outpath=os.path.join(outpath, 'PET', 'positioning'))
             elif reg_tool == 'niftyreg':
-                if not os.path.exists(Cnt['REGPATH']):
-                    raise ValueError('e> no valid NiftyReg executable')
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     fute,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    executable=Cnt['REGPATH'],
-                    omp=multiprocessing.cpu_count() / 2,                 # pcomment=fcomment,
+                    omp=multiprocessing.cpu_count() // 2,                # pcomment=fcomment,
                     rigOnly=True,
                     affDirect=False,
                     maxit=5,
@@ -597,21 +575,13 @@ def align_mumap(
                     verbose=verbose)
 
             elif reg_tool == 'dipy':
-                regdct = nimpa.affine_dipy(
-                    fpet,
-                    fute,
-                    nbins=32,
-                    metric='MI',
-                    level_iters=[10000, 1000, 200],
-                    sigmas=[3.0, 1.0, 0.0],
-                    factors=[4, 2, 1],
-                    outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    faffine=None,
-                    pickname='ref',
-                    fcomment='',
-                    rfwhm=2.,
-                    ffwhm=2.,
-                    verbose=verbose)
+                regdct = nimpa.affine_dipy(fpet, fute, nbins=32, metric='MI',
+                                           level_iters=[10000, 1000,
+                                                        200], sigmas=[3.0, 1.0,
+                                                                      0.0], factors=[4, 2, 1],
+                                           outpath=os.path.join(outpath, 'PET', 'positioning'),
+                                           faffine=None, pickname='ref', fcomment='', rfwhm=2.,
+                                           ffwhm=2., verbose=verbose)
             else:
                 raise ValueError('unknown registration tool requested')
 
@@ -625,14 +595,11 @@ def align_mumap(
                 regdct = nimpa.coreg_spm(fpet, ft1w,
                                          outpath=os.path.join(outpath, 'PET', 'positioning'))
             elif reg_tool == 'niftyreg':
-                if not os.path.exists(Cnt['REGPATH']):
-                    raise ValueError('e> no valid NiftyReg executable')
                 regdct = nimpa.affine_niftyreg(
                     fpet,
                     ft1w,
                     outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    executable=Cnt['REGPATH'],
-                    omp=multiprocessing.cpu_count() / 2,
+                    omp=multiprocessing.cpu_count() // 2,
                     rigOnly=True,
                     affDirect=False,
                     maxit=5,
@@ -650,21 +617,13 @@ def align_mumap(
                     verbose=verbose)
 
             elif reg_tool == 'dipy':
-                regdct = nimpa.affine_dipy(
-                    fpet,
-                    ft1w,
-                    nbins=32,
-                    metric='MI',
-                    level_iters=[10000, 1000, 200],
-                    sigmas=[3.0, 1.0, 0.0],
-                    factors=[4, 2, 1],
-                    outpath=os.path.join(outpath, 'PET', 'positioning'),
-                    faffine=None,
-                    pickname='ref',
-                    fcomment='',
-                    rfwhm=2.,
-                    ffwhm=2.,
-                    verbose=verbose)
+                regdct = nimpa.affine_dipy(fpet, ft1w, nbins=32, metric='MI',
+                                           level_iters=[10000, 1000,
+                                                        200], sigmas=[3.0, 1.0,
+                                                                      0.0], factors=[4, 2, 1],
+                                           outpath=os.path.join(outpath, 'PET', 'positioning'),
+                                           faffine=None, pickname='ref', fcomment='', rfwhm=2.,
+                                           ffwhm=2., verbose=verbose)
 
             else:
                 raise ValueError('unknown registration tool requested')
@@ -701,9 +660,7 @@ def align_mumap(
             # convert the DICOM mu-map images to nii
             if 'mumapDCM' not in datain:
                 raise IOError('DICOM with the UTE mu-map are not given.')
-            run([Cnt['DCM2NIIX'], '-f', fnii + tstmp, '-o', opth, datain['mumapDCM']])
-            # piles for the T1w, pick one:
-            fflo = glob.glob(os.path.join(opth, '*' + fnii + tstmp + '*.nii*'))[0]
+            fflo = nimpa.dcm2nii(datain['mumapDCM'], fnii + tstmp, outpath=opth)
         else:
             if os.path.isfile(datain['UTE']):
                 fflo = datain['UTE']
@@ -717,8 +674,7 @@ def align_mumap(
     elif reg_tool == 'dipy':
         nimpa.resample_dipy(fpet, fflo, faff=faff_mrpet, fimout=freg)
     else:
-        nimpa.resample_niftyreg(fpet, fflo, faff_mrpet, fimout=freg, executable=Cnt['RESPATH'],
-                                verbose=verbose)
+        nimpa.resample_niftyreg(fpet, fflo, faff_mrpet, fimout=freg, verbose=verbose)
 
     # -get the NIfTI of registered image
     nim = nib.load(freg)
@@ -749,9 +705,8 @@ def align_mumap(
     if store or store_npy:
         nimpa.create_dir(opth)
         if faff == '':
-            fname = fnm + '-aligned-to_t'\
-                    + str(t0)+'-'+str(t1)+'_'+petopt.upper()\
-                    + fcomment
+            fname = fnm + '-aligned-to_t' + str(t0) + '-' + str(
+                t1) + '_' + petopt.upper() + fcomment
         else:
             fname = fnm + '-aligned-to-given-affine' + fcomment
     if store_npy:
@@ -771,7 +726,6 @@ def align_mumap(
         shutil.rmtree(tmpdir)
 
     return mu_dct
-
 
 
 # ********************************************************************************
@@ -1007,12 +961,8 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
         fout = os.path.join(os.path.dirname(hmupos[0]['niipath']),
                             'r' + os.path.basename(hmupos[i]['niipath']).split('.')[0] + '.nii.gz')
 
-        nimpa.resample_dipy(
-            hmupos[0]['niipath'],
-            hmupos[i]['niipath'],
-            fimout=fout,
-            intrp=1,
-            dtype_nifti=np.float32)
+        nimpa.resample_dipy(hmupos[0]['niipath'], hmupos[i]['niipath'], fimout=fout, intrp=1,
+                            dtype_nifti=np.float32)
 
     return hmupos
 
@@ -1146,31 +1096,30 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
             ft1w = datain['T1bc']
         elif os.path.isdir(datain['MRT1W']):
             # create file name for the converted NIfTI image
-            fnii = 'converted'
-            run([Cnt['DCM2NIIX'], '-f', fnii, datain['T1nii']])
-            ft1nii = glob.glob(os.path.join(datain['T1nii'], '*converted*.nii*'))
-            ft1w = ft1nii[0]
+            ft1w = nimpa.dcm2nii(datain['T1nii'], 'converted')
         else:
             raise IOError('Disaster: no T1w image!')
 
-        # putput for the T1w in register with PET
-        ft1out = os.path.join(os.path.dirname(ft1w), 'T1w_r' + '.nii.gz')
-        # pext file fo rthe affine transform T1w->PET
-        faff = os.path.join(os.path.dirname(ft1w), fcomment + 'mr2pet_affine' + '.txt')
+        # > putput for the T1w in register with PET
+        # ft1out = os.path.join(os.path.dirname(ft1w), 'T1w_r' + '.nii.gz')
+        # > pext file fo rthe affine transform T1w->PET
+        # faff = os.path.join(os.path.dirname(ft1w), fcomment + 'mr2pet_affine' + '.txt')
         # time.strftime('%d%b%y_%H.%M',time.gmtime())
         # > call the registration routine
-        if os.path.isfile(Cnt['REGPATH']):
-            cmd = [
-                Cnt['REGPATH'], '-ref', recute.fpet, '-flo', ft1w, '-rigOnly', '-speeeeed', '-aff',
-                faff, '-res', ft1out]
-            if log.getEffectiveLevel() > logging.INFO:
-                cmd.append('-voff')
-            run(cmd)
-        else:
-            raise IOError('Path to registration executable is incorrect!')
+        # cmd = [
+        #     Cnt['REGPATH'], '-ref', recute.fpet, '-flo', ft1w, '-rigOnly', '-speeeeed', '-aff',
+        #     faff, '-res', ft1out]
+        # TODO: add `-pad 0`, drop `-inter 1`?
+        # pi=50, pv=50, smof=0, smor=0,
+        # maxit=5,
+        regdct = nimpa.affine_niftyreg(recute.fpet, ft1w, rigOnly=True, speed=True,
+                                       outpath=os.path.dirname(ft1w),
+                                       fname_aff=fcomment + 'mr2pet_affine' + '.txt',
+                                       omp=multiprocessing.cpu_count() // 2,
+                                       verbose=log.getEffectiveLevel() <= logging.INFO)
 
         # pet the pCT mu-map with the above faff
-        pmudic = pct_mumap(datain, txLUT_, axLUT_, Cnt, faff=faff, fpet=recute.fpet,
+        pmudic = pct_mumap(datain, txLUT_, axLUT_, Cnt, faff=regdct['faff'], fpet=recute.fpet,
                            fcomment=fcomment)
         mup = pmudic['im']
 
@@ -1183,13 +1132,9 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
         return [muh, muo]
 
 
-
-
-
 # # ================================================================================
 # # PSEUDO CT MU-MAP
 # # --------------------------------------------------------------------------------
-
 
 # def pct_mumap(datain, scanner_params, hst=None, t0=0, t1=0, itr=2, petopt='ac', faff='', fpet='',
 #               fcomment='', outpath='', store_npy=False, store=False, verbose=False):
@@ -1284,7 +1229,7 @@ def rmumaps(datain, Cnt, t0=0, t1=0, use_stored=False):
 #                 ft1w,
 #                 outpath=os.path.join(outpath, 'PET', 'positioning'), # pcomment=fcomment,
 #                 executable=Cnt['REGPATH'],
-#                 omp=multiprocessing.cpu_count() / 2,
+#                 omp=multiprocessing.cpu_count() // 2,
 #                 rigOnly=True,
 #                 affDirect=False,
 #                 maxit=5,

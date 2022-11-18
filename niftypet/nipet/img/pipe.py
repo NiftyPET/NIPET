@@ -2,7 +2,6 @@
 import logging
 import os
 from numbers import Integral
-from subprocess import call
 from textwrap import dedent
 
 import numpy as np
@@ -48,7 +47,6 @@ def mmrchain(
     trim_memlim=True,       # reduced use of memory for machines
                             # with limited memory (slow though)
     trim_store=True,
-
     pvcroi=None,            # ROI used for PVC.  If undefined no PVC
                             # is performed.
     pvcreg_tool='niftyreg', # the registration tool used in PVC
@@ -114,19 +112,14 @@ def mmrchain(
         elif (isinstance(frames[0], str) and frames[0] == 'def'
               and all(isinstance(t, list) and len(t) == 2 for t in frames[1:])):
             # get total time and list of all time frames
-            dfrms = dynamic_timings(frames)
-            t_frms = dfrms[1:]
-
+            t_frms = dynamic_timings(frames)['timings'][1:]
         # if 1D:
         elif all(isinstance(t, Integral) for t in frames):
             # get total time and list of all time frames
-            dfrms = dynamic_timings(frames)
-            t_frms = dfrms[1:]
-
+            t_frms = dynamic_timings(frames)['timings'][1:]
         else:
-            log.error('osemdyn: frames definitions are not given\
-                in the correct list format: 1D [15,15,30,30,...]\
-                or 2D list [[2,15], [2,30], ...]')
+            log.error('osemdyn: frames definitions are not given in the correct list format:'
+                      ' 1D [15,15,30,30,...] or 2D list [[2,15], [2,30], ...]')
     else:
         log.error(
             'provided dynamic frames definitions are incorrect (should be a list of definitions).')
@@ -336,16 +329,8 @@ def mmrchain(
             nimpa.create_dir(fmureg)
             # the converted nii image resample to the reference size
             fmu = os.path.join(fmureg, 'mumap_dyn_frm' + str(ifrm) + fcomment + '.nii.gz')
-            # command for resampling
-            if os.path.isfile(Cnt['RESPATH']):
-                cmd = [
-                    Cnt['RESPATH'], '-ref', fmuref, '-flo', muod['fim'], '-trans', faff_frms[ifrm],
-                    '-res', fmu, '-pad', '0']
-                if log.getEffectiveLevel() > log.INFO:
-                    cmd.append('-voff')
-                call(cmd)
-            else:
-                raise IOError('Incorrect path to NiftyReg (resampling) executable.')
+            # TODO: add `-pad 0`, drop `-inter 1`?
+            nimpa.resample_niftyreg(fmuref, muod['fim'], faff_frms[ifrm], fimout=fmu)
             # get the new mu-map from the just resampled file
             muodct = nimpa.getnii(fmu, output='all')
             muo = muodct['im']
@@ -408,15 +393,9 @@ def mmrchain(
         elif 'lm_ima' in datain:
             fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
-        petu = nimpa.imtrimup(dynim,
-                              affine=image_affine(datain, Cnt),
-                              scale=trim_scale,
-                              int_order=trim_interp,
-                              outpath=petimg,
-                              fname=fnm,
-                              fcomment=fcomment,
-                              fcomment_pfx=fout+'_',
-                              store_img=trim_store, 
+        petu = nimpa.imtrimup(dynim, affine=image_affine(datain, Cnt), scale=trim_scale,
+                              int_order=trim_interp, outpath=petimg, fname=fnm, fcomment=fcomment,
+                              fcomment_pfx=fout + '_', store_img=trim_store,
                               store_img_intrmd=store_img_intrmd, memlim=trim_memlim,
                               verbose=log.getEffectiveLevel())
 

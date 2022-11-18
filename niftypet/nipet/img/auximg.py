@@ -76,9 +76,10 @@ def dynamic_timings(flist, offset=0):
     Arguments:
       flist: can be 1D list of time duration for each dynamic frame, e.g.:
             flist = [15, 15, 15, 15, 30, 30, 30, ...]
-        or a 2D list of lists having 2 entries:
+        or a 2D list of lists having 2 entries per definition:
         first for the number of repetitions and the other for the frame duration, e.g.:
-            flist = [[4,15], [3,15], ...].
+            flist = [[4, 15], [8, 30], ...],
+        meaning 4x15s, then 8x30s, etc.
       offset: adjusts for the start time (usually when prompts are strong enough over randoms)
     Returns (dict):
       'timings': [[0, 15], [15, 30], [30, 45], [45, 60], [60, 90], [90, 120], [120, 150], ...]
@@ -119,8 +120,8 @@ def dynamic_timings(flist, offset=0):
         tsum = 0
         # list of frame timings
         t_frames = []
-        for i in range(0, farray.shape[0]):
-            for _ in range(0, farray[i, 0]):
+        for i in range(farray.shape[0]):
+            for _ in range(farray[i, 0]):
                 # frame start time
                 t0 = tsum
                 tsum += farray[i, 1]
@@ -131,5 +132,5 @@ def dynamic_timings(flist, offset=0):
                 frms[fi] = farray[i, 1]
                 fi += 1
     else:
-        raise TypeError('Unrecognised data input.')
+        raise TypeError('Unrecognised time frame definitions.')
     return {'total': tsum, 'frames': frms, 'timings': t_frames}
