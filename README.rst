@@ -37,7 +37,8 @@ It's also recommended (but not required) to use `conda`.
     export HMUDIR=$HOME/mmr_hardwareumaps
     # cross-platform install
     conda install -c conda-forge python=3 \
-      ipykernel numpy scipy scikit-image matplotlib ipywidgets dipy nibabel pydicom dcm2niix
+      ipykernel numpy scipy scikit-image matplotlib ipywidgets dipy nibabel pydicom
+    pip install dcm2niix
     pip install "nipet>=2"
 
 External CMake Projects
