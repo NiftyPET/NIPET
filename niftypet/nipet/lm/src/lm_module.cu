@@ -12,7 +12,7 @@ Copyrights: 2019
 #include "def.h"
 #include "lmproc.h"
 #include "rnd.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include <stdlib.h>

@@ -6,7 +6,7 @@
 #include "def.h"
 #include "hst.h"
 #include "lmaux.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 
 typedef struct {
   int nitag;

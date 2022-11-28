@@ -1,5 +1,5 @@
 #include "def.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 
 #ifndef AUXMATH_H
 #define AUXMATH_H

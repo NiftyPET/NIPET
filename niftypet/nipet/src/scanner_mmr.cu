@@ -6,7 +6,7 @@ reconstruction.
 author: Pawel Markiewicz
 Copyrights: 2018
 ------------------------------------------------------------------------*/
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <stdlib.h>
 
 // Error handling for CUDA routines

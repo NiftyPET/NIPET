@@ -2,7 +2,7 @@
 #define RND_H
 
 #include "def.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 
 void gpu_randoms(float *rsn, float *cmap, unsigned int *d_fansums, txLUTs txlut, short *sn1_rno,
                  short *sn1_sn11, const Cnst Cnt);

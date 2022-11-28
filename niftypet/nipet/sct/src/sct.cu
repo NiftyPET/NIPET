@@ -6,7 +6,7 @@ author: Pawel Markiewicz
 Copyrights: 2018
 ------------------------------------------------------------------------*/
 #include "ray.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include "sct.h"
 
 #include <math.h> //round and arc cos functions

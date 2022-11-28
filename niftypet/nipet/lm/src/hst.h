@@ -1,8 +1,9 @@
 #ifndef HST_H
 #define HST_H
 
+#include "def.h"
 #include "lmaux.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <cuda.h>
 #include <curand.h>
 #include <curand_kernel.h>

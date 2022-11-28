@@ -1,5 +1,5 @@
 #include "def.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <stdio.h>
 
 #ifndef LAUX_H

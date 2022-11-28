@@ -1,12 +1,64 @@
 #include "def.h"
 #include <stdio.h>
 
-#ifndef SCANNER_0_H
-#define SCANNER_0_H
+#ifndef SCANNER_MMR_H
+#define SCANNER_MMR_H
+
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 // SCANNER CONSTANTS
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+// reading the whole data to memory (false by default)
+#define RD2MEM 0
+
+// number of elements to be read in one chunk
+#define ELECHNK (402653184 / NSTREAMS) // Siemens mMR: (402653184 = 2^28+2^27 => 1.5G), 536870912
+
+
+// total bins in span 1
+#define TOT_BINS_S1 354033792 // 344*252*4084
+
+// 344*252*837
+#define TOT_BINS 72557856
+
+
+//=== LM bit fields/masks ===
+// mask for time bits
+#define mMR_TMSK (0x1fffffff)
+// check if time tag
+#define mMR_TTAG(w) ((w >> 29) == 4)
+
+// for randoms
+#define CFOR 20 // number of iterations for crystals transaxially
+
+#define SPAN 11
+#define NRINGS 64
+#define nCRS 504
+#define nCRSR 448 // number of active crystals
+#define NSBINS 344
+#define NSANGLES 252
+#define NSBINANG 86688 // NSBINS*NSANGLES
+#define NSINOS 4084
+#define NSINOS11 837
+#define SEG0 127
+#define NBUCKTS 224 // purposely too large (should be 224 = 28*8)
+#define AW 68516    // number of active bins in 2D sino
+#define NLI2R 2074
+
+// ring size (width)
+#define SZ_RING 0.40625f
+
+// transaxial sampling using the Siddon method
+#define L21 0.001f      // threshold for special case when finding Siddon intersections
+#define TA1 0.7885139f  // angle threshold 1 for Siddon calculations ~ PI/4
+#define TA2 -0.7822831f // angle threshold 2 for Siddon calculations ~-PI/4
+#define N_TV 1807       // 907    // max number of voxels intersections with a ray (t)
+#define N_TT 10   // number of constants pre-calculated and saved for proper axial calculations
+#define UV_SHFT 9 // shift when representing 2 voxel indx in one float variable
+
+
+// structure for constants passed from Python
 struct Cnst {
   int BPE;   // bytes per single event
   int LMOFF; // offset for the LM file (e.g., offsetting for header)
@@ -99,6 +151,25 @@ typedef struct {
 } LMprop; // properties of LM data file and its breaking up into chunks of data.
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 
+
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+//## start ##// constants definitions in synch with Python.   DONT MODIFY MANUALLY HERE!
+// IMAGE SIZE
+// SZ_I* are image sizes
+// SZ_V* are voxel sizes
+#define SZ_IMX 320
+#define SZ_IMY 320
+#define SZ_IMZ 127
+#define RSZ_PSF_KRNL 8
+#define TFOV2 890.0f
+#define SZ_VOXY 0.208626f
+#define SZ_VOXZ 0.203125f
+#define SZ_VOXZi 4.923077f
+//## end ##//
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+
+
 #define HANDLE_ERROR(err) (HandleError(err, __FILE__, __LINE__))
 void HandleError(cudaError_t err, const char *file, int line);
 
@@ -176,4 +247,4 @@ void put_gaps(float *sino, float *sng, int *aw2ali, int sino_no, Cnst Cnt);
 void remove_gaps(float *sng, float *sino, int snno, int *aw2ali, Cnst Cnt);
 //------------------------
 
-#endif // SCANNER_0_H
+#endif // SCANNER_MMR_H

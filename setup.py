@@ -32,7 +32,7 @@ tls.check_platform()
 def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
     rflg = False
-    fpth = path_current / "niftypet" / "nipet" / "include" / "def.h"
+    fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_mmr.h"
     def_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = def_h.find("//## start ##//")
@@ -143,7 +143,7 @@ def check_constants():
         dedent("""\
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             changed sct.h: {}
-            changed def.h: {}
+            changed scanner_mmr.h: {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~""").format(

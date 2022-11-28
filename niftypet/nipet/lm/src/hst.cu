@@ -6,12 +6,11 @@ author: Pawel Markiewicz
 Copyrights: 2018
 ------------------------------------------------------------------------*/
 
+#include "hst.h"
 #include <stdio.h>
 #include <time.h>
-
-#include "def.h"
-#include "hst.h"
 #include <curand.h>
+
 
 #define nhNSN1 4084
 #define nSEG 11 // number of segments, in span-11

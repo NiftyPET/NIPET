@@ -7,7 +7,7 @@ Copyrights: 2018
 ------------------------------------------------------------------------*/
 
 #include "norm.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <time.h>
 
 __global__ void dev_norm(float *nrmsino, const float *geo, const float *cinf, const float *ceff,

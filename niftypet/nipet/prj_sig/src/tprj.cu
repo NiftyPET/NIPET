@@ -6,11 +6,11 @@ transaxial dimension.
 author: Pawel Markiewicz
 Copyrights: 2020
 ------------------------------------------------------------------------*/
-#include "scanner_mmr.h"
+#include "scanner_sig.h"
 #include "tprj.h"
 
 /*************** TRANSAXIAL FWD/BCK *****************/
-__global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigned char *tv) {
+__global__ void sddn_tx(const float tfov2, const float4 *crs, const short2 *s2c, float *tt, unsigned char *tv) {
   // indexing along the transaxial part of projection space
   // (angle fast changing)
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -23,6 +23,10 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
 
     float2 cc1;
     float2 cc2;
+
+    // sinogram sign (for classification of +/- oblique sinograms)
+    float ssgn = 1.0f*(((NCRSTLS/2) <= (c1+c2)) && ((c1+c2) < (3*NCRSTLS/2)));
+
     cc1.x = .5 * (crs[c1].x + crs[c1].z);
     cc2.x = .5 * (crs[c2].x + crs[c2].z);
 
@@ -49,12 +53,12 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
     at.x = at.x / atn;
     at.y = at.y / atn;
 
-    //--ring tfov
+    //+++ ring transaxial FOV +++
     float Br = 2 * (px * at.x + py * at.y);
-    float Cr = 4 * (-TFOV2 + px * px + py * py);
+    float Cr = 4 * (-tfov2 + px * px + py * py);
     float t1 = .5 * (-Br - sqrtf(Br * Br - Cr));
     float t2 = .5 * (-Br + sqrtf(Br * Br - Cr));
-    //--
+    //+++ +++
 
     //-rows
     float y1 = py + at.y * t1;
@@ -160,7 +164,7 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
     tt[N_TT * idx + 1] = tc1;
     tt[N_TT * idx + 2] = dtr;
     tt[N_TT * idx + 3] = dtc;
-    tt[N_TT * idx + 4] = t1;
+    tt[N_TT * idx + 4] = ssgn;//t1;
     tt[N_TT * idx + 5] = fminf(tr1, tc1);
     tt[N_TT * idx + 6] = t2;
     tt[N_TT * idx + 7] = atn;
@@ -171,7 +175,7 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
   }
 }
 
-void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_tv) {
+void gpu_siddon_tx(const float tfov2, float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_tv) {
 
   //============================================================================
   // printf("i> calculating transaxial SIDDON weights...");
@@ -180,10 +184,12 @@ void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_t
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
 
+  printf("c> transaxial calculations with TFOV2 = %f.\n", tfov2);
+
   //-----
   dim3 BpG((AW + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
   dim3 TpB(NIPET_CU_THREADS, 1, 1);
-  sddn_tx<<<BpG, TpB>>>(d_crs, d_s2c, d_tt, d_tv);
+  sddn_tx<<<BpG, TpB>>>(tfov2, d_crs, d_s2c, d_tt, d_tv);
   HANDLE_ERROR(cudaGetLastError());
   //-----
 
@@ -193,7 +199,7 @@ void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_t
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  // printf("DONE in %fs.\n", 0.001*elapsedTime);
+  printf("DONE in %fs.\n", 0.001*elapsedTime);
   //============================================================================
 
   return;

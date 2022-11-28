@@ -14,7 +14,7 @@ Copyrights: 2019
 #include <stdlib.h>
 
 #include "def.h"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include "sct.h"
 #include "sctaux.h"
 

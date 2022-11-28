@@ -16,7 +16,7 @@ Copyrights: 2018
 #include "norm.h"
 #include "numpy/arrayobject.h"
 #include "pycuvec.cuh"
-#include "scanner_0.h"
+#include "scanner_mmr.h"
 #include <stdlib.h>
 
 //=== START PYTHON INIT ===
