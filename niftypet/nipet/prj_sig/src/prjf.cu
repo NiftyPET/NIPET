@@ -159,9 +159,9 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
     float tzc = tz1;
     //****************
 
-    float fr, lt, acc = 0, acc_ = 0;
-    for (int k = 3; k < tt[N_TT * ixt + 9];
-         k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
+    float fr, lt;
+    float acc = 0, acc_ = 0;
+    for (int k = 3; k < tt[N_TT * ixt + 9]; k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
       lt = tn - tp;
       if ((tn - tzc) > 0) {
         fr = (tzc - tp) / lt;
@@ -189,16 +189,18 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
     }
 
     // --- specific for GE scanner
+    
     short2 sidx;
-    sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
-    // if (tt[N_TT * ixt + 4]>0.1){
-    //   sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
-    // }
-    // else{
-    //   sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
-    //   sidx = make_short2(c_li2sn[ixz].y, c_li2sn[ixz].x);
-    // }
-    // ---
+    //sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
+    if (tt[N_TT * ixt + 4]>0.1){
+      sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
+    }
+    else{
+      sidx = make_short2(c_li2sn[ixz].x, c_li2sn[ixz].y);
+      sidx = make_short2(c_li2sn[ixz].y, c_li2sn[ixz].x);
+    }
+
+    //---
 
     // blockIdx.x is the transaxial bin index
     if (att == 1) {
@@ -325,15 +327,11 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
 
   //> number of oblique sinograms
   int Noblq = (nrng_c - 1) * nrng_c / 2;
-  int Nz = ((Noblq + 127) / 128) * 128;
+  int Nz = ((Noblq + NTHRDIV-1) / NTHRDIV) * NTHRDIV;
 
   //============================================================================
   fprj_oblq<<<Nprj, Nz >>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
   HANDLE_ERROR(cudaGetLastError());
-
-  // zoff += Nz / 2;
-  // fprj_oblq<<<Nprj, Nz / 2>>>(d_sn, d_im, d_tt, d_tv, d_subs, snno, Cnt.SPN, att, zoff, nil2r_c);
-  // HANDLE_ERROR(cudaGetLastError());
   //============================================================================
 
   if (_sync) {

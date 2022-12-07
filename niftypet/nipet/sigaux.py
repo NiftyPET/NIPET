@@ -191,12 +191,12 @@ def get_axLUT(Cnt):
 
     # > start counting the rings from the front of the scanner
     z = -.5 * Cnt['AXFOV']
-    ir = -1#NRNG_c
+    ir = NRNG_c
 
     for axu in range(Cnt['AXUM']):
         for axc in range(Cnt['AXCB']):
-            #ir -= 1
-            ir += 1
+            ir -= 1
+            #ir += 1
             rng[ir, 0] = z
             rng[ir, 1] = z + Cnt['AXCRS']
             if Cnt['LOG']<=10:
@@ -206,8 +206,6 @@ def get_axLUT(Cnt):
             print('===========G A P=============')
         z += Cnt['AXBGAP']
     #--------------------------------------------------------
-
-
 
 
     # get the sino LUTs

@@ -447,7 +447,7 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // subsets for OSEM, first the default
   PyObject *o_subs;
 
-  // output backprojected image
+  // output back-projected image
   PyCuVec<float> *o_bimg = NULL;
 
   bool SYNC = true; // whether to ensure deviceToHost copy on return

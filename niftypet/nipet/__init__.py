@@ -18,7 +18,7 @@ __all__ = [
     # utils
     'LOG_FORMAT', 'LogHandler', 'path_resources', 'resources',
     # package
-    'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj',
+    'img', 'lm', 'mmr_auxe', 'mmraux', 'mmrnorm', 'prj', 'prj_sig',
     # img
     'align_mumap', 'get_cylinder', 'im_e72dev', 'im_dev2e7', 'hdw_mumap', 'obj_mumap',
     'pct_mumap', 'mmrchain',
@@ -33,7 +33,7 @@ __all__ = [
     # sct
     'vsm',
     # signa
-    'aux_sig', 'prj_sig' #, 'lm_sig', 'lminfo_sig',
+    'aux_sig', # 'lm_sig', 'lminfo_sig',
     # optional
     'video_dyn', 'video_frm', 'xnat']  # yapf: disable
 from pkg_resources import resource_filename
@@ -75,6 +75,7 @@ else:
 
 # > GE Signa
 from . import sigaux
+from .prj_sig import prjsig
 
 # from . import lm_sig
 # from .lm_sig.hst_sig import lminfo_sig
