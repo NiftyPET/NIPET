@@ -513,7 +513,7 @@ def align_mumap(
             muo = mudic['im']
             # reconstruct PET image with UTE mu-map to which co-register T1w
             recout = mmrrec.osemone(datain, [muh, muo], hst, scanner_params, recmod=3, itr=itr,
-                                    fwhm=0., fcomment=fcomment + '_QNT-UTE',
+                                    fwhm=0., fcomment=fcomment + '_QNT-MRAC',
                                     outpath=os.path.join(outpath, 'PET',
                                                          'positioning'), store_img=True)
         elif petopt == 'nac':
@@ -533,7 +533,7 @@ def align_mumap(
             muo = mudic['im']
 
             recout = mmrrec.osemone(datain, [muh, muo], hst, scanner_params, recmod=1, itr=itr,
-                                    fwhm=0., fcomment=fcomment + '_AC-UTE',
+                                    fwhm=0., fcomment=fcomment + '_AC-MRAC',
                                     outpath=os.path.join(outpath, 'PET',
                                                          'positioning'), store_img=True)
 
