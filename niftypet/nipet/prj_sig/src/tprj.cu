@@ -184,7 +184,7 @@ void gpu_siddon_tx(const float tfov2, float4 *d_crs, short2 *d_s2c, float *d_tt,
   cudaEventCreate(&stop);
   cudaEventRecord(start, 0);
 
-  printf("c> transaxial calculations with TFOV2 = %f.\n", tfov2);
+  //printf("c> transaxial calculations with TFOV2 = %f.\n", tfov2);
 
   //-----
   dim3 BpG((AW + NIPET_CU_THREADS - 1) / NIPET_CU_THREADS, 1, 1);
@@ -199,7 +199,7 @@ void gpu_siddon_tx(const float tfov2, float4 *d_crs, short2 *d_s2c, float *d_tt,
   cudaEventElapsedTime(&elapsedTime, start, stop);
   cudaEventDestroy(start);
   cudaEventDestroy(stop);
-  printf("DONE in %fs.\n", 0.001*elapsedTime);
+  //printf("DONE in %fs.\n", 0.001*elapsedTime);
   //============================================================================
 
   return;
