@@ -34,6 +34,7 @@ __all__ = [
     'vsm',
     # signa
     'aux_sig', # 'lm_sig', 'lminfo_sig',
+    # > synchroPET
     # optional
     'video_dyn', 'video_frm', 'xnat']  # yapf: disable
 from pkg_resources import resource_filename
@@ -79,6 +80,12 @@ from .prj_sig import prjsig
 
 # from . import lm_sig
 # from .lm_sig.hst_sig import lminfo_sig
+
+from . import synaux
+from .synaux import get_synpars
+
+from .lm_syn import synhist
+from .lm_syn.synhist import synhist
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`
 cmake_prefix = resource_filename(__name__, "cmake")
