@@ -34,6 +34,7 @@ install(EXPORT ${PROJECT_NAME}Targets FILE NiftyPET${PROJECT_NAME}Targets.cmake
 add_subdirectory(lm)
 add_subdirectory(prj)
 add_subdirectory(prj_sig)
+add_subdirectory(prj_syn)
 add_subdirectory(sct)
 
 ## HDF5 needed for GE data

@@ -110,7 +110,7 @@ def transaxial_lut(Cnt, visualisation=False):
     #----------------------------------
 
 
-    dctout['s2cF'] = s2c
+    dctout['s2c'] = s2c
     dctout['c2s'] = c2s
     dctout['c2sw'] = c2sw
     dctout['Naw'] = Cnt['NSBINS']*Cnt['NSANGLES']
@@ -228,7 +228,7 @@ def axial_lut(Cnt, printout=False):
     li2nos = np.ones((NLI2R), dtype=np.int8)
 
     return {'rng':rng, 'Msn':Msn, 
-            'li2nos':li2nos, 'li2rno':li2r, 'li2sn1':li2sn, 'li2rng':li2rng, 
+            'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2rng':li2rng, 
             'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno}
 
 
