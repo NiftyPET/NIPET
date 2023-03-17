@@ -1,11 +1,13 @@
 from pathlib import Path
 
+import cuvec as cu
 import h5py
 import numpy as np
 import pydicom as dcm
 from tqdm.auto import trange
 
 from niftypet import nimpa, nipet
+from niftypet.nipet.nrm import nrm1
 
 
 def main():
@@ -98,13 +100,19 @@ def main():
 
     # PRECALC
 
-    txLUT_c2s = txLUT['c2s'].astype(np.int64) # int64 is quicker in Python
-    tt_ssgn_thresh = tt_ssgn > 0.1
+    # txLUT_c2s = txLUT['c2s'].astype(np.int64) # int64 is quicker in Python
+    # tt_ssgn_thresh = (tt_ssgn > 0.1).astype(np.uint8)
+    txLUT_c2s = cu.asarray(txLUT['c2s'], np.int32)
+    ceff = cu.asarray(ceff)
+    tt_ssgn_thresh = cu.asarray((tt_ssgn > 0.1), np.uint8)
+
+    assert len(set(txLUT['c2s'].flat)) == txLUT['c2s'].size, (
+        f"{txLUT['c2s'].size - len(set(txLUT['c2s'].flat))}/{txLUT['c2s'].size}"
+        " bidx duplicates found")
 
     # bidx: transaxial bin indices
     c_bidx = tuple((c1, c0, bidx) for c1 in range(Cnt['NCRS']) for c0 in range(Cnt['NCRS'])
                    if (bidx := txLUT_c2s[c1, c0]) >= 0)
-
     c_min, c_max = Cnt['NCRS'] // 2, 3 * Cnt['NCRS'] // 2
 
     for li in (pbar := trange(min(Cnt['NRNG'] * 2, len(axLUT['li2sn'])))):
@@ -116,26 +124,9 @@ def main():
 
         # print(f'+> R0={r0}, R1={r1}, sni={sni}')
         pbar.set_postfix(R0=r0, R1=r1, sni=sni)
-
-        # effsn[:] = 0
-        # for c1, c0, bidx in c_bidx:
-        #     effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] \
-        #       if tt_ssgn_thresh[bidx] else ceff[r1, c0] * ceff[r0, c1]
-        def casper_nrm1(effsn, ceff, r0: int, r1: int, NCRS: int, txLUT_c2s, tt_ssgn_thresh):
-            effsn[:] = 0
-            # for c1 in range(NCRS):
-            #     for c0 in range(NCRS):
-            #         if (bidx := txLUT_c2s[c1, c0]) >= 0:
-            #             effsn[bidx] = ceff[r0, c0] * ceff[
-            #                 r1, c1] if tt_ssgn_thresh[bidx] else ceff[r1, c0] * ceff[r0, c1]
-            for bidx, (c0, c1) in enumerate(txLUT['s2c']):
-                effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] if tt_ssgn_thresh[bidx] else ceff[r1, c0] * ceff[r0, c1]
-            return effsn
-
-        effsn = casper_nrm1(effsn, ceff, r0, r1, Cnt['NCRS'], txLUT_c2s, tt_ssgn_thresh)
-
-        nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T
+        effsn = nrm1(effsn, ceff, r0, r1, Cnt['NCRS'], txLUT_c2s, tt_ssgn_thresh, dev_id=0)
         assert effsn.any()
+        nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T
 
         # if direct sinogram, then skip the next step
         if li < Cnt['NRNG']: continue
@@ -154,6 +145,7 @@ def main():
         #         r1, c0] * ceff[r0, c1]
         for bidx, (c0, c1) in enumerate(txLUT['s2c']):
             effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] if tt_ssgn_thresh[bidx] else ceff[r1, c0]*ceff[r0, c1]
+        assert effsn.any()
 
         if sni not in range(1, Cnt['NSEG0'], 2):
             nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T
@@ -170,7 +162,14 @@ def main():
     # plt.colorbar()
 
     if (fnrm := opth / f'nrm_{len(pbar)}.npz').exists():
-        assert (np.load(fnrm)["nrm"] - nrm_).sum() < 1e-7
+
+        def check_diff(x, y):
+            mae = np.abs(x - y).mean()
+            if mae > 1e-7:
+                nrmse = (((x - y)**2).sum() / (y**2).sum())**0.5
+                raise ValueError(f"NRMSE:{nrmse}, MAE:{mae}")
+
+        check_diff(np.load(fnrm)["nrm"], nrm_)
     else:
         np.savez_compressed(fnrm, nrm=nrm_)
 

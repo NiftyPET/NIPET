@@ -48,37 +48,26 @@ PyMODINIT_FUNC PyInit_casper_nrm(void) {
   return PyModule_Create(&casper_nrm_module);
 }
 
-/** casper_Some explanation
-def casper_nrm1(effsn, ceff, r0: int, r1: int, NCRS: int, txLUT_c2s, tt_ssgn_thresh):
-    effsn[:] = 0
-    for c1 in range(NCRS):
-        for c0 in range(NCRS):
-            if (bidx := txLUT_c2s[c1, c0]) >= 0:
-                effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] if tt_ssgn_thresh[bidx] else ceff[r1, c0]
-* ceff[r0, c1] return effsn
-*/
+/** Implementation of niftypet.nipet.nrm.nrm1 */
 static PyObject *casper_nrm1(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyCuVec<float> *effsn = NULL;
   PyCuVec<float> *ceff = NULL;
   int r0, r1, NCRS;
   PyCuVec<int> *txLUT_c2s = NULL;
   PyCuVec<unsigned char> *tt_ssgn_thresh = NULL;
-  bool SYNC = true; // whether to ensure deviceToHost copy on return
   /* Parse the input tuple */
-  static const char *kwds[] = {"effsn",     "ceff",           "r0",   "r1", "NCRS",
-                               "txLUT_c2s", "tt_ssgn_thresh", "sync", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&iiiO&O&|b", (char **)kwds, &asPyCuVec_f,
+  static const char *kwds[] = {"effsn",     "ceff",           "r0", "r1", "NCRS",
+                               "txLUT_c2s", "tt_ssgn_thresh", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&iiiO&O&", (char **)kwds, &asPyCuVec_f,
                                    &effsn, &asPyCuVec_f, &ceff, &r0, &r1, &NCRS, &asPyCuVec_i,
-                                   &txLUT_c2s, &asPyCuVec_b, &tt_ssgn_thresh, &SYNC))
+                                   &txLUT_c2s, &asPyCuVec_B, &tt_ssgn_thresh))
     return NULL;
 
   // if (Cnt.LOG <= LOGDEBUG) printf("\ni> N0crs=%d, N1crs=%d, Naw=%d, Nprj=%d\n", N0crs, N1crs,
   // Naw, Nprj);
 
-  // sets the device on which to calculate
-  // HANDLE_ERROR(cudaSetDevice(Cnt.DEVID));
-  gpu_nrm1(effsn->vec.data(), effsn->vec.size(), ceff->vec.data(), ceff->vec.size(), r0, r1, NCRS,
-           txLUT_c2s->vec.data(), tt_ssgn_thresh->vec.data(), SYNC);
+  gpu_nrm1(effsn->vec.data(), effsn->vec.size(), ceff->vec.data(), r0, r1, NCRS,
+           txLUT_c2s->vec.data(), tt_ssgn_thresh->vec.data());
   if (CUDA_PyErr()) return NULL;
   Py_INCREF(effsn);
   return (PyObject *)effsn;
