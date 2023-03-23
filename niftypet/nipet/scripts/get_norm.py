@@ -106,13 +106,15 @@ def main():
     ceff = cu.asarray(ceff)
     tt_ssgn_thresh = cu.asarray((tt_ssgn > 0.1), np.uint8)
 
-    assert len(set(txLUT['c2s'].flat)) == txLUT['c2s'].size, (
-        f"{txLUT['c2s'].size - len(set(txLUT['c2s'].flat))}/{txLUT['c2s'].size}"
-        " bidx duplicates found")
-
     # bidx: transaxial bin indices
     c_bidx = tuple((c1, c0, bidx) for c1 in range(Cnt['NCRS']) for c0 in range(Cnt['NCRS'])
                    if (bidx := txLUT_c2s[c1, c0]) >= 0)
+
+    assert len({i[2]
+                for i in c_bidx
+                }) == len(c_bidx), (f"{len(c_bidx) - len({i[2] for i in c_bidx})}/{len(c_bidx)}"
+                                    " bidx duplicates found")
+
     c_min, c_max = Cnt['NCRS'] // 2, 3 * Cnt['NCRS'] // 2
 
     for li in (pbar := trange(min(Cnt['NRNG'] * 2, len(axLUT['li2sn'])))):
