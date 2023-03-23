@@ -11,7 +11,10 @@ rawdtypes = [5,4]
 
 #======================================================
 ## SET THE INPUT FOLDER
-mfldr = Path('/data/DPUK_raw/')
+mfldr = Path('/data/DPUK_raw_2/')
+
+# mfldr = Path('/home/pawel/data/petpp/20170516_e00179_ANON179')
+# mfldr = mfldr/'raw'
 #======================================================
 
 
@@ -104,9 +107,9 @@ tt_ssgn = tt[:,4]
 
 
 # > repeat and reshape the geometric 16 slices corresponding to the detector unit width
-nrm3d = rawh5['r4']['nrm3d']
+nrm3d = rawh5['r4']['nrm3d'].copy()
 for i in range(len(rawh5['r4']['sclfcr'])):
-    nrm3d *= rawh5['r4']['sclfcr'][i]
+    nrm3d[i,...] *= rawh5['r4']['sclfcr'][i]
 
 # > geometric norm sinogram
 geosn = np.tile(nrm3d, [Cnt['NSANGLES']//nrm3d.shape[0],1,1])
@@ -132,7 +135,6 @@ for li in range(len(axLUT['li2sn'])):
     
     # > sinogram index running linearly
     sni = axLUT['li2sn'][li,0]
-
     # > ring indices
     r0 = axLUT['li2rno'][li,0]
     r1 = axLUT['li2rno'][li,1]
@@ -140,15 +142,11 @@ for li in range(len(axLUT['li2sn'])):
     print(f'+> R0={r0}, R1={r1}, sni={sni}')
 
     effsn[:] = 0
-    for c1 in range(Cnt['NCRS']):
-        for c0 in range(Cnt['NCRS']):
-            # > transaxial bin index
-            bidx = txLUT['c2s'][c1,c0]
-            if bidx<0: continue
-            if tt_ssgn[bidx]>0.1:
-                effsn[bidx] = ceff[r0,c0]*ceff[r1,c1]
-            else:
-                effsn[bidx] = ceff[r1,c0]*ceff[r0,c1]
+    for bidx,(c0, c1) in enumerate(txLUT['s2c']):
+        if tt_ssgn[bidx]>0.1:
+            effsn[bidx] = ceff[r0,c0]*ceff[r1,c1]
+        else:
+            effsn[bidx] = ceff[r1,c0]*ceff[r0,c1]
 
     nrmsn[sni,...] = geosn[sni,...] * np.reshape(effsn, (Cnt['NSBINS'],Cnt['NSANGLES'])).T
 
@@ -163,14 +161,11 @@ for li in range(len(axLUT['li2sn'])):
     print(f'-> R0={r0}, R1={r1}, sni={sni}')
 
     effsn[:] = 0
-    for c1 in range(Cnt['NCRS']):
-        for c0 in range(Cnt['NCRS']):
-            bidx = txLUT['c2s'][c1,c0]
-            if bidx<0: continue
-            if ((Cnt['NCRS'] // 2) <= (c0+c1)) and ((c0+c1) < (3 * Cnt['NCRS'] // 2)):
-                effsn[bidx] = ceff[r0,c0]*ceff[r1,c1]
-            else:
-                effsn[bidx] = ceff[r1,c0]*ceff[r0,c1]
+    for bidx,(c0, c1) in enumerate(txLUT['s2c']):
+        if tt_ssgn[bidx]>0.1:
+            effsn[bidx] = ceff[r0,c0]*ceff[r1,c1]
+        else:
+            effsn[bidx] = ceff[r1,c0]*ceff[r0,c1]
 
     if not sni in range(1,Cnt['NSEG0'],2):
         nrmsn[sni,...] = geosn[sni,...] * np.reshape(effsn, (Cnt['NSBINS'],Cnt['NSANGLES'])).T
@@ -179,5 +174,6 @@ for li in range(len(axLUT['li2sn'])):
 #==========================================================
 
                 
-nrm_ = nrmsn.transpose(1,0,2)
+#nrm_ = nrmsn.transpose(1,0,2)
 
+#si=23; matshow(100*(nrm_[:,si,:]-nrm[:,si,:])/nrm[:,si,:]); colorbar()
