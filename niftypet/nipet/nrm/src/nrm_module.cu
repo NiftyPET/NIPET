@@ -52,22 +52,21 @@ PyMODINIT_FUNC PyInit_casper_nrm(void) {
 static PyObject *casper_nrm1(PyObject *self, PyObject *args, PyObject *kwargs) {
   PyCuVec<float> *effsn = NULL;
   PyCuVec<float> *ceff = NULL;
-  int r0, r1, NCRS;
-  PyCuVec<int> *txLUT_c2s = NULL;
+  int r0, r1;
+  PyCuVec<int> *txLUT_s2c = NULL;
   PyCuVec<unsigned char> *tt_ssgn_thresh = NULL;
   /* Parse the input tuple */
-  static const char *kwds[] = {"effsn",     "ceff",           "r0", "r1", "NCRS",
-                               "txLUT_c2s", "tt_ssgn_thresh", NULL};
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&iiiO&O&", (char **)kwds, &asPyCuVec_f,
-                                   &effsn, &asPyCuVec_f, &ceff, &r0, &r1, &NCRS, &asPyCuVec_i,
-                                   &txLUT_c2s, &asPyCuVec_B, &tt_ssgn_thresh))
+  static const char *kwds[] = {"effsn", "ceff", "r0", "r1", "txLUT_s2c", "tt_ssgn_thresh", NULL};
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O&O&iiO&O&", (char **)kwds, &asPyCuVec_f, &effsn,
+                                   &asPyCuVec_f, &ceff, &r0, &r1, &asPyCuVec_i, &txLUT_s2c,
+                                   &asPyCuVec_B, &tt_ssgn_thresh))
     return NULL;
 
   // if (Cnt.LOG <= LOGDEBUG) printf("\ni> N0crs=%d, N1crs=%d, Naw=%d, Nprj=%d\n", N0crs, N1crs,
   // Naw, Nprj);
 
-  gpu_nrm1(effsn->vec.data(), effsn->vec.size(), ceff->vec.data(), r0, r1, NCRS,
-           txLUT_c2s->vec.data(), tt_ssgn_thresh->vec.data());
+  gpu_nrm1(effsn->vec.data(), effsn->vec.size(), ceff->vec.data(), ceff->shape[1], r0, r1,
+           txLUT_s2c->vec.data(), txLUT_s2c->shape[0], tt_ssgn_thresh->vec.data());
   if (CUDA_PyErr()) return NULL;
   Py_INCREF(effsn);
   return (PyObject *)effsn;

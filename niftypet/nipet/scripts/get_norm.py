@@ -100,23 +100,25 @@ def main():
 
     # PRECALC
 
-    # txLUT_c2s = txLUT['c2s'].astype(np.int64) # int64 is quicker in Python
     # tt_ssgn_thresh = (tt_ssgn > 0.1).astype(np.uint8)
-    txLUT_c2s = cu.asarray(txLUT['c2s'], np.int32)
+    # txLUT_c2s = cu.asarray(txLUT['c2s'], np.int32)
+    # assert all(txLUT_c2s[c0, c1] == bidx
+    #            for c1 in range(Cnt['NCRS']) for c0 in range(Cnt['NCRS'])
+    #            if (bidx := txLUT_c2s[c1, c0]) >= 0), "not symmetric"
+    # assert all(ceff.shape[1] == i for i in txLUT_c2s.shape)
+    txLUT_s2c = cu.asarray(txLUT['s2c'], np.int32)
+    assert len({tuple(sorted(c)) for c in txLUT_s2c}) == len(txLUT_s2c), "duplicates in s2c"
     ceff = cu.asarray(ceff)
     tt_ssgn_thresh = cu.asarray((tt_ssgn > 0.1), np.uint8)
 
     # bidx: transaxial bin indices
-    c_bidx = tuple((c1, c0, bidx) for c1 in range(Cnt['NCRS']) for c0 in range(Cnt['NCRS'])
-                   if (bidx := txLUT_c2s[c1, c0]) >= 0)
-
-    assert len({i[2]
-                for i in c_bidx
-                }) == len(c_bidx), (f"{len(c_bidx) - len({i[2] for i in c_bidx})}/{len(c_bidx)}"
-                                    " bidx duplicates found")
-
-    c_min, c_max = Cnt['NCRS'] // 2, 3 * Cnt['NCRS'] // 2
-
+    # txLUT_c2s = txLUT['c2s'].astype(np.int64) # int64 is quicker in Python
+    # c_bidx = tuple((c1, c0, bidx) for c1 in range(Cnt['NCRS']) for c0 in range(Cnt['NCRS'] - c1)
+    #                if (bidx := txLUT_c2s[c1, c0]) >= 0)
+    # assert len({i[2] for i in c_bidx}) == len(c_bidx), (
+    #   f"{len(c_bidx) - len({i[2] for i in c_bidx})}/{len(c_bidx)}"
+    #   " bidx duplicates found")
+    # c_min, c_max = Cnt['NCRS'] // 2, 3 * Cnt['NCRS'] // 2
     for li in (pbar := trange(min(Cnt['NRNG'] * 2, len(axLUT['li2sn'])))):
         sni = axLUT['li2sn'][li, 0] # sino index running linearly
 
@@ -126,7 +128,7 @@ def main():
 
         # print(f'+> R0={r0}, R1={r1}, sni={sni}')
         pbar.set_postfix(R0=r0, R1=r1, sni=sni)
-        effsn = nrm1(effsn, ceff, r0, r1, Cnt['NCRS'], txLUT_c2s, tt_ssgn_thresh, dev_id=0)
+        effsn = nrm1(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
         assert effsn.any()
         nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T
 
@@ -141,12 +143,7 @@ def main():
 
         # print(f'-> R0={r0}, R1={r1}, sni={sni}')
         pbar.set_postfix(R0=r0, R1=r1, sni=sni)
-        effsn[:] = 0
-        # for c1, c0, bidx in c_bidx:
-        #     effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] if c_min <= c0 + c1 < c_max else ceff[
-        #         r1, c0] * ceff[r0, c1]
-        for bidx, (c0, c1) in enumerate(txLUT['s2c']):
-            effsn[bidx] = ceff[r0, c0] * ceff[r1, c1] if tt_ssgn_thresh[bidx] else ceff[r1, c0]*ceff[r0, c1]
+        effsn = nrm1(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
         assert effsn.any()
 
         if sni not in range(1, Cnt['NSEG0'], 2):
