@@ -6,7 +6,7 @@ import numpy as np
 import pydicom as dcm
 
 from niftypet import nimpa, nipet
-from niftypet.nipet.nrm import nrm1
+from niftypet.nipet.nrm import ge
 
 mfldr = Path(__file__).parent.parent.parent.parent / 'data_DPUK_raw' # INPUT FOLDER
 
@@ -113,7 +113,7 @@ for li in range(len(axLUT['li2sn'])):
     r1 = axLUT['li2rno'][li, 1]
 
     # print(f'+> R0={r0}, R1={r1}, sni={sni}')
-    effsn = nrm1(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
+    effsn = ge(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
     nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T
 
     # if direct sinogram, then skip the next step
@@ -126,7 +126,7 @@ for li in range(len(axLUT['li2sn'])):
     r0, r1 = r1, r0
 
     # print(f'-> R0={r0}, R1={r1}, sni={sni}')
-    effsn = nrm1(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
+    effsn = ge(effsn, ceff, r0, r1, txLUT_s2c, tt_ssgn_thresh, dev_id=0)
 
     if sni not in range(1, Cnt['NSEG0'], 2):
         nrmsn[sni] = geosn[sni] * np.reshape(effsn, (Cnt['NSBINS'], Cnt['NSANGLES'])).T

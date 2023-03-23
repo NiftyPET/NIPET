@@ -1,4 +1,4 @@
-project(casper_nrm)
+project(cu_nrm)
 
 file(GLOB SRC LIST_DIRECTORIES false "src/*.cu")
 include_directories(src)
