@@ -34,6 +34,7 @@ __all__ = [
     'vsm',
     # signa
     'aux_sig', # 'lm_sig', 'lminfo_sig',
+    # > synchroPET
     # optional
     'video_dyn', 'video_frm', 'xnat']  # yapf: disable
 from pkg_resources import resource_filename
@@ -44,7 +45,8 @@ from niftypet.ninst.tools import LOG_FORMAT, LogHandler, path_resources, resourc
 
 # shared CUDA C library for extended auxiliary functions for the mMR
 # > Siemens Biograph mMR
-from . import img, lm, mmr_auxe, mmraux, mmrnorm, prj
+from . import mmraux
+from . import img, lm, mmrnorm, prj, mmr_auxe
 from .img.mmrimg import align_mumap
 from .img.mmrimg import convert2dev as im_e72dev
 from .img.mmrimg import convert2e7 as im_dev2e7
@@ -79,6 +81,16 @@ from .prj_sig import prjsig
 
 from . import lm_sig
 from .lm_sig.hst_sig import lminfo_sig
+
+# > SynchroPET
+from . import synaux
+from .synaux import get_synpars
+
+from .lm_syn import synhist
+from .lm_syn.synhist import synhist
+
+from .prj_syn import prjsyn, prj_syn
+
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`
 cmake_prefix = resource_filename(__name__, "cmake")
