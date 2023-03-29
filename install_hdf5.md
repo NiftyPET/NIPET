@@ -8,6 +8,9 @@ decompress to a folder, e.g., /home/user
 
 ./configure --prefix=/usr/local/hdf5 <more configure_flags>
 make
+  
 make check                # run test suite.
+  
 make install
+  
 make check-install        # verify installation.
