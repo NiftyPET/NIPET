@@ -7,6 +7,7 @@ https://www.hdfgroup.org/package/hdf5-1-10-6-tar-bz2/?wpdmdl=14134&refresh=5e34a
 decompress to a folder, e.g., /home/user
 
 ./configure --prefix=/usr/local/hdf5 <more configure_flags>
+  
 make
   
 make check                # run test suite.
