@@ -79,8 +79,8 @@ else:
 from . import sigaux
 from .prj_sig import prjsig
 
-# from . import lm_sig
-# from .lm_sig.hst_sig import lminfo_sig
+from . import lm_sig
+from .lm_sig.hst_sig import lminfo_sig
 
 # > SynchroPET
 from . import synaux
