@@ -32,7 +32,6 @@ install(EXPORT ${PROJECT_NAME}Targets FILE NiftyPET${PROJECT_NAME}Targets.cmake
   NAMESPACE NiftyPET:: DESTINATION niftypet/${CMAKE_PROJECT_NAME}/cmake)
 
 add_subdirectory(lm)
-add_subdirectory(lm_sig)
 add_subdirectory(prj)
 add_subdirectory(prj_sig)
 add_subdirectory(prj_syn)
