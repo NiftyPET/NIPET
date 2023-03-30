@@ -23,10 +23,10 @@
 #define NSINOS 64
 #define SEG0 15
 
-#define SZ_IMX 192
-#define SZ_IMY 192
+#define SZ_IMX 48
+#define SZ_IMY 48
 #define SZ_IMZ 15
-#define SZ_VOXY 0.025f
+#define SZ_VOXY 0.1f
 #define SZ_VOXZ 0.11f
 #define SZ_VOXZi 9.090909f
 #define RSZ_PSF_KRNL 8

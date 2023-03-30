@@ -250,3 +250,37 @@ def get_synpars():
     Cnt, txLUT, axLUT = init_synchropet()
 
     return dict(Cnt=Cnt, txLUT=txLUT, axLUT=axLUT)
+
+
+
+
+def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False, mask=True, two_d=False):
+    '''Outputs image with a uniform cylinder of intensity = unival,
+        radius = rad, and transaxial centre (xo, yo).
+    '''
+
+    if mask:  unival = 1
+
+    imdsk = np.zeros((1, Cnt['SZ_IMX'], Cnt['SZ_IMY']), dtype=np.float32)
+    
+    for t in np.arange(0, math.pi, math.pi/(2*360)):
+        x = xo+rad*math.cos(t)
+        y = yo+rad*math.sin(t)
+        yf = np.arange(-y+2*yo, y, Cnt['SZ_VOXY']/2)
+        v = np.int32(.5*Cnt['SZ_IMX'] - np.ceil(yf/Cnt['SZ_VOXY']))
+        u = np.int32(.5*Cnt['SZ_IMY'] + np.floor(x/Cnt['SZ_VOXY']))
+        imdsk[0,v,u] = unival
+    
+    if two_d:
+        imdsk = np.squeeze(imdsk)
+    else:
+        imdsk = np.repeat(imdsk, Cnt['SZ_IMZ'], axis=0)
+
+    if mask: imdsk = imdsk.astype(dtype=bool)
+    
+    if gpu_dim and not two_d:
+        return np.transpose(imdsk, (1, 2, 0))
+    else:
+        return imdsk
+
+

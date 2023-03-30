@@ -4,7 +4,7 @@ Provides functionality for back projection in PET image
 reconstruction.
 
 author: Pawel Markiewicz
-Copyrights: 2018
+Copyrights: 2018-23
 ------------------------------------------------------------------------*/
 #include "prjb.h"
 #include "tprj.h"
@@ -159,19 +159,9 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
     float tzc = tz1;
     //****************
 
-    // --- specific for GE scanner (parts of sinogram can be either + or -)
+    // ---
     short2 widx;
-    //widx = make_short2(w, w_);
-    if (tt[N_TT * ixt + 4]>0.1){
-      widx = make_short2(w, w_);
-    }
-    else{
-      widx = make_short2(w_, w);
-      bin_tmp = bin.y;
-      bin.y = bin.x;
-      bin.x = bin_tmp;
-      sgnaz *= -1;
-    }
+    widx = make_short2(w, w_);
     // ---
 
     float fr, lt;
@@ -261,13 +251,6 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
     snno = nrng_c * nrng_c;
     // correct for the max. ring difference in the full axial extent (don't use ring range (1,63)
     // as for this case no correction)
-  }
-
-  // SPAN-2 for the cross sinograms (-1/+1) being mashed in the GE format, producing 1981 instead of 2025 sinograms
-  else if (Cnt.SPN == 2) {
-    snno = NSINOS;
-    nrng_c = NRNGS;
-    nil2r_c = NLI2R;
   }
 
   // voxels in axial direction

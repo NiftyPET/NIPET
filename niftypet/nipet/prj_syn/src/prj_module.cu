@@ -449,7 +449,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   // axial LUTs:
   PyObject *pd_li2rno = PyDict_GetItemString(o_axLUT, "li2rno");
   PyObject *pd_li2sn = PyDict_GetItemString(o_axLUT, "li2sn");
-  PyObject *pd_li2sn1 = PyDict_GetItemString(o_axLUT, "li2sn1");
   PyObject *pd_li2nos = PyDict_GetItemString(o_axLUT, "li2nos");
   PyObject *pd_li2rng = PyDict_GetItemString(o_axLUT, "li2rng");
 
@@ -459,10 +458,9 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
 
   //-- get the arrays from the dictionaries
   // axLUTs
-  PyArrayObject *p_li2rno = NULL, *p_li2sn1 = NULL, *p_li2sn = NULL;
+  PyArrayObject *p_li2rno = NULL, *p_li2sn = NULL;
   PyArrayObject *p_li2nos = NULL, *p_li2rng = NULL;
   p_li2rno = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rno, NPY_INT8, NPY_ARRAY_IN_ARRAY);
-  p_li2sn1 = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn1, NPY_INT16, NPY_ARRAY_IN_ARRAY);
   p_li2sn = (PyArrayObject *)PyArray_FROM_OTF(pd_li2sn, NPY_INT16, NPY_ARRAY_IN_ARRAY);
   p_li2nos = (PyArrayObject *)PyArray_FROM_OTF(pd_li2nos, NPY_INT8, NPY_ARRAY_IN_ARRAY);
   p_li2rng = (PyArrayObject *)PyArray_FROM_OTF(pd_li2rng, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
@@ -478,12 +476,11 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   //--
 
   /* If that didn't work, throw an exception. */
-  if (p_li2rno == NULL || p_li2sn == NULL || p_li2sn1 == NULL || p_li2nos == NULL ||
+  if (p_li2rno == NULL || p_li2sn == NULL || p_li2nos == NULL ||
       p_s2c == NULL || p_crs == NULL || p_subs == NULL || p_li2rng == NULL) {
     // axLUTs
     Py_XDECREF(p_li2rno);
     Py_XDECREF(p_li2sn);
-    Py_XDECREF(p_li2sn1);
     Py_XDECREF(p_li2nos);
     Py_XDECREF(p_li2rng);
 
@@ -498,10 +495,11 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   int *subs_ = (int *)PyArray_DATA(p_subs);
   short *s2c = (short *)PyArray_DATA(p_s2c);
   short *li2sn;
-  if (Cnt.SPN == 2) {
+  if (Cnt.SPN == 1) {
     li2sn = (short *)PyArray_DATA(p_li2sn);
-  } else if (Cnt.SPN == 1) {
-    li2sn = (short *)PyArray_DATA(p_li2sn1);
+  }
+  else{
+    printf("\ne> span %d is not supported!\n", Cnt.SPN);
   }
   char *li2nos = (char *)PyArray_DATA(p_li2nos);
   float *li2rng = (float *)PyArray_DATA(p_li2rng);
@@ -541,7 +539,6 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   Py_DECREF(p_li2rno);
   Py_DECREF(p_li2rng);
   Py_DECREF(p_li2sn);
-  Py_DECREF(p_li2sn1);
   Py_DECREF(p_li2nos);
   Py_DECREF(p_s2c);
   Py_DECREF(p_crs);
