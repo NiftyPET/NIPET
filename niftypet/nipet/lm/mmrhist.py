@@ -507,7 +507,7 @@ def dynamic_timings(flist, offset=0):
     '''
     if not isinstance(flist, Collection) or isinstance(flist, str):
         raise TypeError('Wrong type of frame data input')
-    if all(isinstance(t, Integral) for t in flist):
+    if all([isinstance(t, Integral) for t in flist]):
         tsum = offset
         # list of frame timings
         if offset > 0:
@@ -523,7 +523,7 @@ def dynamic_timings(flist, offset=0):
             # append the timings to the list
             t_frames.append([t0, t1])
         frms = np.uint16(flist)
-    elif flist[0] == 'def' and all(isinstance(t, Collection) and len(t) == 2 for t in flist[1:]):
+    elif flist[0] == 'def' and all([isinstance(t, Collection) and len(t) == 2 for t in flist[1:]]):
         flist = flist[1:]
         if offset > 0:
             flist.insert(0, [0, offset])
