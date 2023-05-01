@@ -31,16 +31,27 @@ tls.check_platform()
 
 def chck_vox_h(Cnt):
     """check if voxel size in Cnt and adjust the CUDA header files accordingly."""
-    rflg = False
-    fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_mmr.h"
+
+    cnt_list = [
+        "SZ_IMX", "SZ_IMY", "SZ_IMZ", "TFOV2", "SZ_VOXY", "SZ_VOXZ", "SZ_VOXZi", "RSZ_PSF_KRNL"]
+
+    if Cnt['NRNG']==45:
+        fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_sig.h"
+        # > for Signa remove TFOV2 as this is now passed as value (the same needs to be done for mMR)
+        cnt_list.pop(3)
+        
+    elif Cnt['NRNG']==64:
+        fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_mmr.h"
+
+    
     def_h = fpth.read_text()
     # get the region of keeping in synch with Python
     i0 = def_h.find("//## start ##//")
     i1 = def_h.find("//## end ##//")
     defh = def_h[i0:i1]
     # list of constants which will be kept in synch from Python
-    cnt_list = [
-        "SZ_IMX", "SZ_IMY", "SZ_IMZ", "TFOV2", "SZ_VOXY", "SZ_VOXZ", "SZ_VOXZi", "RSZ_PSF_KRNL"]
+    
+
     flg = False
     for s in cnt_list:
         m = re.search("(?<=#define " + s + r")\s*\d*\.*\d*", defh)
@@ -54,7 +65,9 @@ def chck_vox_h(Cnt):
             if Cnt[s] != int(m.group(0)):
                 flg = True
                 break
-    # if flag is set then redefine the constants in the sct.h file
+    
+    # if flag is set then redefine the constants in the scanner_*.h file
+    rflg = False
     if flg:
         strNew = ("//## start ##// constants definitions in synch with Python.   DON"
                   "T MODIFY MANUALLY HERE!\n" + "// IMAGE SIZE\n" + "// SZ_I* are image sizes\n" +
@@ -127,15 +140,18 @@ def check_constants():
     """get the constants for the mMR from the resources file before
     getting the path to the local resources.py (on Linux machines it is in ~/.niftypet)"""
     resources = cs.get_resources()
+
+        
     Cnt = resources.get_mmr_constants()
+    sct_compile_mmr = chck_sct_h(Cnt)
+    def_compile_mmr = chck_vox_h(Cnt)
 
-    sct_compile = chck_sct_h(Cnt)
-    def_compile = chck_vox_h(Cnt)
-    # sct_compile = False
-    # def_compile = False
+    Cnt = resources.get_sig_constants()
+    def_compile_sig = chck_vox_h(Cnt)
 
-    if sct_compile or def_compile:
-        txt = "NiftyPET constants were changed: needs CUDA compilation."
+    
+    if sct_compile_mmr or def_compile_mmr or def_compile_sig:
+        txt = "NiftyPET constants were changed: needs CUDA (re)compilation."
     else:
         txt = "- - . - -"
 
@@ -144,10 +160,11 @@ def check_constants():
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             changed sct.h: {}
             changed scanner_mmr.h: {}
+            changed scanner_sig.h: {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~""").format(
-            sct_compile, def_compile, txt))
+            sct_compile_mmr, def_compile_mmr, def_compile_sig, txt))
 
 
 cs.resources_setup(gpu=False) # install resources.py

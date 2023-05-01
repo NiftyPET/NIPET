@@ -20,45 +20,22 @@
 //==============================================
 
 #define NCRSTLS 448
-
 #define NRNGS 45
+
+// ring size (width)
+#define SZ_RING 0.53f
 
 #define SEG0 89
 
 #define NSBINS 357
 #define NSANGLES 224
-
 #define NSINOS  1981
 #define NSINOS1 2025
-
 #define AW 79968
-
-#define SZ_IMX 288 //192
-#define SZ_IMY 288 //192
-#define SZ_IMZ 89
-#define RSZ_PSF_KRNL 8
-#define SZ_VOXY 0.208333f
-#define SZ_VOXZ 0.278000f
-#define SZ_VOXZi 3.597122f
-
-// ring size (width)
-#define SZ_RING 0.53f
-
 
 // number of mirror oblique sinograms (only positive or negative considered) 
 // plus the direct sinograms, i.e., (NRNGS**2-NRNGS)/2 + NRNGS
 #define NLI2R 1035
-
-//#define MRD_S 44
-
-// number of transaxial blocks per module
-//#define NBTXM_S 4
-
-// number of transaxial modules (on the ring)
-//#define NTXM_S 28
-
-// crystals per block
-//#define NCRSBLK_S 4
 
 //------------------
 // TIME OF FLIGHT
@@ -73,7 +50,6 @@
 //#define TOFN_S 27
 //------------------
 
-
 //------------------
 // transaxial sampling using the Siddon method
 #define L21 0.001f      // threshold for special case when finding Siddon intersections
@@ -83,6 +59,23 @@
 #define N_TT 10   // number of constants pre-calculated and saved for proper axial calculations
 #define UV_SHFT 9 // shift when representing 2 voxel indx in one float variable
 //------------------
+
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+//## start ##// constants definitions in synch with Python.   DONT MODIFY MANUALLY HERE!
+// IMAGE SIZE
+// SZ_I* are image sizes
+// SZ_V* are voxel sizes
+#define SZ_IMX 288
+#define SZ_IMY 288
+#define SZ_IMZ 89
+#define RSZ_PSF_KRNL 8
+#define SZ_VOXY 0.208333f
+#define SZ_VOXZ 0.278000f
+#define SZ_VOXZi 3.597122f
+//## end ##//
+//<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
+
+
 
 
 // structure for constants passed from Python

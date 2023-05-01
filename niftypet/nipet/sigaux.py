@@ -12,54 +12,86 @@ from . import resources
 log = logging.getLogger(__name__)
 
 
-def constants_h5(pthfn):
-    with h5py.File(pthfn, 'r') as f:
-        # coincidence event mode
-        cncdmd = f['HeaderData']['AcqParameters']['EDCATParameters']['coinOutputMode'][0]
-        if cncdmd == 802:
-            # bytes per event in this mode:
-            bpe = 6
-            log.info("list-mode data in NOMINAL mode (6 bytes per event)")
-        elif cncdmd == 803:
-            bpe = 16
-            log.error(
-                "list-mode data in CALIBRATION mode (16 bytes per event) not currently supported")
-        elif cncdmd == 805:
-            bpe = 8
-            log.error(
-                "the list-mode data in ENERGY mode (8 bytes per event) not currently supported")
-        else:
-            bpe = 0
-            log.error("list-mode data in UNKNOWN mode")
+def constants_h5(fh5=None):
 
-        # toff: scan start time marker (used as offset)
+    if fh5 is not None and os.path.isfile(fh5):
+        with h5py.File(fh5, 'r') as f:
+            # coincidence event mode
+            cncdmd = f['HeaderData']['AcqParameters']['EDCATParameters']['coinOutputMode'][0]
+            if cncdmd == 802:
+                # bytes per event in this mode:
+                bpe = 6
+                log.info("list-mode data in NOMINAL mode (6 bytes per event)")
+            elif cncdmd == 803:
+                bpe = 16
+                log.error(
+                    "list-mode data in CALIBRATION mode (16 bytes per event) not currently supported")
+            elif cncdmd == 805:
+                bpe = 8
+                log.error(
+                    "the list-mode data in ENERGY mode (8 bytes per event) not currently supported")
+            else:
+                bpe = 0
+                log.error("list-mode data in UNKNOWN mode")
+
+            # toff: scan start time marker (used as offset)
+            CntH5 = {
+                'toff': f['HeaderData']['AcqStats']['frameStartCoincTStamp'][0],
+                'Deff': f['HeaderData']['SystemGeometry']['effectiveRingDiameter'][0]/10,
+                'TFOV': f['HeaderData']['AcqParameters']['EDCATParameters']['transAxialFOV'][0],
+                'cpitch': f['HeaderData']['SystemGeometry']['interCrystalPitch'][0],
+                'bpitch': f['HeaderData']['SystemGeometry']['interBlockPitch'][0],
+                'AXBGAP' : f['HeaderData']['SystemGeometry']['axialBlockGap'][0]    /10,
+                'AXCGAP' : f['HeaderData']['SystemGeometry']['axialCassetteGap'][0] /10,
+                'TXBGAP' : f['HeaderData']['SystemGeometry']['radialBlockGap'][0]   /10,
+                'TXCGAP' : f['HeaderData']['SystemGeometry']['radialCassetteGap'][0]/10,
+                'exLOR': f['HeaderData']['AcqParameters']['RxScanParameters']['extraRsForTFOV'][0],
+                'AXCB': f['HeaderData']['SystemGeometry']['axialCrystalsPerBlock'][0],
+                'AXBU': f['HeaderData']['SystemGeometry']['axialBlocksPerUnit'][0],
+                'AXUM': f['HeaderData']['SystemGeometry']['axialUnitsPerModule'][0],
+                'AXMN': f['HeaderData']['SystemGeometry']['axialModulesPerSystem'][0],
+                'TXCB': f['HeaderData']['SystemGeometry']['radialCrystalsPerBlock'][0],
+                'TXBU': f['HeaderData']['SystemGeometry']['radialBlocksPerUnit'][0],
+                'TXUM': f['HeaderData']['SystemGeometry']['radialUnitsPerModule'][0],
+                'TXMN': f['HeaderData']['SystemGeometry']['radialModulesPerSystem'][0],
+                'MRDLM': f['HeaderData']['AcqParameters']['BackEndAcqFilters']['maxRingDiff'][0],
+                'tau0': f['HeaderData']['AcqParameters']['EDCATParameters']['negCoincidenceWindow'][0],
+                'tau1': f['HeaderData']['AcqParameters']['EDCATParameters']['posCoincidenceWindow'][0],
+                'tauP': f['HeaderData']['AcqParameters']['EDCATParameters']['coincTimingPrecision'][0],
+                'TOFC': f['HeaderData']['AcqParameters']['RxScanParameters']['tofCompressionFactor'][0],
+                'LLD': f['HeaderData']['AcqParameters']['EDCATParameters']['lower_energy_limit'][0],
+                'ULD': f['HeaderData']['AcqParameters']['EDCATParameters']['upper_energy_limit'][0],
+                'BPELM': bpe}
+    else:
+        # > if the HDF5 file is not provided from the scan, use the default settings as below:
         CntH5 = {
-            'toff': f['HeaderData']['AcqStats']['frameStartCoincTStamp'][0],
-            'Deff': f['HeaderData']['SystemGeometry']['effectiveRingDiameter'][0]/10,
-            'TFOV': f['HeaderData']['AcqParameters']['EDCATParameters']['transAxialFOV'][0],
-            'cpitch': f['HeaderData']['SystemGeometry']['interCrystalPitch'][0],
-            'bpitch': f['HeaderData']['SystemGeometry']['interBlockPitch'][0],
-            'AXBGAP' : f['HeaderData']['SystemGeometry']['axialBlockGap'][0]    /10,
-            'AXCGAP' : f['HeaderData']['SystemGeometry']['axialCassetteGap'][0] /10,
-            'TXBGAP' : f['HeaderData']['SystemGeometry']['radialBlockGap'][0]   /10,
-            'TXCGAP' : f['HeaderData']['SystemGeometry']['radialCassetteGap'][0]/10,
-            'exLOR': f['HeaderData']['AcqParameters']['RxScanParameters']['extraRsForTFOV'][0],
-            'AXCB': f['HeaderData']['SystemGeometry']['axialCrystalsPerBlock'][0],
-            'AXBU': f['HeaderData']['SystemGeometry']['axialBlocksPerUnit'][0],
-            'AXUM': f['HeaderData']['SystemGeometry']['axialUnitsPerModule'][0],
-            'AXMN': f['HeaderData']['SystemGeometry']['axialModulesPerSystem'][0],
-            'TXCB': f['HeaderData']['SystemGeometry']['radialCrystalsPerBlock'][0],
-            'TXBU': f['HeaderData']['SystemGeometry']['radialBlocksPerUnit'][0],
-            'TXUM': f['HeaderData']['SystemGeometry']['radialUnitsPerModule'][0],
-            'TXMN': f['HeaderData']['SystemGeometry']['radialModulesPerSystem'][0],
-            'MRDLM': f['HeaderData']['AcqParameters']['BackEndAcqFilters']['maxRingDiff'][0],
-            'tau0': f['HeaderData']['AcqParameters']['EDCATParameters']['negCoincidenceWindow'][0],
-            'tau1': f['HeaderData']['AcqParameters']['EDCATParameters']['posCoincidenceWindow'][0],
-            'tauP': f['HeaderData']['AcqParameters']['EDCATParameters']['coincTimingPrecision'][0],
-            'TOFC': f['HeaderData']['AcqParameters']['RxScanParameters']['tofCompressionFactor'][0],
-            'LLD': f['HeaderData']['AcqParameters']['EDCATParameters']['lower_energy_limit'][0],
-            'ULD': f['HeaderData']['AcqParameters']['EDCATParameters']['upper_energy_limit'][0],
-            'BPELM': bpe}
+            'toff': 4255,
+            'Deff': 64.05999755859375,
+            'TFOV': 60,
+            'cpitch': 0.01259,
+            'bpitch': 0.02296,
+            'AXBGAP' : 0.27999999523162844,
+            'AXCGAP' : 0.14999999999999999,
+            'TXBGAP' : 0.030000001192092896,
+            'TXCGAP' : 0.14999999999999999,
+            'exLOR': 3,
+            'AXCB': 9,
+            'AXBU': 1,
+            'AXUM': 5,
+            'AXMN': 1,
+            'TXCB': 4,
+            'TXBU': 4,
+            'TXUM': 1,
+            'TXMN': 28,
+            'MRDLM': 44,
+            'tau0': 175,
+            'tau1': 175,
+            'tauP': 0.01302,
+            'TOFC': 13,
+            'LLD': 425,
+            'ULD': 650,
+            'BPELM': 6}
+
     return CntH5
 
 
@@ -83,16 +115,12 @@ def get_nbins(Cnt):
 
 # ===================================================================================
 # SCANNER CONSTANTS
-def get_sig_constants(pthfn):
+def get_sig_constants(hf5=None):
 
 
     Cnt = resources.get_sig_constants()
 
-    if not os.path.isfile(pthfn):
-        print('e> could not open the file HDF5 to get SIGNA constants')
-        return
-
-    Cnth5 = constants_h5(pthfn)
+    Cnth5 = constants_h5(hf5)
 
     Cnt.update(Cnth5)
 
