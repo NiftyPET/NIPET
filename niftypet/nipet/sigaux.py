@@ -485,18 +485,10 @@ def get_txLUT(Cnt, visualisation=False):
 
 
 
-
-
-
-
-
-
-
-
-def init_sig(pthfn):
+def init_sig(fh5=None):
 
     # get the constants for the Signa
-    Cnt = get_sig_constants(pthfn)
+    Cnt = get_sig_constants(fh5)
 
     # transaxial look up tables
     txLUT = get_txLUT(Cnt)
