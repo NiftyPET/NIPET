@@ -30,7 +30,7 @@ __global__ void imReduce(float *imr, float *im, int vz0, int nvz) {
 //===============================================================
 
 //**************** DIRECT ***********************************
-__global__ void bprj_drct(const float *sino, float *im, const float *tt, const unsigned char *tv,
+__global__ void bprj_drct(const float *sino, float *im, const tt_type *tt, const unsigned char *tv,
                           const int *subs, const short snno) {
   int ixt = subs[blockIdx.x]; // transaxial indx
   int ixz = threadIdx.x;      // axial (z)
@@ -44,7 +44,6 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
   //   printf("\n*** li2rng[ixz] = %f | z = %f | w = %d", c_li2rng[ixz].x, z, w);
   // }
 
-
   //-------------------------------------------------
   /*** accumulation ***/
   // vector a (at) component signs
@@ -52,27 +51,28 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
   int sgna1 = tv[N_TV * ixt + 1] - 1;
   bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-  int u = (int)tt[N_TT * ixt + 8];
-  int v = (u >> UV_SHFT);
-  int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
+  short u = tt[ixt].u;
+  short v = tt[ixt].v;
+  int uv = SZ_IMZ * (u + SZ_IMX * v);
+
   // next voxel (skipping the first fractional one)
   uv += !rbit * sgna0 * SZ_IMZ;
   uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
 
-  float dtr = tt[N_TT * ixt + 2];
-  float dtc = tt[N_TT * ixt + 3];
+  float dtr = tt[ixt].dtr;
+  float dtc = tt[ixt].dtc;
 
-  float trc = tt[N_TT * ixt] + rbit * dtr;
-  float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
+  float trc = tt[ixt].trc + rbit * dtr;
+  float tcc = tt[ixt].tcc +!rbit * dtc;
   rbit = tv[N_TV * ixt + 3] & 0x01;
 
   float tn = trc * rbit + tcc * !rbit; // next t
-  float tp = tt[N_TT * ixt + 5];       // previous t
+  float tp = tt[ixt].tp;               // previous t
 
   float lt;
   //-------------------------------------------------
 
-  for (int k = 3; k < (int)tt[N_TT * ixt + 9]; k++) {
+  for (int k=3; k<tt[ixt].kn; k++) {
     lt = tn - tp;
 
     atomicAdd(&im[uv + w], lt * bin);
@@ -89,7 +89,7 @@ __global__ void bprj_drct(const float *sino, float *im, const float *tt, const u
 
 
 //************** OBLIQUE **************************************************
-__global__ void bprj_oblq(const float *sino, float *im, const float *tt, const unsigned char *tv,
+__global__ void bprj_oblq(const float *sino, float *im, const tt_type *tt, const unsigned char *tv,
                           const int *subs, const short snno, const int zoff, const short nil2r_c) {
 
   int ixz = threadIdx.x + zoff; // axial (z)
@@ -112,26 +112,28 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
     int sgna1 = tv[N_TV * ixt + 1] - 1;
     bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-    int u = (int)tt[N_TT * ixt + 8];
-    int v = (u >> UV_SHFT);
-    int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
+    short u = tt[ixt].u;
+    short v = tt[ixt].v;
+    int uv = SZ_IMZ * (u + SZ_IMX * v);
+
     // next voxel (skipping the first fractional one)
     uv += !rbit * sgna0 * SZ_IMZ;
     uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
+    
+    float dtr = tt[ixt].dtr;
+    float dtc = tt[ixt].dtc;
 
-    float dtr = tt[N_TT * ixt + 2];
-    float dtc = tt[N_TT * ixt + 3];
+    float trc = tt[ixt].trc + rbit * dtr;
+    float tcc = tt[ixt].tcc +!rbit * dtc;
 
-    float trc = tt[N_TT * ixt] + rbit * dtr;
-    float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
     rbit = tv[N_TV * ixt + 3] & 0x01;
 
     float tn = trc * rbit + tcc * !rbit; // next t
-    float tp = tt[N_TT * ixt + 5];       // previous t
+    float tp = tt[ixt].tp;       // previous t
     //--------------------------------------------------
 
     //**** AXIAL *****
-    float atn = tt[N_TT * ixt + 7];
+    float atn = tt[ixt].atn;
     float az = c_li2rng[ixz].y - c_li2rng[ixz].x;
     float az_atn = az / atn;
     float s_az_atn = sqrtf(az_atn * az_atn + 1);
@@ -150,7 +152,7 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
 
     z = c_li2rng[ixz].y + .5 * SZ_RING - az_atn * tp; // here was t1 = tt[N_TT*ixt+4]<<<<<<<<<
     int w_ = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
-    z = pz + az_atn * tt[N_TT * ixt + 6]; // t2
+    z = pz + az_atn * tt[ixt].t2; // t2
     float lz2 = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z)) * SZ_VOXZ - .5 * SZ_IMZ * SZ_VOXZ;
     int nz = fabsf(lz2 - lz1) / SZ_VOXZ; // rintf
     float tz1 = (lz1 - pz) / az_atn;     // first ray interaction with a row
@@ -162,7 +164,7 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
     // --- specific for GE scanner (parts of sinogram can be either + or -)
     short2 widx;
     //widx = make_short2(w, w_);
-    if (tt[N_TT * ixt + 4]>0.1){
+    if (tt[ixt].ssgn>0.1){
       widx = make_short2(w, w_);
     }
     else{
@@ -176,7 +178,7 @@ __global__ void bprj_oblq(const float *sino, float *im, const float *tt, const u
 
     float fr, lt;
 
-    for (int k = 3; k < tt[N_TT * ixt + 9]; k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
+    for (int k=3; k<tt[ixt].kn; k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
       lt = tn - tp;
       if ((tn - tzc) > 0) {
         fr = (tzc - tp) / lt;
@@ -231,8 +233,8 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
   HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
   HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
 
-  float *d_tt;
-  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
+  tt_type *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, AW * sizeof(tt_type)));
 
   unsigned char *d_tv;
   HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
@@ -270,10 +272,10 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
     nil2r_c = NLI2R;
   }
 
-  // voxels in axial direction
-  vz0 = 2 * Cnt.RNG_STRT;
-  vz1 = 2 * (Cnt.RNG_END - 1);
-  nvz = 2 * nrng_c - 1;
+  // voxels in axial direction (to accounting for the variable AFOV)
+  vz0 = (int)Cnt.ZOOM * (2 * Cnt.RNG_STRT);
+  vz1 = (int)Cnt.ZOOM * (2 * (Cnt.RNG_END - 1));
+  nvz = (int)Cnt.ZOOM * (2 * nrng_c - 1);
   if (Cnt.LOG <= LOGDEBUG) {
     printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT,
            Cnt.RNG_END, snno);

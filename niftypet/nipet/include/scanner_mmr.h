@@ -54,8 +54,8 @@
 #define TA1 0.7885139f  // angle threshold 1 for Siddon calculations ~ PI/4
 #define TA2 -0.7822831f // angle threshold 2 for Siddon calculations ~-PI/4
 #define N_TV 1807       // 907    // max number of voxels intersections with a ray (t)
-#define N_TT 10   // number of constants pre-calculated and saved for proper axial calculations
-#define UV_SHFT 9 // shift when representing 2 voxel indx in one float variable
+//#define N_TT 10   // number of constants pre-calculated and saved for proper axial calculations
+//#define UV_SHFT 9 // shift when representing 2 voxel indx in one float variable
 
 
 // structure for constants passed from Python

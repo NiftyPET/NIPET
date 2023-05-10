@@ -187,8 +187,8 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
   HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
   HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
 
-  float *d_tt;
-  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
+  tt_type *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, AW * sizeof(tt_type)));
 
   unsigned char *d_tv;
   HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));
@@ -198,7 +198,7 @@ static PyObject *trnx_prj(PyObject *self, PyObject *args) {
   gpu_siddon_tx(Cnt.TFOV2, d_crs, d_s2c, d_tt, d_tv);
   //--------------------------------------------------------------------------
 
-  HANDLE_ERROR(cudaMemcpy(tt, d_tt, N_TT * AW * sizeof(float), cudaMemcpyDeviceToHost));
+  HANDLE_ERROR(cudaMemcpy(tt, d_tt, AW * sizeof(tt_type), cudaMemcpyDeviceToHost));
   HANDLE_ERROR(cudaMemcpy(tv, d_tv, N_TV * AW * sizeof(unsigned char), cudaMemcpyDeviceToHost));
 
   // CUDA END-----------------------------------------------------------------
@@ -281,8 +281,9 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
   PyObject *pd_tfov2 = PyDict_GetItemString(o_sigcnst, "TFOV2");
   Cnt.TFOV2 = (float)PyFloat_AsDouble(pd_tfov2);
-
-
+  PyObject *pd_zoom = PyDict_GetItemString(o_sigcnst, "zoom");
+  Cnt.ZOOM = (float)PyFloat_AsDouble(pd_zoom);
+  
 
   /* Interpret the input objects as numpy arrays. */
   // axial LUTs:
@@ -447,6 +448,8 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
   PyObject *pd_tfov2 = PyDict_GetItemString(o_sigcnst, "TFOV2");
   Cnt.TFOV2 = (float)PyFloat_AsDouble(pd_tfov2);
+  PyObject *pd_zoom = PyDict_GetItemString(o_sigcnst, "zoom");
+  Cnt.ZOOM = (float)PyFloat_AsDouble(pd_zoom);
 
   /* Interpret the input objects as numpy arrays. */
   // axial LUTs:

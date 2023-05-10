@@ -56,8 +56,6 @@
 #define TA1 0.7885139f  // angle threshold 1 for Siddon calculations ~ PI/4
 #define TA2 -0.7822831f // angle threshold 2 for Siddon calculations ~-PI/4
 #define N_TV 1807       // 907    // max number of voxels intersections with a ray (t)
-#define N_TT 10   // number of constants pre-calculated and saved for proper axial calculations
-#define UV_SHFT 9 // shift when representing 2 voxel indx in one float variable
 //------------------
 
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
@@ -65,17 +63,15 @@
 // IMAGE SIZE
 // SZ_I* are image sizes
 // SZ_V* are voxel sizes
-#define SZ_IMX 288
-#define SZ_IMY 288
-#define SZ_IMZ 89
+#define SZ_IMX 576
+#define SZ_IMY 576
+#define SZ_IMZ 178
+#define SZ_VOXY 0.1041665f
+#define SZ_VOXZ 0.139f
+#define SZ_VOXZi 7.194245f
 #define RSZ_PSF_KRNL 8
-#define SZ_VOXY 0.208333f
-#define SZ_VOXZ 0.278000f
-#define SZ_VOXZi 3.597122f
 //## end ##//
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
-
-
 
 
 // structure for constants passed from Python
@@ -127,6 +123,8 @@ struct Cnst {
   float SIGMA_RM; // resolution modelling sigma
 
   float ETHRLD;
+
+  float ZOOM; // zoom for changing the voxel size and dimensions
 };
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 

@@ -317,13 +317,9 @@ void d_elmsk(float *d_inA, float *d_inB, bool *d_msk, int length) {
 
 void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float *ssng, float *nsng,
           float *asng,
-
           int *subs,
-
           float *sensimg, float *krnl,
-
           float *li2rng, short *li2sn, char *li2nos, short *s2c, float *crs,
-
           int Nsub, int Nprj, int N0crs, Cnst Cnt) {
 
   int dev_id;
@@ -339,8 +335,8 @@ void osem(float *imgout, bool *rncmsk, unsigned short *psng, float *rsng, float 
   HANDLE_ERROR(cudaMalloc(&d_s2c, AW * sizeof(short2)));
   HANDLE_ERROR(cudaMemcpy(d_s2c, s2c, AW * sizeof(short2), cudaMemcpyHostToDevice));
 
-  float *d_tt;
-  HANDLE_ERROR(cudaMalloc(&d_tt, N_TT * AW * sizeof(float)));
+  tt_type *d_tt;
+  HANDLE_ERROR(cudaMalloc(&d_tt, AW * sizeof(tt_type)));
 
   unsigned char *d_tv;
   HANDLE_ERROR(cudaMalloc(&d_tv, N_TV * AW * sizeof(unsigned char)));

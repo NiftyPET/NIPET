@@ -25,13 +25,9 @@
 
 void osem(float *imgout, bool *rcnmsk, unsigned short *psng, float *rsng, float *ssng, float *nsng,
           float *asng,
-
           int *subs,
-
           float *sensimg, float *krnl,
-
           float *li2rng, short *li2sn, char *li2nos, short *s2c, float *crs,
-
           int Nsub, int Nprj, int N0crs, Cnst Cnt);
 
 #endif // _NIPET_RECON_H_

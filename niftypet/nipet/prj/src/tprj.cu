@@ -10,7 +10,7 @@ Copyrights: 2020
 #include "tprj.h"
 
 /*************** TRANSAXIAL FWD/BCK *****************/
-__global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigned char *tv) {
+__global__ void sddn_tx(const float4 *crs, const short2 *s2c, tt_type *tt, unsigned char *tv) {
   // indexing along the transaxial part of projection space
   // (angle fast changing)
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -156,22 +156,22 @@ __global__ void sddn_tx(const float4 *crs, const short2 *s2c, float *tt, unsigne
       }
     }
 
-    tt[N_TT * idx] = tr1;
-    tt[N_TT * idx + 1] = tc1;
-    tt[N_TT * idx + 2] = dtr;
-    tt[N_TT * idx + 3] = dtc;
-    tt[N_TT * idx + 4] = t1;
-    tt[N_TT * idx + 5] = fminf(tr1, tc1);
-    tt[N_TT * idx + 6] = t2;
-    tt[N_TT * idx + 7] = atn;
-    tt[N_TT * idx + 8] = u + (v << UV_SHFT);
-    tt[N_TT * idx + 9] = k; // note: the first two are used for signs
-                            /***************************************************************/
-                            // tsino[idx] = dtc;
+    tt[idx].trc = tr1;
+    tt[idx].tcc = tc1;
+    tt[idx].dtr = dtr;
+    tt[idx].dtc = dtc;
+    tt[idx].t1  = t1;
+    tt[idx].tp  = fminf(tr1, tc1);
+    tt[idx].t2  = t2;
+    tt[idx].atn = atn;
+    tt[idx].kn  = k; // note: the first two are used for signs
+    tt[idx].u   = u;
+    tt[idx].v   = v;
+    // tsino[idx] = dtc;
   }
 }
 
-void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, float *d_tt, unsigned char *d_tv) {
+void gpu_siddon_tx(float4 *d_crs, short2 *d_s2c, tt_type *d_tt, unsigned char *d_tv) {
 
   //============================================================================
   // printf("i> calculating transaxial SIDDON weights...");

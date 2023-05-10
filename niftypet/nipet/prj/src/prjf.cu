@@ -30,9 +30,9 @@ __global__ void imExpand(float *im, float *imr, int vz0, int nvz) {
 //===============================================================
 
 //**************** DIRECT ***********************************
-__global__ void fprj_drct(float *sino, const float *im, const float *tt, const unsigned char *tv,
+__global__ void fprj_drct(float *sino, const float *im, const tt_type *tt, const unsigned char *tv,
                           const int *subs, const short snno, const char span, const char att) {
-  int ixt = subs[blockIdx.x]; // transaxial indx
+  int ixt = subs[blockIdx.x]; // transaxial index
   int ixz = threadIdx.x;      // axial (z)
 
   float z = c_li2rng[ixz].x + .5 * SZ_RING;
@@ -50,9 +50,9 @@ __global__ void fprj_drct(float *sino, const float *im, const float *tt, const u
   int sgna1 = tv[N_TV * ixt + 1] - 1;
   bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-  int u = (int)tt[N_TT * ixt + 8];
-  int v = (u >> UV_SHFT);
-  int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
+  short u = tt[ixt].u;
+  short v = tt[ixt].v;
+  int uv = SZ_IMZ * (u + SZ_IMX * v);
 
   // if((ixz==0) && (u>SZ_IMX || v>SZ_IMY)) printf("\n!!! u,v = %d,%d\n", u,v );
 
@@ -60,20 +60,20 @@ __global__ void fprj_drct(float *sino, const float *im, const float *tt, const u
   uv += !rbit * sgna0 * SZ_IMZ;
   uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
 
-  float dtr = tt[N_TT * ixt + 2];
-  float dtc = tt[N_TT * ixt + 3];
+  float dtr = tt[ixt].dtr;
+  float dtc = tt[ixt].dtc;
 
-  float trc = tt[N_TT * ixt] + rbit * dtr;
-  float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
+  float trc = tt[ixt].trc + rbit * dtr;
+  float tcc = tt[ixt].tcc +!rbit * dtc;
   rbit = tv[N_TV * ixt + 3] & 0x01;
 
-  float tn = trc * rbit + tcc * !rbit; // next t
-  float tp = tt[N_TT * ixt + 5];       // previous t
+  float tn = trc * rbit + tcc * !rbit;  // next t
+  float tp = tt[ixt].tp;                // previous t
 
   float lt, acc = 0;
   //-------------------------------------------------
 
-  for (int k = 3; k < (int)tt[N_TT * ixt + 9]; k++) { //<<<< k=3, was k=2
+  for (int k=3; k<tt[ixt].kn; k++) {
     lt = tn - tp;
     acc += lt * im[w + uv];
     trc += dtr * rbit;
@@ -95,7 +95,7 @@ __global__ void fprj_drct(float *sino, const float *im, const float *tt, const u
 }
 
 //************** OBLIQUE **************************************************
-__global__ void fprj_oblq(float *sino, const float *im, const float *tt, const unsigned char *tv,
+__global__ void fprj_oblq(float *sino, const float *im, const tt_type *tt, const unsigned char *tv,
                           const int *subs, const short snno, const char span, const char att,
                           const int zoff, const short nil2r_c) {
   int ixz = threadIdx.x + zoff; // axial (z)
@@ -114,26 +114,27 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
     int sgna1 = tv[N_TV * ixt + 1] - 1;
     bool rbit = tv[N_TV * ixt + 2] & 0x01; // row bit
 
-    int u = (int)tt[N_TT * ixt + 8];
-    int v = (u >> UV_SHFT);
-    int uv = SZ_IMZ * ((u & 0x000001ff) + SZ_IMX * v);
+    short u = tt[ixt].u;
+    short v = tt[ixt].v;
+    int uv = SZ_IMZ * (u + SZ_IMX * v);
+
     // next voxel (skipping the first fractional one)
     uv += !rbit * sgna0 * SZ_IMZ;
     uv -= rbit * sgna1 * SZ_IMZ * SZ_IMX;
 
-    float dtr = tt[N_TT * ixt + 2];
-    float dtc = tt[N_TT * ixt + 3];
+    float dtr = tt[ixt].dtr;
+    float dtc = tt[ixt].dtc;
 
-    float trc = tt[N_TT * ixt] + rbit * dtr;
-    float tcc = tt[N_TT * ixt + 1] + dtc * !rbit;
+    float trc = tt[ixt].trc + rbit * dtr;
+    float tcc = tt[ixt].tcc +!rbit * dtc;
     rbit = tv[N_TV * ixt + 3] & 0x01;
 
     float tn = trc * rbit + tcc * !rbit; // next t
-    float tp = tt[N_TT * ixt + 5];       // previous t
-                                         //--------------------------------------------------
+    float tp = tt[ixt].tp;               // previous t
+    //--------------------------------------------------
 
     //**** AXIAL *****
-    float atn = tt[N_TT * ixt + 7];
+    float atn = tt[ixt].atn;
     float az = c_li2rng[ixz].y - c_li2rng[ixz].x;
     float az_atn = az / atn;
     float s_az_atn = sqrtf(az_atn * az_atn + 1);
@@ -151,7 +152,7 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
 
     z = c_li2rng[ixz].y + .5 * SZ_RING - az_atn * tp; // here was t1 = tt[N_TT*ixt+4]<<<<<<<<<
     int w_ = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z));
-    z = pz + az_atn * tt[N_TT * ixt + 6]; // t2
+    z = pz + az_atn * tt[ixt].t2; // t2
     float lz2 = (floorf(.5 * SZ_IMZ + SZ_VOXZi * z)) * SZ_VOXZ - .5 * SZ_IMZ * SZ_VOXZ;
     int nz = fabsf(lz2 - lz1) / SZ_VOXZ; // rintf
     float tz1 = (lz1 - pz) / az_atn;     // first ray interaction with a row
@@ -161,8 +162,7 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
     //****************
 
     float fr, lt, acc = 0, acc_ = 0;
-    for (int k = 3; k < tt[N_TT * ixt + 9];
-         k++) { //<<< k=3 as 0 and 1 are for sign and 2 is skipped
+    for (int k=3; k<tt[ixt].kn; k++) { //k=3 as 0 and 1 are for sign and 2 is skipped
       lt = tn - tp;
       if ((tn - tzc) > 0) {
         fr = (tzc - tp) / lt;
@@ -207,7 +207,7 @@ __global__ void fprj_oblq(float *sino, const float *im, const float *tt, const u
 
 //--------------------------------------------------------------------------------------------------
 void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2nos, short2 *d_s2c,
-              int *aw2ali, float4 *d_crs, int *d_subs, float *d_tt, unsigned char *d_tv, int Nprj,
+              int *aw2ali, float4 *d_crs, int *d_subs, tt_type *d_tt, unsigned char *d_tv, int Nprj,
               int Naw, Cnst Cnt, char att, bool _sync) {
   int dev_id;
   cudaGetDevice(&dev_id);
@@ -321,11 +321,8 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
 
 //=======================================================================
 void rec_fprj(float *d_sino, float *d_img, int *d_sub, int Nprj,
-
-              float *d_tt, unsigned char *d_tv,
-
+              tt_type *d_tt, unsigned char *d_tv,
               float *li2rng, short *li2sn, char *li2nos,
-
               Cnst Cnt)
 
 {

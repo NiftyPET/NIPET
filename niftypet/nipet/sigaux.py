@@ -510,7 +510,7 @@ def get_cylinder(Cnt, rad=25, xo=0, yo=0, unival=1, gpu_dim=False, mask=True, tw
 
     imdsk = np.zeros((1, Cnt['SZ_IMX'], Cnt['SZ_IMY']), dtype=np.float32)
     
-    for t in np.arange(0, math.pi, math.pi/(2*360)):
+    for t in np.arange(0, math.pi, math.pi/(int(Cnt['SZ_IMX']/100)*360)):
         x = xo+rad*math.cos(t)
         y = yo+rad*math.sin(t)
         yf = np.arange(-y+2*yo, y, Cnt['SZ_VOXY']/2)
