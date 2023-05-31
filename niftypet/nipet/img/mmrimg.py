@@ -120,7 +120,7 @@ def image_affine(datain, Cnt, gantry_offset=False):
 
 def getmu_off(mu, Cnt, Offst=OFFSET_DEFAULT):
 
-    # phange the shape to 3D
+    # change the shape to 3D
     mu.shape = (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX'])
 
     # -------------------------------------------------------------------------
@@ -130,19 +130,19 @@ def getmu_off(mu, Cnt, Offst=OFFSET_DEFAULT):
         'VXSOx': 0.208626, 'VXSOy': 0.208626, 'VXSOz': 0.203125, 'VXNOx': 344, 'VXNOy': 344,
         'VXNOz': 127, 'VXSRx': 0.208626, 'VXSRy': 0.208626, 'VXSRz': 0.203125, 'VXNRx': 344,
         'VXNRy': 344, 'VXNRz': 127}
-    # priginal image offset
+    # original image offset
     Cim['OFFOx'] = -0.5 * Cim['VXNOx'] * Cim['VXSOx']
     Cim['OFFOy'] = -0.5 * Cim['VXNOy'] * Cim['VXSOy']
     Cim['OFFOz'] = -0.5 * Cim['VXNOz'] * Cim['VXSOz']
-    # pesampled image offset
+    # resampled image offset
     Cim['OFFRx'] = -0.5 * Cim['VXNRx'] * Cim['VXSRx']
     Cim['OFFRy'] = -0.5 * Cim['VXNRy'] * Cim['VXSRy']
     Cim['OFFRz'] = -0.5 * Cim['VXNRz'] * Cim['VXSRz']
-    # pransformation matrix
+    # transformation matrix
     A = np.array(
         [[1., 0., 0., Offst[0]], [0., 1., 0., Offst[1]], [0., 0., 1., Offst[2]], [0., 0., 0., 1.]],
         dtype=np.float32)
-    # ppply the gantry offset to the mu-map
+    # apply the gantry offset to the mu-map
     mur = nimpa.prc.improc.resample(mu, A, Cim)
     return mur
 
@@ -176,27 +176,27 @@ def getinterfile_off(fmu, Cnt, Offst=OFFSET_DEFAULT):
 
 def getinterfile(fim, Cnt):
     '''Return the floating point image file in an array from an Interfile file.'''
-    # pead the image file
+    # read the image file
     f = open(fim, 'rb')
     im = np.fromfile(f, np.float32)
     f.close()
 
-    # pumber of voxels
+    # number of voxels
     nvx = im.shape[0]
-    # phange the shape to 3D
+    # change the shape to 3D
     im.shape = (Cnt['SO_IMZ'], Cnt['SO_IMY'], Cnt['SO_IMX'])
 
     # pet the basic stats
     immax = np.max(im)
     immin = np.min(im)
 
-    # pumber of voxels greater than 10% of max image value
+    # number of voxels greater than 10% of max image value
     n10mx = np.sum(im > 0.1 * immax)
 
-    # peorganise the image for optimal gpu execution
+    # reorganise the image for optimal gpu execution
     im_sqzd = convert2dev(im, Cnt)
 
-    # peturn image dictionary with the image itself and some other stats
+    # return image dictionary with the image itself and some other stats
     im_dct = {'im': im, 'ims': im_sqzd, 'max': immax, 'min': immin, 'nvx': nvx, 'n10mx': n10mx}
 
     return im_dct
@@ -610,9 +610,9 @@ def align_mumap(
                     smor=0,
                     rmsk=True,
                     fmsk=True,
-                    rfwhm=15.,                                           # pillilitres
+                    rfwhm=15.,                                           # millilitres
                     rthrsh=0.05,
-                    ffwhm=15.,                                           # pillilitres
+                    ffwhm=15.,                                           # millilitres
                     fthrsh=0.05,
                     verbose=verbose)
 

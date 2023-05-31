@@ -36,7 +36,4 @@
 // # CUDA streams
 #define NSTREAMS 32 
 
-// coincidence time window in pico-seconds
-//#define CWND = 5859.38
-
 #endif // end of _DEF_H_

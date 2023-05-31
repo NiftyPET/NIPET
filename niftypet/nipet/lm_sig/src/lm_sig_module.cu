@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-CUDA C extention for Python
+CUDA C extension for Python
 Provides functionality for list-mode data processing including histogramming
 QC and random estimation.
 
