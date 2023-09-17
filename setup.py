@@ -43,6 +43,11 @@ def chck_vox_h(Cnt):
     elif Cnt['NRNG']==64:
         fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_mmr.h"
 
+    elif Cnt['NRNG']==80:
+        fpth = path_current / "niftypet" / "nipet" / "include" / "scanner_inv.h"
+        # > for Inveon remove TFOV2 as this is now passed as value
+        cnt_list.pop(3)
+
     
     def_h = fpth.read_text()
     # get the region of keeping in synch with Python
@@ -149,6 +154,9 @@ def check_constants():
     Cnt = resources.get_sig_constants()
     def_compile_sig = chck_vox_h(Cnt)
 
+    Cnt = resources.get_inv_constants()
+    def_compile_inv = chck_vox_h(Cnt)
+
     
     if sct_compile_mmr or def_compile_mmr or def_compile_sig:
         txt = "NiftyPET constants were changed: needs CUDA (re)compilation."
@@ -161,10 +169,11 @@ def check_constants():
             changed sct.h: {}
             changed scanner_mmr.h: {}
             changed scanner_sig.h: {}
+            changed scanner_inv.h: {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             {}
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~""").format(
-            sct_compile_mmr, def_compile_mmr, def_compile_sig, txt))
+            sct_compile_mmr, def_compile_mmr, def_compile_sig, def_compile_inv, txt))
 
 
 cs.resources_setup(gpu=False) # install resources.py

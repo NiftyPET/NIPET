@@ -80,6 +80,9 @@ def hist(
     itag = 0
     LMX = 25600
 
+    # > assume time mark starting from 0
+    tmrk = 0
+
 
     maxr = 0
 

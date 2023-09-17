@@ -91,6 +91,12 @@ from .lm_syn.synhist import synhist
 
 from .prj_syn import prjsyn, prj_syn
 
+# > Siemens Inveon
+from . import invaux
+from .invaux import get_invpars
+from .lm_inv import hist_inv
+from .prj_inv import prjinv, prj_inv
+
 
 # for use in `cmake -DCMAKE_PREFIX_PATH=...`
 cmake_prefix = resource_filename(__name__, "cmake")
