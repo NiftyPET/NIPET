@@ -100,26 +100,21 @@ def axial_lut(Cnt):
         z += Cnt['AXR']
         rng[i, 1] = z
 
-    # > sinogram segments
+    # > sinogram segments, with min and max ring differences and number of sinograms
     if Cnt['SPN']>1:
         SPN = Cnt['SPN']
         MNRD = [-(SPN//2),]
         MXRD = [SPN//2,]
+        SEG = [2*NRNG-1,]
         for i in range(SPN//2+1, NRNG, SPN):
+            if i>Cnt['MRD']: break
+            
             s = 2*(NRNG-i)-1
 
-            if i>Cnt['MRD']: break
-
-            MNRD.append(-i-(SPN-1))
-            MXRD.append(-i)
-
-            MNRD.append(i)
-            MXRD.append(i+(SPN-1))
-                
+            MNRD += [-i-(SPN-1), i]
+            MXRD += [-i, i+(SPN-1)]
+            SEG += [s,s]
             #print(2*s, i, (i+2))
-
-        Cnt['MNRD'] = np.array(MNRD)
-        Cnt['MXRD'] = np.array(MXRD)
 
     #---------------------------------------------------------------------
     # > Michelogram for single slice rebinning
@@ -206,14 +201,13 @@ def axial_lut(Cnt):
 
     li2nos = np.ones((NLI2R), dtype=np.int8)
 
-    return {'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
+    log.debug('axial LUTs done.')
+
+    return {'SEG':np.array(SEG), 'MNRD':np.array(MNRD), 'MXRD':np.array(MXRD)
+            'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
             'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn, 'li2rng':li2rng, 
             'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno
             }
-
-    log.debug('axial LUTs done.')
-
-    return axLUT
 
 
 #====================================================================
