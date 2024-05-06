@@ -100,7 +100,7 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
     # predefine the sinogram.
     # if subsets are used then only preallocate those bins which will be used.
     if isub[0] < 0:
-        out_shape = txLUT['Naw'], nsinos
+        out_shape = txLUT['NAW'], nsinos
     else:
         out_shape = len(isub), nsinos
 
