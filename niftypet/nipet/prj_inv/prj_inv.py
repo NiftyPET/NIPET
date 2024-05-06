@@ -123,7 +123,8 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
 
     # put the gaps back to form displayable sinogram
     if not dev_out and fullsino_out:
-        sino = mmraux.putgaps(sino, txLUT, Cnt)
+        sino = np.reshape(sino, (Cnt['NSBINS'], Cnt['NSANGLES'], nsinos))
+        sino = np.transpose(sino, (2,1,0))
 
     return sino
 

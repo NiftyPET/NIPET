@@ -100,7 +100,26 @@ def axial_lut(Cnt):
         z += Cnt['AXR']
         rng[i, 1] = z
 
+    # > sinogram segments
+    if Cnt['SPN']>1:
+        SPN = Cnt['SPN']
+        MNRD = [-(SPN//2),]
+        MXRD = [SPN//2,]
+        for i in range(SPN//2+1, NRNG, SPN):
+            s = 2*(NRNG-i)-1
 
+            if i>Cnt['MRD']: break
+
+            MNRD.append(-i-(SPN-1))
+            MXRD.append(-i)
+
+            MNRD.append(i)
+            MXRD.append(i+(SPN-1))
+                
+            #print(2*s, i, (i+2))
+
+        Cnt['MNRD'] = np.array(MNRD)
+        Cnt['MXRD'] = np.array(MXRD)
 
     #---------------------------------------------------------------------
     # > Michelogram for single slice rebinning
