@@ -34,13 +34,14 @@ def fwhm2sig(fwhm):
 
 
 #====================================================================
-def get_invpars():
+def get_invpars(Cnt=None):
     """
         get all scanner parameters in one dictionary
     """
 
-    # > get the constants for the mMR
-    Cnt = resources.get_inv_constants()
+    # > get the constants for the Inveon if not already given
+    if not Cnt:
+        Cnt = resources.get_inv_constants()
     
     # > transaxial look-up tables
     txLUT = transaxial_lut(Cnt)
@@ -215,7 +216,7 @@ def axial_lut(Cnt):
             'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn, 'li2rng':li2rng, 
             'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno
             })
-    
+
     return axlut
 
 
