@@ -77,6 +77,11 @@ def axial_lut(Cnt):
     ''' Creates lookup tables (LUT) for linear indexes along the diagonals of Michelogram
     for calculations done on GPU.
     '''
+
+    # > output dictionary
+    axlut = {}
+
+    # > number of rings
     NRNG = Cnt['NRNG']
 
     if Cnt['SPN'] == 1:
@@ -115,6 +120,9 @@ def axial_lut(Cnt):
             MXRD += [-i, i+(SPN-1)]
             SEG += [s,s]
             #print(2*s, i, (i+2))
+        axlut['MNRD'] = np.array(MNRD)
+        axlut['MXRD'] = np.array(MXRD)
+        axlut['SEG'] = np.array(SEG)
 
     #---------------------------------------------------------------------
     # > Michelogram for single slice rebinning
@@ -203,11 +211,12 @@ def axial_lut(Cnt):
 
     log.debug('axial LUTs done.')
 
-    return {'SEG':np.array(SEG), 'MNRD':np.array(MNRD), 'MXRD':np.array(MXRD),
-            'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
+    axlut.update({'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
             'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn, 'li2rng':li2rng, 
             'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno
-            }
+            })
+    
+    return axlut
 
 
 #====================================================================
