@@ -203,7 +203,7 @@ def axial_lut(Cnt):
 
     log.debug('axial LUTs done.')
 
-    return {'SEG':np.array(SEG), 'MNRD':np.array(MNRD), 'MXRD':np.array(MXRD)
+    return {'SEG':np.array(SEG), 'MNRD':np.array(MNRD), 'MXRD':np.array(MXRD),
             'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
             'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn, 'li2rng':li2rng, 
             'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno
