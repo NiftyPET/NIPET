@@ -63,12 +63,12 @@
 // IMAGE SIZE
 // SZ_I* are image sizes
 // SZ_V* are voxel sizes
-#define SZ_IMX 576
-#define SZ_IMY 576
-#define SZ_IMZ 178
-#define SZ_VOXY 0.1041665f
-#define SZ_VOXZ 0.139f
-#define SZ_VOXZi 7.194245f
+#define SZ_IMX 288
+#define SZ_IMY 288
+#define SZ_IMZ 89
+#define SZ_VOXY 0.208333f
+#define SZ_VOXZ 0.278f
+#define SZ_VOXZi 3.597122f
 #define RSZ_PSF_KRNL 8
 //## end ##//
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>

@@ -52,9 +52,11 @@ def hist_inv(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stor
         log.debug('acquisition duration by integrating time tags is {} sec.'.format(nitag))
 
     elif os.path.isfile(datain['lm_bf']):
+
+        lmpth = str(datain['lm_bf'])
         
         # > gather info about the LM time tags
-        nele, ttags, tpos = lmproc_inv.lminfo(datain['lm_bf'], Cnt)
+        nele, ttags, tpos = lmproc_inv.lminfo(lmpth, Cnt)
 
         # > multiply time tags by 200 microsecond - the reported time increments in list data
         nitag = int((ttags[1] - ttags[0] + 999) / 1000)
@@ -98,7 +100,7 @@ def hist_inv(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stor
 
         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         # do the histogramming and processing
-        lmproc_inv.hist(hstout, datain['lm_bf'], t0, t1, txLUT, axLUT, Cnt)
+        lmproc_inv.hist(hstout, lmpth, t0, t1, txLUT, axLUT, Cnt)
         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
         if store:
