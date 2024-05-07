@@ -106,43 +106,85 @@ def axial_lut(Cnt):
         z += Cnt['AXR']
         rng[i, 1] = z
 
+    #=================== SPAN-X =====================
     # > sinogram segments, with min and max ring differences and number of sinograms
-    if Cnt['SPN']>1:
+    if Cnt['SPN'] not in [0,1,3]:
         SPN = Cnt['SPN']
-        MNRD = [-(SPN//2),]
-        MXRD = [SPN//2,]
-        SEG = [2*NRNG-1,]
-        for i in range(SPN//2+1, NRNG, SPN):
-            if i>Cnt['MRD']: break
-            
-            s = 2*(NRNG-i)-1
+    else:
+        SPN = 3
+    MNRD = [-(SPN//2),]
+    MXRD = [SPN//2,]
+    SEG = [2*NRNG-1,]
+    for i in range(SPN//2+1, NRNG, SPN):
+        if i>Cnt['MRD']: break
+        
+        s = 2*(NRNG-i)-1
 
-            MNRD += [-i-(SPN-1), i]
-            MXRD += [-i, i+(SPN-1)]
-            SEG += [s,s]
-            #print(2*s, i, (i+2))
-        axlut['MNRD'] = np.array(MNRD)
-        axlut['MXRD'] = np.array(MXRD)
-        axlut['SEG'] = np.array(SEG)
+        MNRD += [-i-(SPN-1), i]
+        MXRD += [-i, i+(SPN-1)]
+        SEG += [s,s]
+        #print(2*s, i, (i+2))
+    axlut['MNRD'] = np.array(MNRD)
+    axlut['MXRD'] = np.array(MXRD)
+    axlut['SEG'] = np.array(SEG)
 
-    #---------------------------------------------------------------------
-    # > Michelogram for single slice rebinning
-    # > (absolute axial position for individual sinos) 
-    Mssrb = -1*np.ones((NRNG,NRNG), dtype=np.int16)
-    for r1 in range(NRNG):
-        for r0 in range(NRNG):
-            ssp = r0+r1  #segment sino position
-            Mssrb[r1,r0] = ssp 
+    # > create mapping from ring difference to segment number
+    # > starting with the ring difference range
+    rd = list(range(-Cnt['MRD'], Cnt['MRD'] + 1))
+    # ring difference to segment
+    rd2sg = -1 * np.ones((len(rd), 2), dtype=np.int32)
+    for i in range(len(rd)):
+        for iseg in range(len(axLUT['MNRD'])):
+            if (rd[i] >= axLUT['MNRD'][iseg]) and (rd[i] <= axLUT['MXRD'][iseg]):
+                rd2sg[i, :] = np.array([rd[i], iseg])
 
-    #---------------------------------------------------------------------
-    # Michelogram for span-1 sino
-    Msn = -1*np.ones((NRNG,NRNG), dtype=np.int16)
-    # sino index -> ring index
-    sn_rno = np.zeros((Cnt['NSN1'],2), dtype=np.int16)
-    sn_ssrb= np.zeros((Cnt['NSN1']), dtype=np.int16)
-    # full sinogram linear index, upto NRNG**2
+    # > create two Michelograms for segments (Mseg) in chosen the span 
+    # > (default 3) and the absolute axial position for individual 
+    # > sinograms (Mssrb) which is the single slice rebinning
+    Mssrb = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    Mseg = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    for r1 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
+        for r0 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
+            if abs(r1 - r0) > Cnt['MRD']:
+                continue
+            ssp = r0 + r1       # segment sino position (axially: 0-2*R-1)
+            rd = r1 - r0
+            jseg = rd2sg[rd2sg[:, 0] == rd, 1][0]
+            Mssrb[r1, r0] = ssp
+            Mseg[r1, r0] = jseg # negative segments are on top diagonals
+
+
+    # > create a Michelogram matrix: rings to sino number in span-3
+    Msn = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+
+    # > number of span-1 sinos per sino in the chosen span (default 3)
+    Mnos = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    i = 0
+    for iseg in range(0, len(axLUT['SEG'])):
+        msk = (Mseg == iseg)
+        Mtmp = np.copy(Mssrb)
+        Mtmp[~msk] = -1
+        uq = np.unique(Mtmp[msk])
+        for u in range(0, len(uq)):
+            # print(i)
+            Msn[Mtmp == uq[u]] = i
+            Mnos[Mtmp == uq[u]] = np.sum(Mtmp == uq[u])
+            i += 1
+
+    axlut['M'] = {'Msn':Msn, 'Mnos':Mnos}
+    #=================== SPAN-X =====================
+    
+
+    #=================== SPAN-1 =====================
+    # > Michelogram for span-1 sino
+    Msn1 = -1*np.ones((NRNG,NRNG), dtype=np.int16)
+    # > sino index -> ring index
+    sn1_rno = np.zeros((Cnt['NSN1'],2), dtype=np.int16)
+    sn1_ssrb= np.zeros((Cnt['NSN1']), dtype=np.int16)
+    sn1_sn3 = np.zeros((Cnt['NSN1']), dtype=np.int16)
+    # > full sinogram linear index, upto NRNG**2
     sni = 0 
-    # go through all ring permutations
+    # > go through all ring permutations
     for ro in range(0,NRNG):
         if ro==0:
             oblique = 1
@@ -152,69 +194,88 @@ def axial_lut(Cnt):
             strt = NRNG*ro
             stop = NRNG*NRNG
             step = NRNG+1
-            #goes along a diagonal started in the first row at r1
+            # > goes along a diagonal started in the first row at r1
             for li in range(strt, stop, step): 
                 #linear indexes of Michelogram --> subscript indexes for positive and negative RDs
                 if m==0:
                     r1 = int(li/NRNG)
                     r0 = int(li - r1*NRNG)
                 else: 
-                    #for positive now (? or vice versa)
+                    # >for positive now (? or vice versa)
                     r0 = int(li/NRNG)
                     r1 = int(li - r0*NRNG)
-                sn_rno[sni,0] = r0
-                sn_rno[sni,1] = r1
-                sn_ssrb[sni] = Mssrb[r1,r0]
-                Msn[r0,r1] = sni
+                sn1_rno[sni,0] = r0
+                sn1_rno[sni,1] = r1
+                sn1_ssrb[sni] = Mssrb[r1,r0]
+                sn1_sn3[sni]  = Msn[r0, r1]
+                Msn1[r0,r1] = sni
                 #--
                 sni += 1
 
-    # ring numbers for span-1 sino index to SSRB
+    # > ring numbers for span-1 sino index to SSRB
     sn_ssrno = np.zeros(Cnt['NSEG0'], dtype=np.int8)
     for i in range(Cnt['NSN1']):
-        sn_ssrno[sn_ssrb[i]] += 1
-    sn_ssrno  =  sn_ssrno[np.unique(sn_ssrb)]
- 
+        sn_ssrno[sn1_ssrb[i]] += 1
+    sn_ssrno  =  sn_ssrno[np.unique(sn1_ssrb)]
+
+    axlut['M']['Msn1'] = Msn1
+    #=================== SPAN-1 =====================
+
 
     #---------------------------------------------------------------------
-    #linear index (along diagonals of Michelogram) to rings
+    # > linear index (along diagonals of Michelogram) to rings
+    # > the number of Michelogram elements considered in projection calculations
+
     NLI2R = int(NRNG**2/2 + NRNG/2)
+
+    # > linear index -> ring indices
     li2r   = np.zeros((NLI2R,2), dtype=np.int8)
+
+    # > linear index -> sinogram in span-x (default 3) index
     li2sn  = np.zeros((NLI2R,2), dtype=np.int16)
+
+    # > linear index -> ring axial position (z) in cm
     li2rng = np.zeros((NLI2R,2), dtype=np.float32)
+
+    # > linear index -> number of sinograms in for the span-x bin
+    li2nos = np.zeros((NLI2R_c), dtype=np.int8)
 
     dli = 0
     for ro in range(0, NRNG):
-        # selects the sub-Michelogram of the whole Michelogram
+        # > select the sub-Michelogram
         strt = NRNG*ro
         stop = NRNG*NRNG
         step = NRNG+1
 
-        # go along a diagonal starting in the first row
+        # > go along a diagonal starting in the first row
         for li in range(strt, stop, step): 
-            #from the linear indexes of Michelogram get the subscript indexes
+            # > from the linear indices of Michelogram get the ring indexes
             r1 = int(li/NRNG)
             r0 = int(li - r1*NRNG)
 
             li2r[dli,0] = r0
             li2r[dli,1] = r1
-            #--            
+
             li2rng[dli,0] = rng[r0,0]
             li2rng[dli,1] = rng[r1,0]
-            #-- 
+            
             li2sn[dli, 0] = Msn[r0,r1]
             li2sn[dli, 1] = Msn[r1,r0]
 
+            li2sn1[dli, 0] = Msn1[r0, r1]
+            li2sn1[dli, 1] = Msn1[r1, r0]
+
+            li2nos[dli] = Mnos[r1, r0]
+
             dli += 1
 
-
-    li2nos = np.ones((NLI2R), dtype=np.int8)
+    # ---------------------------------------------------------------------
 
     log.debug('axial LUTs done.')
 
-    axlut.update({'rng':rng, 'Msn':Msn, 'Mssrb':Mssrb,
+    axlut.update({'rng':rng,
             'li2nos':li2nos, 'li2rno':li2r, 'li2sn':li2sn, 'li2sn1':li2sn, 'li2rng':li2rng, 
-            'sn1_rno':sn_rno, 'sn1_ssrb':sn_ssrb, 'sn1_ssrno':sn_ssrno
+            'sn1_rno':sn1_rno, 'sn1_ssrb':sn1_ssrb, 'sn1_ssrno':sn_ssrno, 'sn1_sn3':sn1_sn3
             })
 
     return axlut

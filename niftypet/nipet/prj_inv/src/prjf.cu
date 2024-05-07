@@ -87,7 +87,7 @@ __global__ void fprj_drct(float *sino, const float *im, const tt_type *tt, const
   if (att == 1) {
     if (span == 1)
       sino[c_li2sn[ixz].x + blockIdx.x * snno] = expf(-acc);
-    else if (span == 2)
+    else if (span == 3)
       atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, expf(-acc) / (float)c_li2nos[ixz]);
   } else if (att == 0)
     atomicAdd(sino + c_li2sn[ixz].x + blockIdx.x * snno, acc);
@@ -198,7 +198,7 @@ __global__ void fprj_oblq(float *sino, const float *im, const tt_type *tt, const
       if (span == 1) {
         sino[sidx.x + blockIdx.x * snno] = expf(-acc);
         sino[sidx.y + blockIdx.x * snno] = expf(-acc_);
-      } else if (span == 2) {
+      } else if (span == 3) {
         atomicAdd(sino + sidx.x + blockIdx.x * snno, expf(-acc) / (float)c_li2nos[ixz]);
         atomicAdd(sino + sidx.y + blockIdx.x * snno, expf(-acc_) / (float)c_li2nos[ixz]);
       }
