@@ -141,8 +141,8 @@ def axial_lut(Cnt):
     # > create two Michelograms for segments (Mseg) in chosen the span 
     # > (default 3) and the absolute axial position for individual 
     # > sinograms (Mssrb) which is the single slice rebinning
-    Mssrb = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
-    Mseg = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    Mssrb = -1 * np.ones((NRNG, NRNG), dtype=np.int16)
+    Mseg = -1 * np.ones((NRNG, NRNG), dtype=np.int16)
     for r1 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
         for r0 in range(Cnt['RNG_STRT'], Cnt['RNG_END']):
             if abs(r1 - r0) > Cnt['MRD']:
@@ -155,10 +155,10 @@ def axial_lut(Cnt):
 
 
     # > create a Michelogram matrix: rings to sino number in span-3
-    Msn = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    Msn = -1 * np.ones((NRNG, NRNG), dtype=np.int16)
 
     # > number of span-1 sinos per sino in the chosen span (default 3)
-    Mnos = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
+    Mnos = -1 * np.ones((NRNG, NRNG), dtype=np.int16)
     i = 0
     for iseg in range(0, len(axlut['SEG'])):
         msk = (Mseg == iseg)
@@ -171,7 +171,7 @@ def axial_lut(Cnt):
             Mnos[Mtmp == uq[u]] = np.sum(Mtmp == uq[u])
             i += 1
 
-    axlut.update({'Msn':Msn, 'Mnos':Mnos})
+    axlut.update({'Msn':Msn, 'Mnos':Mnos, 'Mssrb':Mssrb})
     #=================== SPAN-X =====================
     
 
