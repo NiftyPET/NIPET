@@ -249,7 +249,7 @@ static PyObject *hist(PyObject *self, PyObject *args) {
   //> axial LUTs:
   PyObject *pd_msn;
   if (Cnt.SPN==1){
-    pd_msn1 = PyDict_GetItemString(o_axLUT, "Msn1");
+    pd_msn = PyDict_GetItemString(o_axLUT, "Msn1");
   }
   else {
     pd_msn = PyDict_GetItemString(o_axLUT, "Msn");
