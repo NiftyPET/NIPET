@@ -367,7 +367,7 @@ def transaxial_lut(Cnt, visualisation=False):
     # > global sinogram index (linear) of live crystals (excludes gaps)
     awi = 0
 
-    coff = 2
+    coff = 0
 
     for iw in range(Cnt['NSBINS']):
         for ia in range(Cnt['NSANGLES']):
