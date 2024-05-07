@@ -367,13 +367,15 @@ def transaxial_lut(Cnt, visualisation=False):
     # > global sinogram index (linear) of live crystals (excludes gaps)
     awi = 0
 
+    coff = 2
+
     for iw in range(Cnt['NSBINS']):
         for ia in range(Cnt['NSANGLES']):
             c0 = int(
-                np.floor((ia + 0.5 * (Cnt['NCRS'] - 0 + Cnt['NSBINS'] / 2 - iw)) % Cnt['NCRS']))
+                np.floor((ia + 0.5 * (Cnt['NCRS'] - coff + Cnt['NSBINS'] / 2 - iw)) % Cnt['NCRS']))
             c1 = int(
                 np.floor(
-                    (ia + 0.5 * (2 * Cnt['NCRS'] - 0 - Cnt['NSBINS'] / 2 + iw)) % Cnt['NCRS']))
+                    (ia + 0.5 * (2 * Cnt['NCRS'] - coff - Cnt['NSBINS'] / 2 + iw)) % Cnt['NCRS']))
 
             s2c[ia + iw * Cnt['NSANGLES'], 0] = c0
             s2c[ia + iw * Cnt['NSANGLES'], 1] = c1
