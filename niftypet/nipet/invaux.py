@@ -134,8 +134,8 @@ def axial_lut(Cnt):
     # ring difference to segment
     rd2sg = -1 * np.ones((len(rd), 2), dtype=np.int32)
     for i in range(len(rd)):
-        for iseg in range(len(axLUT['MNRD'])):
-            if (rd[i] >= axLUT['MNRD'][iseg]) and (rd[i] <= axLUT['MXRD'][iseg]):
+        for iseg in range(len(axlut['MNRD'])):
+            if (rd[i] >= axlut['MNRD'][iseg]) and (rd[i] <= axlut['MXRD'][iseg]):
                 rd2sg[i, :] = np.array([rd[i], iseg])
 
     # > create two Michelograms for segments (Mseg) in chosen the span 
@@ -160,7 +160,7 @@ def axial_lut(Cnt):
     # > number of span-1 sinos per sino in the chosen span (default 3)
     Mnos = -1 * np.ones((NRNG, NRNG), dtype=np.int32)
     i = 0
-    for iseg in range(0, len(axLUT['SEG'])):
+    for iseg in range(0, len(axlut['SEG'])):
         msk = (Mseg == iseg)
         Mtmp = np.copy(Mssrb)
         Mtmp[~msk] = -1
