@@ -171,7 +171,7 @@ def axial_lut(Cnt):
             Mnos[Mtmp == uq[u]] = np.sum(Mtmp == uq[u])
             i += 1
 
-    axlut['M'] = {'Msn':Msn, 'Mnos':Mnos}
+    axlut.update({'Msn':Msn, 'Mnos':Mnos})
     #=================== SPAN-X =====================
     
 
@@ -218,7 +218,7 @@ def axial_lut(Cnt):
         sn_ssrno[sn1_ssrb[i]] += 1
     sn_ssrno  =  sn_ssrno[np.unique(sn1_ssrb)]
 
-    axlut['M']['Msn1'] = Msn1
+    axlut['Msn1'] = Msn1
     #=================== SPAN-1 =====================
 
 
