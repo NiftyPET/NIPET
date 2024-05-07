@@ -301,7 +301,7 @@ def transaxial_lut(Cnt, visualisation=False):
     crs = np.zeros((Cnt['NCRS'], 4), dtype=np.float32)
 
     # > phi angle points in the middle and is used for obtaining the normal of detector block
-    phi = 0.5*pi - 0.001 #- Cnt['ALPHA']/2
+    phi = 0.5*pi - Cnt['ALPHA']#- 0.001 #- Cnt['ALPHA']/2
     for bi in range(Cnt['NTXBLK']):
         # > tangent point (ring against detector block)
         y = Cnt['R_RING'] * np.sin(phi)
