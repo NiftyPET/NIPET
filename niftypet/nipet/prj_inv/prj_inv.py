@@ -77,8 +77,8 @@ def frwd_prj(im, scanner_params, isub=ISUB_DEFAULT, dev_out=False, attenuation=F
         # number of sinos in span-1
         nsinos = NRNG_c**2
 
-    elif Cnt['SPN'] == 2:
-        nsinos = Cnt['NSN']
+    elif Cnt['SPN'] == 3:
+        nsinos = Cnt['NSN3']
     elif Cnt['SPN'] == 0:
         nsinos = Cnt['NSEG0']
 
