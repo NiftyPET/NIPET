@@ -238,7 +238,7 @@ def axial_lut(Cnt):
     li2rng = np.zeros((NLI2R,2), dtype=np.float32)
 
     # > linear index -> number of sinograms in for the span-x bin
-    li2nos = np.zeros((NLI2R_c), dtype=np.int8)
+    li2nos = np.zeros((NLI2R), dtype=np.int8)
 
     dli = 0
     for ro in range(0, NRNG):
