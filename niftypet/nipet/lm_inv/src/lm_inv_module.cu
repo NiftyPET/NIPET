@@ -245,7 +245,7 @@ static PyObject *hist(PyObject *self, PyObject *args) {
   Cnt.BTPRT = (float)PyFloat_AsDouble(pd_btprt);
   PyObject *pd_devid = PyDict_GetItemString(o_cnst, "DEVID");
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
-  
+
   //> axial LUTs:
   PyObject *pd_msn;
   if (Cnt.SPN==1){
@@ -276,8 +276,6 @@ static PyObject *hist(PyObject *self, PyObject *args) {
 
   axLUT.Msn = (short *)PyArray_DATA(p_msn);
   axLUT.Mssrb = (short *)PyArray_DATA(p_mssrb);
-
-  printf(">>>> M=%d\n", axLUT.Msn[1]);
 
   // crystal-to-sinogram LUT from txLUTs
   int *c2s = (int *)PyArray_DATA(p_c2s);

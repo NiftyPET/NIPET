@@ -98,6 +98,8 @@ def hist_inv(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stor
             'dsn': dsino, 'ssr': ssr}
         # ---------------------------------------
 
+        log.debug('run the GPU histogramming...')
+        
         # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
         # do the histogramming and processing
         lmproc_inv.hist(hstout, lmpth, t0, t1, txLUT, axLUT, Cnt)
