@@ -231,7 +231,8 @@ def axial_lut(Cnt):
     # > linear index -> ring indices
     li2r   = np.zeros((NLI2R,2), dtype=np.int8)
 
-    # > linear index -> sinogram in span-x (default 3) index
+    # > linear index -> sinogram in span-1 and span-x (default 3) index
+    li2sn1 = np.zeros((NLI2R,2), dtype=np.int16)
     li2sn  = np.zeros((NLI2R,2), dtype=np.int16)
 
     # > linear index -> ring axial position (z) in cm
