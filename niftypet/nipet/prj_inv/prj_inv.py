@@ -181,7 +181,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
         sinog = sinog.reshape(Cnt['NAW'], Cnt['NSN3'])
 
     elif len(sino.shape) == 2:
-        if isub[0] < 0 and sino.shape[0] != txLUT["Naw"]:
+        if isub[0] < 0 and sino.shape[0] != Cnt['NAW']:
             raise ValueError('Unexpected number of transaxial elements in the full sinogram.')
         elif isub[0] >= 0 and sino.shape[0] != len(isub):
             raise ValueError('Unexpected number of transaxial elements in the subset sinogram.')
