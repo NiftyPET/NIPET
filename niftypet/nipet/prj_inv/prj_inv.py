@@ -160,9 +160,11 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
         # number of sinos in span-1
         nsinos = NRNG**2
     elif Cnt['SPN'] == 3:
-        nsinos = Cnt['NSN11']
+        nsinos = Cnt['NSN3']
     elif Cnt['SPN'] == 0:
         nsinos = Cnt['NSEG0']
+    else:
+        raise ValueError('Unexpected sinogram span.')
 
     # > check first the Siemens default sinogram;
     # > for this default shape only full sinograms are expected--no subsets.
