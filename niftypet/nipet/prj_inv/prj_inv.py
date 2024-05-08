@@ -156,14 +156,10 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
     if Cnt['SPN'] == 1:
         # number of rings calculated for the given ring range
         # (optionally we can use only part of the axial FOV)
-        NRNG_c = Cnt['RNG_END'] - Cnt['RNG_STRT']
+        NRNG = Cnt['RNG_END'] - Cnt['RNG_STRT']
         # number of sinos in span-1
-        nsinos = NRNG_c**2
-        # correct for the max. ring difference in the full axial extent
-        # (don't use ring range (1,63) as for this case no correction)
-        if NRNG_c == 64:
-            nsinos -= 12
-    elif Cnt['SPN'] == 11:
+        nsinos = NRNG**2
+    elif Cnt['SPN'] == 3:
         nsinos = Cnt['NSN11']
     elif Cnt['SPN'] == 0:
         nsinos = Cnt['NSEG0']
@@ -174,11 +170,13 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
     if div_sino is not None:
         sino = sino[isub, :]
         div_sino = cu.asarray(div_sino)
+
     if len(sino.shape) == 3:
         if sino.shape[0] != nsinos or sino.shape[1] != Cnt['NSANGLES'] or sino.shape[2] != Cnt[
                 'NSBINS']:
             raise ValueError('Unexpected sinogram array dimensions/shape for Siemens defaults.')
-        sinog = mmraux.remgaps(sino, txLUT, Cnt)
+        sinog = sino.transpose((2,1,0))
+        sinog = sinog.reshape(Cnt['NAW'], Cnt['NSN3'])
 
     elif len(sino.shape) == 2:
         if isub[0] < 0 and sino.shape[0] != txLUT["Naw"]:
@@ -213,6 +211,6 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
 
     if not dev_out:
         # > change from GPU optimised image dimensions to the standard Siemens shape
-        bimg = mmrimg.convert2e7(bimg, Cnt)
+        bimg = bimg.transpose((2,0,1))
 
     return bimg

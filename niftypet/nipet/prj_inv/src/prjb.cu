@@ -262,7 +262,7 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
     nil2r_c = NLI2R;
   }
 
-  // voxels in axial direction (to accounting for the variable AFOV)
+  // voxels in axial direction (to account for the variable AFOV)
   vz0 = (int)Cnt.ZOOM * (2 * Cnt.RNG_STRT);
   vz1 = (int)Cnt.ZOOM * (2 * (Cnt.RNG_END - 1));
   nvz = (int)Cnt.ZOOM * (2 * nrng_c - 1);
@@ -328,6 +328,7 @@ void gpu_bprj(float *d_im, float *d_sino, float *li2rng, short *li2sn, char *li2
 
   // when rings are reduced
   if (nvz < SZ_IMZ) {
+    printf("\nw> running reduced rings procedure for the back-projected image!\n");
     // number of axial row for max threads
     int nar = NIPET_CU_THREADS / nvz;
     dim3 THRD(nvz, nar, 1);
