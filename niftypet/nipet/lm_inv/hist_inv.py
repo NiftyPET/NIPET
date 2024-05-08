@@ -40,8 +40,14 @@ def hist_inv(datain, scanner_params, t0=0, t1=0, outpath='', frms=None, use_stor
     txLUT = scanner_params['txLUT']
     axLUT = scanner_params['axLUT']
 
-    if Cnt['SPN'] == 1: nsinos = Cnt['NSN1']
-    elif Cnt['SPN'] == 0: nsinos = Cnt['NSEG0']
+    if Cnt['SPN'] == 1: 
+        nsinos = Cnt['NSN1']
+    elif Cnt['SPN'] == 3:
+        nsinos = Cnt['NSN3']
+    elif Cnt['SPN'] == 0:
+        nsinos = Cnt['NSEG0']
+    else:
+        raise ValueError('Unrecognised span.')
 
     log.debug('histogramming with span {}.'.format(Cnt['SPN']))
 
