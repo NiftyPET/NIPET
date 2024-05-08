@@ -208,8 +208,7 @@ def back_prj(sino, scanner_params, isub=ISUB_DEFAULT, dev_out=False, div_sino=No
         assert bimg.dtype == np.dtype('float32')
 
     # > run back-projection
-    prjinv.bprj(bimg, cu.asarray(sinog if div_sino is None else orig_sino), txLUT, axLUT, isub,
-                Cnt, div_sino=div_sino, sync=sync)
+    prjinv.bprj(bimg, cu.asarray(sinog), txLUT, axLUT, isub, Cnt, sync=sync)
 
     if not dev_out:
         # > change from GPU optimised image dimensions to the standard Siemens shape
