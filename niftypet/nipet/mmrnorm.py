@@ -70,7 +70,7 @@ def get_components(datain, Cnt):
     # possible DICOM locations for the Interfile header
     nhdr_locations = [[0x29, 0x1010], [0x29, 0x1110]]
     # read the DICOM file
-    d = dcm.read_file(fnrm_hdr)
+    d = dcm.dcmread(fnrm_hdr)
 
     # if   d[0x0018, 0x1020].value == 'syngo MR B20P' or d[0x0018, 0x1020].value == 'syngo MR E11':
     #     nhdr = d[0x29,0x1010].value.decode()

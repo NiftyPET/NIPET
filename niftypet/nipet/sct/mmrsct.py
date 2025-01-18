@@ -10,7 +10,7 @@ import cuvec as cu
 import nibabel as nib
 import numpy as np
 import scipy.ndimage as ndi
-from scipy.interpolate import interp2d
+from scipy.interpolate import interp2d, RectBivariateSpline
 from scipy.special import erfc
 
 from .. import mmr_auxe, mmraux, mmrnorm
@@ -335,8 +335,12 @@ def intrp_bsct(sct3d, Cnt, sctLUT, ssrlut, dtype=np.float32):
             sct2d = sct3d[0, si, jj, ii]
 
             z = np.vstack([sct2d[-1, :], sct2d])
-            f = interp2d(x, y, z, kind='cubic')
-            znew = f(xnew, ynew)
+            # > old scatter interpolation
+            # f = interp2d(x, y, z, kind='cubic')
+            # znew = f(xnew, ynew)
+            f = RectBivariateSpline(x, y, z.T)
+            ft = lambda xnew, ynew: f(xnew, ynew).T
+            znew = ft(xnew, ynew)
 
             # unroll
             znew = znew[jjnew, iinew]

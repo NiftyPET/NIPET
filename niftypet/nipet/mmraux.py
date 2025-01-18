@@ -36,9 +36,9 @@ def fwhm2sig(fwhm):
 def lm_pos(datain, Cnt):
     '''get the position of table and gantry offset from the DICOM list-mode file'''
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
-        dhdr = dcm.read_file(datain['lm_dcm'])
+        dhdr = dcm.dcmread(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
-        dhdr = dcm.read_file(datain['lm_ima'])
+        dhdr = dcm.dcmread(datain['lm_ima'])
     else:
         log.error('DICOM list-mode data not found!')
         return None
@@ -91,9 +91,9 @@ def lm_pos(datain, Cnt):
 def hdr_lm(datain, Cnt):
     '''Get the headers from DICOM list-mode data file'''
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
-        dhdr = dcm.read_file(datain['lm_dcm'])
+        dhdr = dcm.dcmread(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
-        dhdr = dcm.read_file(datain['lm_ima'])
+        dhdr = dcm.dcmread(datain['lm_ima'])
     else:
         log.error('DICOM list-mode data not found!')
         return None
@@ -226,9 +226,9 @@ def hmu_resample0(hmupos, parts, Cnt):
 
 def time_diff_norm_acq(datain):
     if 'lm_dcm' in datain and os.path.isfile(datain['lm_dcm']):
-        dcm_lm = dcm.read_file(datain['lm_dcm'])
+        dcm_lm = dcm.dcmread(datain['lm_dcm'])
     elif 'lm_ima' in datain and os.path.isfile(datain['lm_ima']):
-        dcm_lm = dcm.read_file(datain['lm_ima'])
+        dcm_lm = dcm.dcmread(datain['lm_ima'])
     else:
         log.error('dicom header of list-mode data does not exist.')
         return None
