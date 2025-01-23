@@ -159,7 +159,7 @@ def getinterfile_off(fmu, Cnt, Offst=OFFSET_DEFAULT):
 
     # save_im(mur, Cnt, os.path.dirname(fmu) + '/mur.nii')
     # -------------------------------------------------------------------------
-    mur = getmu_off(mu, Cnt)
+    mur = getmu_off(mu, Cnt, Offst=Offst)
     # > create GPU version of the mu-map
     murs = convert2dev(mur, Cnt)
     # > number of voxels
