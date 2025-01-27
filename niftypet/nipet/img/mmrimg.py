@@ -6,6 +6,7 @@ import multiprocessing
 import os
 import re
 import shutil
+from pathlib import Path
 
 import nibabel as nib
 import numpy as np
@@ -109,10 +110,31 @@ def image_affine(datain, Cnt, gantry_offset=False):
     else:
         imz = Cnt['SO_IMZ']
 
+    # >------------------------------------------------------
+    # > get patient position relative to the scanner (e.g., HFS or FFS)
+    # >------------------------------------------------------
+    # > get all DICOMs of the object mu-map
+    all_dcms = [i for i in os.listdir(datain['mumapDCM']) if i.lower().endswith(nimpa.prc.imio.dcmext)]
+
+    # > pick first DICOM and get the header info
+    dcmhdr = dcm.dcmread(Path(datain['mumapDCM'])/all_dcms[0])
+
+    # > get the patient position
+    pat_pos = dcmhdr[0x018, 0x5100].value
+
+    # > distinguish between head first (HF) and feet first (FF) patient positions
+    # > this will affact the affine for resampling of the mu-map
+    resaff = np.eye(4)
+    if pat_pos[:2].lower()=='ff':
+        ff = -1
+    elif pat_pos[:2].lower()=='hf':
+        ff = 1
+    # >------------------------------------------------------
+
     # create a reference empty mu-map image
     B = np.diag(np.array([-10 * Cnt['SO_VXX'], 10 * Cnt['SO_VXY'], 10 * Cnt['SO_VXZ'], 1]))
-    B[0, 3] = 10 * (.5 * Cnt['SO_IMX'] * Cnt['SO_VXX'] + goff[0])
-    B[1, 3] = 10 * ((-.5 * Cnt['SO_IMY'] + 1) * Cnt['SO_VXY'] - goff[1])
+    B[0, 3] = 10 * (.5 * Cnt['SO_IMX'] * Cnt['SO_VXX'] + ff*goff[0])
+    B[1, 3] = 10 * ((-.5 * Cnt['SO_IMY'] + 1) * Cnt['SO_VXY'] - ff*goff[1])
     B[2, 3] = 10 * ((-.5 * imz + 1) * Cnt['SO_VXZ'] - goff[2] + hbed)
     # -------------------------------------------------------------------------------------
     return B
@@ -340,21 +362,42 @@ def obj_mumap(
     # > convert the DICOM mu-map images to NIfTI
     fmunii = nimpa.dcm2nii(datain['mumapDCM'], fnii + tstmp, outpath=fmudir)
 
+    # >------------------------------------------------------
+    # > get patient position relative to the scanner (e.g., HFS or FFS)
+    # >------------------------------------------------------
+
+    # > get all DICOMs of the object mu-map
+    all_dcms = [i for i in os.listdir(datain['mumapDCM']) if i.lower().endswith(nimpa.prc.imio.dcmext)]
+
+    # > pick first DICOM and get the header info
+    dcmhdr = dcm.dcmread(Path(datain['mumapDCM'])/all_dcms[0])
+
+    # > get the patient position
+    pat_pos = dcmhdr[0x018, 0x5100].value
+
+    # > distinguish between head first (HF) and feet first (FF) patient positions
+    # > this will affact the affine for resampling of the mu-map
+    resaff = np.eye(4)
+    if pat_pos[:2].lower()=='ff':
+        resaff[2,2] = -1
+        resaff[0,0] = -1
+    # >------------------------------------------------------
+
+
     # > resampled the NIfTI converted image to the reference shape/size
     fmu = os.path.join(fmudir, comment + 'mumap_tmp.nii.gz')
-    nimpa.resample_dipy(fmuref, fmunii, fimout=fmu, intrp=1, dtype_nifti=np.float32)
+    nimpa.resample_dipy(fmuref, fmunii, faff=resaff, fimout=fmu, intrp=1, dtype_nifti=np.float32)
 
-    nim = nib.load(fmu)
-    # get the affine transform
-    A = nim.get_sform()
-    mu = nim.get_fdata(dtype=np.float32)
-    mu = np.transpose(mu[:, ::-1, ::-1], (2, 1, 0))
-    # convert to mu-values
-    mu = np.float32(mu) / 1e4
+    # > get the resampled mu-map and all the info
+    mud = nimpa.getnii(fmu, output='all')
+    
+    # > convert to mu-values by a scale factor and kill negatives if any
+    mu = np.float32(mud['im']) / 1e4
     mu[mu < 0] = 0
 
     # > return image dictionary with the image itself and some other stats
-    mu_dct = {'im': mu, 'affine': A}
+    mu_dct = {'im': mu, 'affine': mud['affine']}
+    
     if not del_auxilary:
         mu_dct['fmuref'] = fmuref
 
@@ -367,7 +410,14 @@ def obj_mumap(
     if store:
         # with this file name
         fmumap = os.path.join(fmudir, 'mumap-from-DICOM_no-alignment' + comment + '.nii.gz')
-        nimpa.array2nii(mu[::-1, ::-1, :], A, fmumap)
+
+        nimpa.array2nii(
+            mu,
+            mud['affine'],
+            fmumap,
+            trnsp=mud['transpose'],
+            flip=mud['flip'])
+
         mu_dct['fim'] = fmumap
 
     if del_auxilary:
@@ -919,10 +969,10 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     # define a dictionary of all positions/offsets of hardware mu-maps
     hmupos = [None] * 5
     hmupos[0] = {
-        'TabPosOrg': tpozyx, # prom DICOM of LM file
-        'GanTabOff': gtozyx, # prom DICOM of mMR mu-map file
-        'HBedPos': hbedpos,  # prom Interfile of LM file [cm]
-        'VBedPos': vbedpos,  # prom Interfile of LM file [cm]
+        'TabPosOrg': tpozyx, # from DICOM of LM file
+        'GanTabOff': gtozyx, # from DICOM of mMR mu-map file
+        'HBedPos': hbedpos,  # from Interfile of LM file [cm]
+        'VBedPos': vbedpos,  # from Interfile of LM file [cm]
         'niipath': fref}
 
     # --------------------------------------------------------------------------
