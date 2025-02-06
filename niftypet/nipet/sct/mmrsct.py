@@ -476,7 +476,7 @@ def vsm(
         muim = muo + muh
         emim = em
 
-    muim = ndi.interpolation.zoom(muim, Cnt['SCTSCLMU'], order=3) # (0.499, 0.5, 0.5)
+    muim = ndi.interpolation.zoom(muim, Cnt['SCTSCLMU'], order=3) # (0.499, 0.5, 0.5) <<<<<<<<<<<< TODO: deprecation
     emim = ndi.interpolation.zoom(emim, Cnt['SCTSCLEM'], order=3) # (0.34, 0.33, 0.33)
 
     # -smooth the mu-map for mask creation.
@@ -627,6 +627,7 @@ def vsm(
 
     # ======= SCALING ========
     # > scale scatter using non-TOF SSRB sinograms
+    #import pdb; pdb.set_trace()
 
     # > gap mask
     rmsk = (txLUT['msino'] > 0).T

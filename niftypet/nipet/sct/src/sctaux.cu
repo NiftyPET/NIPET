@@ -239,7 +239,6 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt) {
   HANDLE_ERROR(cudaFreeHost(h_v2i));
 
 #else
-  // printf(">>>>> NVX:%d, THRESHOLD:%f\n", nvx, thrshld);
   HANDLE_ERROR(cudaMallocManaged(&d_i2v, nvx * sizeof(int)));
   HANDLE_ERROR(cudaMallocManaged(&d_v2i, SSE_IMX * SSE_IMY * SSE_IMZ * sizeof(int)));
 
@@ -258,7 +257,7 @@ iMSK get_imskEm(IMflt imvol, float thrshld, Cnst Cnt) {
 #endif
 
   if (Cnt.LOG <= LOGDEBUG)
-    printf("d> number of voxel values greater than %3.2f is %d out of %d (ratio: %3.2f)\n",
+    printf("d> number of voxel values greater than %3.2f (THRSHL=%3.2f) is %d out of %d (ratio: %3.2f)\n",
            thrshld, nvx, SSE_IMX * SSE_IMY * SSE_IMZ, nvx / (float)(SSE_IMX * SSE_IMY * SSE_IMZ));
   msk.nvx = nvx;
   msk.i2v = d_i2v;
