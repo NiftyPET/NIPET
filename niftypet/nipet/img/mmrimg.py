@@ -745,7 +745,7 @@ def hdr_mu(datain, Cnt):
     else:
         raise NameError('no DICOM or DICOM filed <CSA Series Header Info> found!')
     if os.path.isfile(dcmf):
-        dhdr = dcm.read_file(dcmf)
+        dhdr = dcm.dcmread(dcmf)
     else:
         log.error('DICOM mMR mu-maps are not valid files!')
         return None
