@@ -506,9 +506,12 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
     #     recout.im   = im
     #     recout.fpet = fout
 
-    if ret_sinos and recmod >= 3 and itr > 1:
+    if ret_sinos and recmod==3 and itr > 1:
         RecOut = namedtuple('RecOut', 'im, fpet, imsmo, fsmo, affine, ssn, sssr, amsk, rsn')
         recout = RecOut(im, fpet, im_smo, fsmo, B, ssn, sct['ssrb'], sct['mask'], rsino)
+    elif ret_sinos and recmod==4 and itr > 1:
+        RecOut = namedtuple('RecOut', 'im, fpet, imsmo, fsmo, affine, ssn, rsn')
+        recout = RecOut(im, fpet, im_smo, fsmo, B, ssn, rsino)
     else:
         RecOut = namedtuple('RecOut', 'im, fpet, imsmo, fsmo, affine')
         recout = RecOut(im, fpet, im_smo, fsmo, B)
