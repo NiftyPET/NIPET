@@ -6,6 +6,9 @@ from collections import namedtuple
 from collections.abc import Iterable
 from numbers import Real
 
+from pkg_resources import resource_filename
+from pathlib import Path
+
 import cuvec as cu
 import numpy as np
 import scipy.ndimage as ndi
@@ -359,7 +362,9 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 # img[:]=0
                 itr = k
                 break
-            if recmod >= 3 and k < itr - 1 and itr > 1:
+            
+            # > reconstruction in mode 3 (fully quantitative with scatter estimated at each iteration)
+            if recmod==3 and k<itr-1 and itr>1:
                 sct_time = time.time()
                 sct = vsm(datain, mumaps, mmrimg.convert2e7(img, Cnt), scanner_params, histo=hst,
                           rsino=rsino, emmsk=emmskS, return_ssrb=return_ssrb,
@@ -372,6 +377,46 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
 
                 ssng = mmraux.remgaps(ssn, txLUT, Cnt)
                 pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
+
+            # > reconstruction in mode 4 (fully quantitative with scatter scaled proportionally when tail fitting fails)
+            if recmod==4 and k<itr-1 and itr>1:
+                if Cnt['SPN']!=11:
+                    raise ValueError('this scatter correction is only available in SPAN=1!')
+                
+                sct_time = time.time()
+
+                # > global scatter scaling factors (for scatter estimation without tail fitting)
+                auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
+                gssf = np.load(fspath(auxdata / "gssf.npy"))
+
+                #-------------------------------------------------
+                # > NORM FOR SCATTER
+                nc = ncmp.copy()
+                nc['geo'][:] = 1
+                nc['axe1'][:] = 1
+                snrmg = np.zeros((txLUT['Naw'], Cnt['NSN11']), dtype=np.float32)
+                nipet.mmr_auxe.norm(snrmg, ncmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
+                snrm = nipet.mmraux.putgaps(snrmg, txLUT, Cnt)
+                for i in range(len(nc['sax_f11'])):
+                    snrm[i,...] *= nc['sax_f11'][i] * gssf[i]
+                #-------------------------------------------------
+
+                #-------------------------------------------------
+                # > ESTIMATE SCATTER AND SCALE IT GLOBALLY
+                # > use emission images corrected for decay and concentration quantification
+                ims = img * dcycrr * qf * qf_loc
+                sct = vsm(datain, mumaps, mmrimg.convert2e7(ims, Cnt), scanner_params, histo=hst,
+                          rsino=rsino, emmsk=emmskS, return_ssrb=return_ssrb, scaling=False)
+
+                if isinstance(sct, dict):
+                    ssn = hst['dur'] * snrm * sct['sino']
+                else:
+                    ssn = hst['dur'] * snrm * sct
+
+                ssng = mmraux.remgaps(ssn, txLUT, Cnt)
+                pbar.set_postfix(scatter="%.3gs" % (time.time() - sct_time))
+                #-------------------------------------------------
+
             # save images during reconstruction if requested
             if store_itr and (k + 1) in store_itr:
                 im = mmrimg.convert2e7(img * (dcycrr*qf*qf_loc), Cnt)
