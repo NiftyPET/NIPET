@@ -8,6 +8,7 @@ from numbers import Real
 
 from pkg_resources import resource_filename
 from pathlib import Path
+from os import fspath, path
 
 import cuvec as cu
 import numpy as np
