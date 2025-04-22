@@ -18,7 +18,7 @@ from tqdm.auto import trange
 from niftypet import nimpa
 
 # resources contain isotope info
-from .. import mmraux, mmrnorm, resources
+from .. import mmr_auxe, mmraux, mmrnorm, resources
 from ..img import mmrimg
 from ..lm.mmrhist import randoms
 from ..sct import vsm
@@ -396,7 +396,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 nc['geo'][:] = 1
                 nc['axe1'][:] = 1
                 snrmg = np.zeros((txLUT['Naw'], Cnt['NSN11']), dtype=np.float32)
-                nipet.mmr_auxe.norm(snrmg, ncmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
+                mmr_auxe.norm(snrmg, ncmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
                 snrm = nipet.mmraux.putgaps(snrmg, txLUT, Cnt)
                 for i in range(len(nc['sax_f11'])):
                     snrm[i,...] *= nc['sax_f11'][i] * gssf[i]
