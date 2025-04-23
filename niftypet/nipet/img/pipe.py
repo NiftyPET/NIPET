@@ -359,11 +359,12 @@ def mmrchain(
         else:
             dynim[ifrm, :, :, :] = recimg.im
 
-        if ret_sinos and itr > 1 and recmod > 2:
+        if ret_sinos and itr>1 and recmod>2:
             dynpsn[ifrm, :, :, :] = np.squeeze(hst['psino'])
             dynssn[ifrm, :, :, :] = np.squeeze(recimg.ssn)
             dynrsn[ifrm, :, :, :] = np.squeeze(recimg.rsn)
-            dynmsk[ifrm, :, :, :] = np.squeeze(recimg.amsk)
+            if recmod==3:
+                dynmsk[ifrm, :, :, :] = np.squeeze(recimg.amsk)
 
         if store_img_intrmd:
             output['fpeti'].append(recimg.fpet)
