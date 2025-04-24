@@ -161,7 +161,7 @@ def psf_config(psf, Cnt):
 
 def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=None,
             mask_radius=29., decay_ref_time=None, attnsino=None, sctsino=None, randsino=None,
-            normcomp=None, emmskS=False, frmno='', fcomment='', outpath=None, fout=None,
+            normcomp=None, gamma_sct=0.2, emmskS=False, frmno='', fcomment='', outpath=None, fout=None,
             store_img=False, store_itr=None, ret_sinos=False):
     '''
     OSEM image reconstruction with several modes
@@ -169,6 +169,9 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
 
     Args:
       psf: Reconstruction with PSF, passed to `psf_config`
+      gamma_sct: used only for recmod=4 when scatter is scaled without tail fitting while 
+                 using generic scale factors derived from a phantom scan
+                 (long cylinder Ge-68).
     '''
 
     # > Get particular scanner parameters: Constants, transaxial and axial LUTs
@@ -386,9 +389,12 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 
                 sct_time = time.time()
 
-                # > global scatter scaling factors (for scatter estimation without tail fitting)
+                # > generic scatter scaling factors (for scatter estimation without tail fitting)
                 auxdata = Path(resource_filename("niftypet.nipet", "auxdata"))
                 gssf = np.load(fspath(auxdata / "gssf.npy"))
+
+                # > decomposing the scatter scaling to accommodate fine tuning with a single parameter gamma [0...1]
+                ssf = 0.0556 + gamma_sct*(gssf-ssf0)
 
                 #-------------------------------------------------
                 # > NORM FOR SCATTER
@@ -399,7 +405,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 mmr_auxe.norm(snrmg, ncmp, hst['buckets'], axLUT, txLUT['aw2ali'], Cnt)
                 snrm = mmraux.putgaps(snrmg, txLUT, Cnt)
                 for i in range(len(nc['sax_f11'])):
-                    snrm[i,...] *= nc['sax_f11'][i] * gssf[i]
+                    snrm[i,...] *= nc['sax_f11'][i] * ssf[i]
                 #-------------------------------------------------
 
                 #-------------------------------------------------

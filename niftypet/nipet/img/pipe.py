@@ -36,6 +36,8 @@ def mmrchain(
                             # automatically. 3: attenuation and scatter
                             # correction, 1: attenuation correction
                             # only, 0: no correction (randoms only).
+    gamma_sct=0.2,          # in recmod=4 only: gamma factor for scatter estimated 
+                            # using generic scale factors (no tail fitting)
     histo=None,             # input histogram (from list-mode data);
                             # if not given, it will be performed.
     decay_ref_time=None,    # decay corrects relative to the reference
@@ -348,8 +350,9 @@ def mmrchain(
 
         # run OSEM reconstruction of a single time frame
         recimg = mmrrec.osemone(datain, [muhd['im'], muo], hst, scanner_params,
-                                decay_ref_time=decay_ref_time, recmod=recmod, itr=itr, fwhm=fwhm,
-                                psf=psf, outpath=petimg, frmno=frmno, fcomment=fcomment + '_i',
+                                decay_ref_time=decay_ref_time, recmod=recmod,
+                                gamma_sct=gamma_sct, itr=itr, fwhm=fwhm, psf=psf,
+                                outpath=petimg, frmno=frmno, fcomment=fcomment + '_i',
                                 store_img=store_img_intrmd, store_itr=store_itr, fout=fout,
                                 ret_sinos=ret_sinos)
 
