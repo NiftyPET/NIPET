@@ -394,7 +394,8 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 gssf = np.load(fspath(auxdata / "gssf.npy"))
 
                 # > decomposing the scatter scaling to accommodate fine tuning with a single parameter gamma [0...1]
-                ssf = 0.0556 + gamma_sct*(gssf-ssf0)
+                ssf0 = 0.0556
+                ssf = ssf0 + gamma_sct*(gssf-ssf0)
 
                 #-------------------------------------------------
                 # > NORM FOR SCATTER
