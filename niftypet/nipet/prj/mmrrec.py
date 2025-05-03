@@ -412,7 +412,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
                 #-------------------------------------------------
                 # > ESTIMATE SCATTER AND SCALE IT GLOBALLY
                 # > use emission images corrected for decay and concentration quantification
-                ims = img * dcycrr * qf * qf_loc
+                ims = (img * dcycrr * qf * qf_loc).astype(np.float32)
                 sct = vsm(datain, mumaps, mmrimg.convert2e7(ims, Cnt), scanner_params, histo=hst,
                           rsino=rsino, emmsk=emmskS, return_ssrb=return_ssrb, scaling=False)
 

@@ -476,8 +476,8 @@ def vsm(
         muim = muo + muh
         emim = em
 
-    muim = ndi.interpolation.zoom(muim, Cnt['SCTSCLMU'], order=3) # (0.499, 0.5, 0.5) <<<<<<<<<<<< TODO: deprecation
-    emim = ndi.interpolation.zoom(emim, Cnt['SCTSCLEM'], order=3) # (0.34, 0.33, 0.33)
+    muim = ndi.interpolation.zoom(muim, Cnt['SCTSCLMU'], output=np.float32, order=3) # (0.499, 0.5, 0.5) <<<<<<<<<<<< TODO: deprecation
+    emim = ndi.interpolation.zoom(emim, Cnt['SCTSCLEM'], output=np.float32, order=3) # (0.34, 0.33, 0.33)
 
     # -smooth the mu-map for mask creation.
     # the mask contains voxels for which attenuation ray LUT is found.
