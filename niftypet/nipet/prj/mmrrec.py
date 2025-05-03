@@ -162,6 +162,7 @@ def psf_config(psf, Cnt):
 def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=None,
             mask_radius=29., decay_ref_time=None, attnsino=None, sctsino=None, randsino=None,
             normcomp=None, gamma_sct=0.2, emmskS=False, frmno='', fcomment='', outpath=None, fout=None,
+            rec_gantry_offset=rec_gantry_offset,
             store_img=False, store_itr=None, ret_sinos=False):
     '''
     OSEM image reconstruction with several modes
@@ -340,7 +341,7 @@ def osemone(datain, mumaps, hst, scanner_params, recmod=3, itr=4, fwhm=0., psf=N
         qf_loc = 1.
 
     # -affine matrix for the reconstructed images
-    B = mmrimg.image_affine(datain, Cnt)
+    B = mmrimg.image_affine(datain, Cnt, gantry_offset=rec_gantry_offset)
 
     # resolution modelling
     psfkernel = psf_config(psf, Cnt)

@@ -43,6 +43,7 @@ def mmrchain(
     decay_ref_time=None,    # decay corrects relative to the reference
                             # time provided; otherwise corrects to the scan
                             # start time.
+    rec_gantry_offset=False,# apply gantry offset to the reconstructed image
     trim=False,
     trim_scale=2,
     trim_interp=0,          # interpolation for upsampling used in PVC
@@ -353,6 +354,7 @@ def mmrchain(
                                 decay_ref_time=decay_ref_time, recmod=recmod,
                                 gamma_sct=gamma_sct, itr=itr, fwhm=fwhm, psf=psf,
                                 outpath=petimg, frmno=frmno, fcomment=fcomment + '_i',
+                                rec_gantry_offset=rec_gantry_offset,
                                 store_img=store_img_intrmd, store_itr=store_itr, fout=fout,
                                 ret_sinos=ret_sinos)
 
