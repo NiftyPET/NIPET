@@ -861,7 +861,7 @@ def hmu_origin(hdr):
 
 
 def hmu_offset(hdr):
-    # pegular expression to find the origin
+    # regular expression to find the origin
     p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{1,10}')
     if hdr.find('$origin offset') > 0:
         # x: dim [1]
@@ -887,7 +887,7 @@ def rd_hmu(fh):
     hdr = f.read()
     f.close()
     # -----------------
-    # pegular expression to find the file name
+    # regular expression to find the file name
     p = re.compile(r'(?<=:=)\s*\w*[.]\w*')
     i0 = hdr.find('!name of data file')
     i1 = i0 + hdr[i0:].find('\n')
@@ -900,11 +900,32 @@ def rd_hmu(fh):
     return hdr, im
 
 
+def get_bedpos(datain, Cnt):
+    ''' Get horizontal bed position
+    '''
+    ihdr, csainfo = mmraux.hdr_lm(datain, Cnt)
+
+    # start horizontal bed position
+    p = re.compile(r'start horizontal bed position.*\d{1,3}\.*\d*')
+    m = p.search(ihdr)
+    fi = ihdr[m.start():m.end()].find('=')
+    hbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
+
+    # start vertical bed position
+    p = re.compile(r'start vertical bed position.*\d{1,3}\.*\d*')
+    m = p.search(ihdr)
+    fi = ihdr[m.start():m.end()].find('=')
+    vbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
+
+    return hbedpos, vbedpos
+
+
+
 def get_hmupos(datain, parts, Cnt, outpath=''):
 
     # ----- get positions from the DICOM list-mode file -----
     ihdr, csainfo = mmraux.hdr_lm(datain, Cnt)
-    # pable position origin
+    # table position origin
     fi = csainfo.find(b'TablePositionOrigin')
     tpostr = csainfo[fi:fi + 200]
     tpo = re.sub(b'[^a-zA-Z0-9.\\-]', b'', tpostr).split(b'M')
@@ -946,17 +967,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     # get the reference nii image
     fref = os.path.join(dirhmu, 'hmuref.nii.gz')
 
-    # ptart horizontal bed position
-    p = re.compile(r'start horizontal bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
-    fi = ihdr[m.start():m.end()].find('=')
-    hbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
-
-    # ptart vertical bed position
-    p = re.compile(r'start vertical bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
-    fi = ihdr[m.start():m.end()].find('=')
-    vbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
+    hbedpos, vbedpos = get_bedpos(datain, Cnt)
 
     log.info('creating reference NIfTI image for resampling')
     B = np.diag(np.array([-10 * Cnt['SO_VXX'], 10 * Cnt['SO_VXY'], 10 * Cnt['SO_VXZ'], 1]))
