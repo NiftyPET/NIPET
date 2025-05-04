@@ -900,27 +900,6 @@ def rd_hmu(fh):
     return hdr, im
 
 
-def get_bedpos(datain, Cnt):
-    ''' Get horizontal bed position
-    '''
-    ihdr, csainfo = mmraux.hdr_lm(datain, Cnt)
-
-    # start horizontal bed position
-    p = re.compile(r'start horizontal bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
-    fi = ihdr[m.start():m.end()].find('=')
-    hbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
-
-    # start vertical bed position
-    p = re.compile(r'start vertical bed position.*\d{1,3}\.*\d*')
-    m = p.search(ihdr)
-    fi = ihdr[m.start():m.end()].find('=')
-    vbedpos = 0.1 * float(ihdr[m.start() + fi + 1:m.end()])
-
-    return hbedpos, vbedpos
-
-
-
 def get_hmupos(datain, parts, Cnt, outpath=''):
 
     # ----- get positions from the DICOM list-mode file -----
@@ -967,7 +946,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
     # get the reference nii image
     fref = os.path.join(dirhmu, 'hmuref.nii.gz')
 
-    hbedpos, vbedpos = get_bedpos(datain, Cnt)
+    vbedpos, hbedpos = mmraux.vh_bedpos(datain, Cnt)
 
     log.info('creating reference NIfTI image for resampling')
     B = np.diag(np.array([-10 * Cnt['SO_VXX'], 10 * Cnt['SO_VXY'], 10 * Cnt['SO_VXZ'], 1]))
