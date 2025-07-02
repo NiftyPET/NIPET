@@ -957,7 +957,7 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
                     fref)
 
     # define a dictionary of all positions/offsets of hardware mu-maps
-    hmupos = [None] * 5
+    hmupos = [None] * (len(Cnt['HMULIST'])+1)
     hmupos[0] = {
         'TabPosOrg': tpozyx, # from DICOM of LM file
         'GanTabOff': gtozyx, # from DICOM of mMR mu-map file
@@ -983,11 +983,11 @@ def get_hmupos(datain, parts, Cnt, outpath=''):
         # pdd to the dictionary
         hmupos[i] = {
             'vpos': vpos,
-            'shape': s,   # prom interfile
-            'iorg': org,  # prom interfile
-            'ioff': off,  # prom interfile
-            'ivs': vs,    # prom interfile
-            'img': im,    # prom interfile
+            'shape': s,   # from interfile
+            'iorg': org,  # from interfile
+            'ioff': off,  # from interfile
+            'ivs': vs,    # from interfile
+            'img': im,    # from interfile
             'niipath': os.path.join(dirhmu, '_' + Cnt['HMULIST'][i - 1].split('.')[0] + '.nii.gz')}
         log.info('creating mu-map for: {}'.format(Cnt['HMULIST'][i - 1]))
         A = np.diag(np.append(10 * vs[::-1], 1))
