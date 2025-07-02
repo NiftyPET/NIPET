@@ -844,7 +844,7 @@ def hmu_voxsize(hdr):
 
 def hmu_origin(hdr):
     # pegular expression to find the origin
-    p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{1,10}')
+    p = re.compile(r'(?<=:=)\s*[-]*\d{1,5}[.]*\d{0,10}')
     # x: dim [1]
     i0 = hdr.find('$umap origin (pixels) [1]')
     i1 = i0 + hdr[i0:].find('\n')
@@ -862,7 +862,7 @@ def hmu_origin(hdr):
 
 def hmu_offset(hdr):
     # regular expression to find the origin
-    p = re.compile(r'(?<=:=)\s*\d{1,5}[.]\d{1,10}')
+    p = re.compile(r'(?<=:=)\s*[-]*\d{1,5}[.]*\d{0,10}')
     if hdr.find('$origin offset') > 0:
         # x: dim [1]
         i0 = hdr.find('$origin offset (mm) [1]')
