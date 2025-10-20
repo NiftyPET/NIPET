@@ -406,11 +406,20 @@ def mmrchain(
         # trim PET and upsample
         if fout is None:
             fout
-        petu = nimpa.imtrimup(dynim, affine=image_affine(datain, Cnt), scale=trim_scale,
-                              int_order=trim_interp, outpath=petimg, fname=fnm, fcomment=fcomment,
-                              fcomment_pfx=fout + '_', store_img=trim_store,
-                              store_img_intrmd=store_img_intrmd, memlim=trim_memlim,
-                              verbose=log.getEffectiveLevel())
+        petu = nimpa.imtrimup(
+            dynim,
+            affine=image_affine(datain, Cnt),
+            flip=(-1,1,1), # assuming standard
+            trnsp=(2, 1, 0), # assuming standard post reconstruction
+            scale=trim_scale,
+            int_order=trim_interp,
+            outpath=petimg,
+            fname=fnm,
+            fcomment=fcomment,
+            fcomment_pfx=fout + '_', store_img=trim_store,
+            store_img_intrmd=store_img_intrmd,
+            memlim=trim_memlim,
+            verbose=log.getEffectiveLevel())
 
         output.update({
             'trimmed': {'im': petu['im'], 'fpet': petu['fimi'], 'affine': petu['affine']}})
