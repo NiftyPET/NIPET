@@ -147,6 +147,11 @@ def mmrchain(
         fout = os.path.basename(fout)
         # > get rid of extension
         fout = fout.split('.')[0]
+    else:
+        if 'lm_dcm' in datain:
+            fout = os.path.basename(datain['lm_dcm']).split('.')[0]
+        else:
+            fout = 'NiftyPET_recon'
 
     # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join(fmudir, 'registered')
