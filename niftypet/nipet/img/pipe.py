@@ -147,11 +147,6 @@ def mmrchain(
         fout = os.path.basename(fout)
         # > get rid of extension
         fout = fout.split('.')[0]
-    else:
-        if 'lm_dcm' in datain:
-            fout = os.path.basename(datain['lm_dcm']).split('.')[0]
-        else:
-            fout = 'NiftyPET_recon'
 
     # folder for co-registered mu-maps (for motion compensation)
     fmureg = os.path.join(fmudir, 'registered')
@@ -393,6 +388,11 @@ def mmrchain(
     if ret_histo:
         output['hst'] = hsts
 
+
+    if fout is None:
+        fout = os.path.basename(recimg.fpet)[:8] + f'_t-{t0}-{t1}sec_itr-{itr}'
+
+
     # ----------------------------------------------------------------------
     # trim the PET image
     # images have to be stored for PVC
@@ -404,6 +404,8 @@ def mmrchain(
         elif 'lm_ima' in datain:
             fnm = os.path.basename(datain['lm_ima'])[:20]
         # trim PET and upsample
+        if fout is None:
+            fout
         petu = nimpa.imtrimup(dynim, affine=image_affine(datain, Cnt), scale=trim_scale,
                               int_order=trim_interp, outpath=petimg, fname=fnm, fcomment=fcomment,
                               fcomment_pfx=fout + '_', store_img=trim_store,
