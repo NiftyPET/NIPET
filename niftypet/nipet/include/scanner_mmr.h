@@ -117,6 +117,8 @@ struct Cnst {
   // float ICOSSTP;
 
   float ETHRLD;
+
+  float ZOOM; // zoom for changing the voxel size and dimensions
 };
 //<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>
 

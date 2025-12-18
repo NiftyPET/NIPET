@@ -238,10 +238,12 @@ void gpu_fprj(float *d_sn, float *d_im, float *li2rng, short *li2sn, char *li2no
     nrng_c = NRINGS;
     nil2r_c = NLI2R;
   }
+  
   // voxels in axial direction
-  vz0 = 2 * Cnt.RNG_STRT;
-  vz1 = 2 * (Cnt.RNG_END - 1);
-  nvz = 2 * nrng_c - 1;
+  vz0 = (int)Cnt.ZOOM * (2 * Cnt.RNG_STRT);
+  vz1 = (int)Cnt.ZOOM * (2 * (Cnt.RNG_END - 1));
+  nvz = (int)Cnt.ZOOM * (2 * nrng_c - 1);
+
   if (Cnt.LOG <= LOGDEBUG) {
     printf("i> detector rings range: [%d, %d) => number of  sinos: %d\n", Cnt.RNG_STRT,
            Cnt.RNG_END, snno);

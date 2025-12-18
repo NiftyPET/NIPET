@@ -276,6 +276,8 @@ static PyObject *frwd_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   Cnt.LOG = (char)PyLong_AsLong(pd_log);
   PyObject *pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
+  PyObject *pd_zoom = PyDict_GetItemString(o_mmrcnst, "zoom");
+  Cnt.ZOOM = (float)PyFloat_AsDouble(pd_zoom);
 
   /* Interpret the input objects as numpy arrays. */
   // axial LUTs:
@@ -471,6 +473,8 @@ static PyObject *back_prj(PyObject *self, PyObject *args, PyObject *kwargs) {
   Cnt.LOG = (char)PyLong_AsLong(pd_log);
   PyObject *pd_devid = PyDict_GetItemString(o_mmrcnst, "DEVID");
   Cnt.DEVID = (char)PyLong_AsLong(pd_devid);
+  PyObject *pd_zoom = PyDict_GetItemString(o_mmrcnst, "zoom");
+  Cnt.ZOOM = (float)PyFloat_AsDouble(pd_zoom);
 
   /* Interpret the input objects as numpy arrays. */
   // axial LUTs:
