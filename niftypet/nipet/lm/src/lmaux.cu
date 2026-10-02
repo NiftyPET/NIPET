@@ -128,7 +128,7 @@ void getLMinfo(char *flm, const Cnst Cnt) {
 
   // divide the data into data chunks
   // the default is to read 1GB to be dealt with all streams (default: 32)
-  int nchnk = 10 + (ele + ELECHNK - 1) / ELECHNK; // plus ten extra...
+  int nchnk = 30 + (ele + ELECHNK - 1) / ELECHNK; // plus ten extra...
   if (Cnt.LOG <= LOGINFO) printf("i> # chunks of data (initial):  %d\n\n", nchnk);
 
   if (Cnt.LOG <= LOGINFO) printf("i> # elechnk:  %d\n\n", ELECHNK);
